@@ -1,0 +1,119 @@
+NAME
+    App::Dochazka::REST - Dochazka REST server
+
+VERSION
+    Version 0.066
+
+SYNOPSIS
+    This is the top-level module of the Dochazka REST server. For a full
+    technical specification and explanation of what, why, and how, refer to
+    App::Dochazka::REST::Spec.
+
+        use App::Dochazka::REST;
+
+        ...
+
+DESCRIPTION
+    Om mane padme hum
+
+EXPORTS
+    This module provides the following exports:
+
+    `$REST' App::Dochazka::REST singleton object
+
+METHODS AND ROUTINES
+  `reset_db'
+    Drop and re-create a Dochazka database. Takes database name. Do not call
+    when connected to an existing database. Be very, _very_, _VERY_ careful
+    when calling this function.
+
+  init
+    Load site configuration, set up logging, and connect to the database.
+
+  init_no_db
+    Load site configuration and set up logging. Intended for use from the
+    `init' method as well as from App::Dochazka::REST unit tests that need
+    to connect to the pristine database using `connect_db_pristine'.
+
+    Takes an optional PARAMHASH which is passed to `$CELL->load'. The
+    App::Dochazka::REST distro sharedir is loaded as the first sitedir,
+    before any sitedir specified in the PARAMHASH is loaded. Call examples:
+
+        my $status = $REST->init_no_db;
+        my $status = $REST->init_no_db( verbose => 1 );
+        my $status = $REST->init_no_db( sitedir => '/etc/fooapp' );
+
+    (The first example should be sufficient.)
+
+  connect_db_pristine
+    Connect to a pristine database. This function should be used only for
+    newly created databases. Takes a PARAMHASH with 'dbname', 'dbuser', and
+    'dbpass'. For username and password, DBINIT_CONNECT_USER and
+    DBINIT_CONNECT_AUTH are used.
+
+  connect_db
+    Connect to a pre-initialized database and initialize site params. This
+    is the function that should be used in production. Takes database name.
+    For username and password, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS are used.
+
+  create_tables
+    Execute all the SQL statements contained in DBINIT_CREATE param
+
+  eid_of_root
+    Instance method. Returns EID of the 'root' employee.
+
+AUTHOR
+    Nathan Cutler, `<presnypreklad@gmail.com>'
+
+BUGS
+    Please report any bugs or feature requests to `bug-dochazka-rest at
+    rt.cpan.org', or through the web interface at
+    http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Dochazka-REST. The author
+    will be notified, and then you'll automatically be notified of progress
+    on your bug as he makes changes.
+
+SUPPORT
+    You can find documentation for this module with the perldoc command.
+
+        perldoc App::Dochazka::REST
+        perldoc App::Dochazka::REST::Spec
+
+    You can also look for information at:
+
+    * RT: CPAN's request tracker (report bugs here)
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=Dochazka-REST
+
+    * AnnoCPAN: Annotated CPAN documentation
+        http://annocpan.org/dist/Dochazka-REST
+
+ACKNOWLEDGEMENTS
+LICENSE AND COPYRIGHT
+    Copyright (c) 2014, SUSE LLC All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+    3. Neither the name of SUSE LLC nor the names of its contributors may be
+    used to endorse or promote products derived from this software without
+    specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+    IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+    TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+    PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+    TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+    LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+

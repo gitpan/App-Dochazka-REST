@@ -1,0 +1,123 @@
+# ************************************************************************* 
+# Copyright (c) 2014, SUSE LLC
+# 
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+# 
+# 3. Neither the name of SUSE LLC nor the names of its contributors may be
+# used to endorse or promote products derived from this software without
+# specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ************************************************************************* 
+
+package App::Dochazka::REST::Util::Timestamp;
+
+use 5.012;
+use strict;
+use warnings FATAL => 'all';
+use DBI;
+use Time::Piece;
+use Time::Seconds;
+
+
+
+
+=head1 NAME
+
+App::Dochazka::REST::Util::Timestamp - date/time-related utilities 
+
+
+
+
+=head1 VERSION
+
+Version 0.066
+
+=cut
+
+our $VERSION = '0.066';
+
+
+
+
+=head1 SYNOPSIS
+
+Date/time-related utilities
+
+    use App::Dochazka::REST::Util::Timestamp;
+
+    ...
+
+
+=head1 EXPORTS
+
+This module provides the following exports:
+
+=over 
+
+=item C<$today> (string), e.g. '2014-07-09 00:00:00'
+
+=item C<$yesterday> (string), e.g. '2014-07-08 00:00:00'
+
+=item C<$tomorrow> (string), e.g. '2014-07-10 00:00:00'
+
+=back
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( $today $yesterday $tomorrow );
+our $t = localtime;
+our $today = $t->ymd . ' 00:00:00';
+our $yesterday = ($t - ONE_DAY)->ymd . ' 00:00:00';
+our $tomorrow = ($t + ONE_DAY)->ymd . ' 00:00:00';
+
+
+
+=head1 FUNCTIONS
+
+
+=head2 subtract_days
+
+Given a timestamp and an integer n, subtract n days.
+
+=cut
+
+sub subtract_days {
+    my ( $ts, $n ) = @_;
+    my $n_days = "$n days";
+    my $sql = "SELECT TIMESTAMP ? - INTERVAL ?";
+    my $sth = prepare( $sql );
+    $sth->execute( $ts, $n_days );
+    my ( $result ) = $sth->fetchrow_array;
+    return $result;
+}
+
+=head1 AUTHOR
+
+Nathan Cutler, C<< <presnypreklad@gmail.com> >>
+
+=cut 
+
+1;
+

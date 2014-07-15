@@ -1,0 +1,402 @@
+Revision history for Dochazka-REST
+
+0.001  2014-06-07 22:35 CEST
+- start distro using 'module-starter'
+- bring in useful scripts from perl-CELL project (release.sh, dev.sh,
+  test.sh)
+- set license to BSD-3-Clause
+- Spec.pm: add technical specification (current state)
+- add empty shells: bin/dochazka-rest, REST.pm, Activity.pm, Employee.pm,
+  History.pm, Interval.pm, Lock.pm, Policy.pm, Status.pm
+- generate a proper README
+
+0.002  2014-06-07 23:07 CEST
+- tweak release script
+- update MANIFEST (put files in alphabetical order)
+
+0.003  2014-06-09 10:53 CEST
+- move outdated top-level README to doc/
+- add a new top-level README stub
+- git repo cleanup
+- t/001-init.t: test for server initialization routine
+- REST.pm: start implementing init routine
+
+0.004  2014-06-09 18:23 CEST
+- REST.pm: produce a more convincing 'init' method
+- t/000-depends.t: check dependencies
+- t/001-init.t: unit tests for the 'init' method
+- t/pod-coverage.t: check pod only in taxative list of modules (i.e.,
+  ignore config/*.pm)
+
+0.005  2014-06-11 10:01 CEST
+- REST.pm: add $REST singleton, flesh out init routine
+
+0.006  2014-06-13 15:38 CEST
+- add project-web.sh script to update http://dochazka.sourceforge.net
+  with contents of Spec.pm
+- Spec.pm: work on "intervals" table -- use tsrange and EXCLUDE constraint
+  with gist index to exclude overlapping intervals for a given employee
+- config/dbinit_Config.pm: fix data_source in DBINIT_CONNECT
+- REST.pm: flesh out initialization routine
+- t/001-init.t: improve initialization routine unit test
+- add missing distro files to MANIFEST
+- add auto-generated README file to top-level git repo
+- get rid of old OBS CI stuff (moved to archive)
+
+0.007  2014-06-13 21:59 CEST
+- config/dbinit_Config.pm: revamp
+- REST.pm: add reset_db routine, make separate connect_db routine that can
+  connect to any database, add create_tables routine
+- t/001-init.t: unit test now drops and re-creates the testing database
+
+0.008  2014-06-19 09:34 CEST
+- REST.pm: minor cleanup in connect_db(), init now optionally takes verbose
+  parameter (and passes it to $CELL->load)
+
+0.009  2014-06-19 15:51 CEST
+- status-strings.pod: Status string verbiage removed from Spec.pm because
+  we will not implement status strings in version 1.0
+- dbinit_Config.pm: add lots more SQL
+- Spec.pm: try to keep documentation in stride with dbinit_Config.pm
+
+0.010  2014-06-19 22:38 CEST
+- add more SQL to dbinit_Config.pm
+- Spec.pm: keep documenting the table definitions
+
+0.011  2014-06-21 16:51 CEST
+- dbinit_Config.pm: AutoCommit default to 1, add nicks table, add
+  current_priv SQL function
+- employee_Config.pm: add configuration file just for employee 
+- t/001-init.t: cleanup
+- t/002-insert-employee.t: new tests
+- REST.pm: improve create_tables
+- Spec.pm: blearily try to write employee-related verbiage
+
+0.012  2014-07-04 02:08 CEST
+- t/: add license boilerplate
+- t/: rename 002-insert-employee.t to 002-nick.t
+- start writing App::Dochazka::REST::Model::Nick
+- release.sh: run bash-ism with bash instead of sh
+
+0.013  2014-07-04 10:17 CEST
+- Nick.pm: make it a little less naive
+- t/002-nick.t: add tests
+
+0.014  2014-07-04 13:37 CEST
+- t/002-nick.t: test for non-existent IDs and nicks
+
+0.015  2014-07-04 16:19 CEST
+- got rid of Nick as a separate entity after figuring out that a simple
+  UNIQUE constraint in the employees table does what I needed
+- create_tables now adds superuser employee with admin privs
+
+0.016  2014-07-06 02:37 CEST
+- Dochazka_Message_en.conf: add "db not reachable" error message
+- break employeehistory table into schedhistory and privhistory
+- add a second round of dbinit SQL statements to ensure that the root
+  employee is immutable
+- Employee.pm: refactoring (WIP)
+- Spec.pm: update verbiage
+- stored procedure 'current_priv' now returns 'passerby' if current priv
+  level cannot be determined
+- t/002-root.t: new tests for immutable root employee
+- t/003-current-priv.t: new tests for current_priv stored procedure
+- t/004-employee.t: skip tests for Employee.pm (WIP)
+
+0.016  2014-07-06 02:41 CEST
+- fix MANIFEST
+
+0.017  2014-07-06 22:17 CEST
+- refactored Employee.pm
+- t/004-employee.pm: new unit tests for Employee.pm
+- dbinit_Config.pm: add remark field to employees table
+
+0.018  2014-07-07 12:30 CEST
+- config/Dochazka_Config.pm: add comments
+- config/employee_Config.pm: add SQL_EMPLOYEE_CURRENT_PRIV
+- Employee.pm: _load now resets employee object, start working on ACL
+  checks
+- t/004-employee.t: finished refactoring old tests
+
+0.019  2014-07-07 14:44 CEST
+- REST.pm: implement connect_db_pristine and set DOCHAZKA_EID_OF_ROOT
+  site param
+- t/: adjust tests for same
+
+0.020  2014-07-07 16:08 CEST
+- Employee.pm: implement UPDATE functionality
+
+0.021  2014-07-07 16:48 CEST
+- Employee.pm: add accessor functions
+- t/004-employee.pm: add tests for accessors
+
+0.022  2014-07-07 19:23 CEST
+- remove Policy.pm as it is only a stub and might not be needed
+- config/dbinit_Config.pm: make a generalized priv_at_timestamp function
+  and change current_priv into a wrapper around that function
+- Priv.pm: move priv_by_eid to the new Priv.pm module
+- Employee.pm: add 'priv' accessor method, edit POD a little
+
+0.023  2014-07-07 20:35 CEST
+- rename Priv.pm to Privhistory.pm
+- Privhistory.pm: start working on insert_priv
+- t/005-privhistory.t: start implementing privhistory tests
+
+0.024  2014-07-07 21:27 CEST
+- fix some nitpicks
+
+0.025  2014-07-08 01:30 CEST
+- employee_Config.pm, Employee.pm: eliminate double DBI call by
+  including call to current_priv() in SELECT statement
+- add stub Timestamp.pm for timestamp-related utilities
+- dbinit_Config.pm: make priv_at_timestamp use '<=' instead of '<'
+- Privhistory.pm, t/005-privhistory.t: add privhistory_by_eid
+
+0.026  2014-07-08 10:46 CEST
+- Employee.pm: make _load return DOCHAZKA_RECORDS_FETCHED when SELECT
+  succeeds
+
+0.027  2014-07-08 12:35 CEST
+- Employee.pm, t/004-employee.pm: fix buggy eid_by_nick function, export
+  it, add test for it
+- Spec.pm: write verbiage for employee Perl API current state
+
+0.028  2014-07-08 22:51 CEST
+- Privhistory.pm: implementing OO interface to privhistory table
+- Factory.pm: add new module under Util/ with 'makereset' function
+- Employee.pm: use new makereset function
+
+0.029  2014-07-08 23:46 CEST
+- Privhistory.pm: use the new function 'makereset', move priv_by_eid to
+  Factory.pm (not sure if it really belongs here, though)
+- Factory.pm: refactor makereset
+
+0.030  2014-07-09 00:29 CEST
+- Factory.pm, Employee.pm, Privhistory.pm: add and use 'make_spawn'
+- t/006-reset.t: add test demonstrating how spawn "validates" the
+  attributes provided in PARAMHASH
+- Privhistory.pm no longer exports any functions
+
+0.031  2014-07-09 01:32 CEST
+- t/005-privhistory.t: add unit tests
+- Privhistory.pm: make 'load' trigger warning if nothing found
+
+0.032  2014-07-09 12:09 CEST
+- make privhistory SQL statements return int_id where appropriate
+- t/005-privhistory.t: add some int_id tests
+- start working on a delete method for privhistory objects
+
+0.033  2014-07-09 14:41 CEST
+- dbinit_Config.pm: fix valid_sched_intvl trigger, add translate_interval
+  function
+- Spec.pm: fix date in sample schedule tsrange (year was wrong)
+- rename privhistory_Config.pm to priv_Config.pm
+
+0.034  2014-07-09 15:07 CEST
+- schedule_Config.pm: add SQL_SCHEDULE_INSERT param
+- add stubby Schedule.pm and Schedintvl.pm in lib/Dochazka/REST/Model
+
+0.035  2014-07-09 23:12 CEST
+- dbinit_Config.pm: rename translate_interval to translate_schedintvl,
+  merge 'schedhistory' table into 'schedules'
+- schedule_Config.pm: add definitions for SQL_SCHEDINTVL_INSERT and
+  SQL_SCHEDINTVL_SELECT
+- add Schedintvl.pm, remove Schedhistory.pm
+- Spec.pm: update schedule verbiage to reflect table structure change
+- Interval.pm: make a stub class for activity intervals
+- t/007-interval.t: add stub unit-test file for interval objects
+
+0.036  2014-07-10 00:48 CEST
+- Model/Schedule.pm: fix up boilerplate, flesh out insert method
+- Util/Timestamp.pm: add qw( $today $yesterday $tomorrow ) exports
+- t/005-privhistory.t: import $today, $yesterday from Timestamp.pm
+- rename t/007-interval.t to t/007-schedule.t 
+- t/007-schedule.t: import $today, $yesterday from Timestamp.pm, add tests for
+  insert method
+
+0.037  2014-07-10 15:57 CEST
+- begin implementing new schedules concept (table structure and other
+  database artifacts, objects, object methods, unit tests)
+- rename Schedintvl.pm to Schedintvls.pm because the object will contain
+  all the intervals that make up a single schedule
+- for now, the new schedules concept is described in tickets/tickets
+  pending re-write of schedule-related verbiage in Spec.pm
+- Factory.pm: make_reset function now calls 'populate' method _iff_ there
+  is one
+- Schedintvls.pm now uses populate method to automatically load a new
+  "scratch SID" every time an object is spawned/reset
+
+0.038  2014-07-10 16:32 CEST
+- Spec.pm: adjust verbiage to accommodate revamped schedule logic
+
+0.039  2014-07-10 17:31 CEST
+- Spec.pm: re-organize sections, add note concerning 'jsonb' type in
+  PostgreSQL 9.4
+- re-generate project web page http://dochazka.sourceforget.net
+
+0.040  2014-07-11 10:03 CEST
+- Schedintvls, t/007-schedule.t: implement basic insert method, start working
+  on a translate method
+- dbinit_Config.pm, schedule_Config.pm: fix translate_schedintvl
+
+0.041  2014-07-11 15:38 CEST
+- schedule_Config.pm: develop SQL_SCHEDINTVLS_SELECT statement
+- Schedintvls.pm: rename translate to load, load now succesfully converts
+  tsranges array to our more-readable schedule format (but doesn't yet sort
+  the array), added json method, started work on sort method
+- t/007-schedule.t: add tests for $schedintvls->load
+
+0.042  2014-07-11 20:27 CEST
+- schedule_Config.pm: add ORDER BY to SQL_SCHEDINTVLS_SELECT, so the intervals
+  come out of the database pre-sorted
+- Schedintvls.pm: get rid of sort method
+- t/007-schedule.t: insert schedule intervals in reverse chronological order 
+  to test sorting functionality
+
+0.043  2014-07-11 22:40 CEST
+- dbinit_Config.pm: add remark field to schedules table, fix a small bug
+  (round_effective trigger applies to schedhistory table, not schedules)
+- schedule_Config.pm: tweak param names, fix SQL_SCHEDULE_INSERT, add
+  SQL_SCHEDULE_SELECT
+- Schedule.pm: fix attributes, revamp insert method
+- t/007-schedule.t: add seven more unit tests
+
+0.044  2014-07-12 22:08 CEST
+- schedule_Config.pm: add SQL_SCHEDHISTORY_INSERT,
+  SQL_SCHEDHISTORY_SELECT_ARBITRARY, and SQL_SCHEDHISTORY_SELECT_CURRENT
+- Schedintvls.pm: add debugging code to populate method
+- t/007-schedule.pm: add unit tests for $schedhistory->insert,
+  $schedhistory->load
+
+0.045  2014-07-13 09:26 CEST
+- schedule_Config.pm: make two schedule SELECT statements: "select sid
+  given schedule" and "select schedule given sid"
+- Schedule.pm: get rid of load method, add get_json exported function
+- t/007-schedule.pm: add tests for get_json
+
+0.046  2014-07-13 10:20 CEST
+- Schedintvls.pm: cleanup; put translated intervals into a separate attribute,
+  $self->{schedule}, instead of overwriting $self->{intvls}
+
+0.047  2014-07-13 11:08 CEST
+- schedule_Config.pm, Schedintvls.pm, t/007-schedule.t: implement and test
+  delete method for Schedintvls objects
+- Spec.pm: clarifications
+
+0.048  2014-07-13 11:46 CEST
+- Spec.pm: write up the "Privilege levels in the Perl API" section
+
+0.049  2014-07-13 13:12 CEST
+- tickets/tickets: add new tickets, clean up old tickets
+- regenerate project webpage
+- REST.pm: rename init -> init_no_db and make a new 'init' that "does
+  everything", including connecting to the database
+- t/: adjust tests to use the new 'init' and 'init_no_db' methods
+
+0.050  2014-07-13 16:15 CEST
+- dbinit_Config.pm: implement schedule_at_timestamp and current_schedule stored
+  procedures
+- employee_Config.pm: have SELECTs get employee's current_schedule
+- t/007-schedule.t: test for presence of schedule attribute in employee object
+
+0.051  2014-07-13 16:55 CEST
+- employee_Config.pm: add SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP and
+  SQL_EMPLOYEE_CURRENT_SCHEDULE
+- REST.pm: add 'eid_of_root' method
+- Employee.pm: add 'schedule' accessor
+- Factory.pm: add 'schedule_by_eid' function
+- t/002-root.t: add several 'eid_of_root' unit tests 
+- t/004-employee.t: clean up, add more tests
+
+0.052  2014-07-13 20:27 CEST
+- Spec.pm: update to reflect current state of code
+- dbinit_Config.pm, Schedintvls.pm, t/007-schedule.t: minor cleanup
+
+0.053  2014-07-13 22:24 CEST
+- dbinit_Config.pm: add activities and intervals tables
+- Spec.pm: work on Activities, Intervals, and Locks sections
+
+0.054  2014-07-14 10:08 CEST
+- Activity.pm: adapt existing code from Employee.pm
+- rename 'name' column to 'code' in 'activities' table
+- activity_Config.pm: new file
+
+0.055  2014-07-14 12:10 CEST
+- Spec.pm: change L<...> to C<...> to avoid pod2html's annoying practice of
+  rendering the links as "the ... manpage"
+- bin/dochazka-rest: add license boilerplate
+- moved 'cud' subroutine into new module App::Dochazka::REST::Model::Shared
+  to avoid code duplication in Activity.pm and Employee.pm
+- t/008-activity.t: add stub for activity-related unit tests
+- config/Dochazka_Message_en.conf: add a DOCHAZKA_DBI_ERR message for
+  reporting DBI errors
+- config/employee_Config.pm: add SQL_EMPLOYEE_DELETE
+
+0.056  2014-07-14 12:43 CEST
+- Spec.pm: cleanup
+- config/Dochazka_Config.pm: add DOCHAZKA_ACTIVITY_DEFINITIONS
+- REST.pm: have 'create_tables' insert initial set of activities
+
+0.057  2014-07-14 12:59 CEST
+- config/Dochazka_Messages.conf: remove colon from DOCHAZKA_DBI_ERR
+- model/Shared.pm: fix bug in cud (wasn't returning err status on DBI err)
+- t/008-activity.t: add lots of unit tests
+
+0.058  2014-07-14 15:59 CEST
+- activity_Config.pm: add 'upper' safeguards to make sure no lower-case
+  activity code makes it into the database, yet to accept lower-case in 
+  SELECTs
+- dbinit_Config.pm: add 'code_to_upper' trigger on activities table,
+  split off valid_intvl from valid_schedintvl so it can be applied to 
+  both 'schedintvls' and 'intervals'
+- Spec.pm: update to reflect latest code
+- t/008-activity.t: add more unit tests
+
+0.059  2014-07-14 16:24 CEST
+- Privhistory.pm: block in 'get_privhistory' function
+- rename t/008-activity.t to t/009-activity.t
+- add stub t/008-schedintvls.t for testing "illegal" schedintvls
+
+0.060  2014-07-14 20:38 CEST
+- REST.pm: put 'create_tables' SQL incantations into a transaction
+- Schedintvls: put 'insert' SQL incantations into a transaction that
+  gets rolled back if any of the intervals are bad
+- t/008-schedintvls.t: test with bogus intervals, test that no 
+  intervals are inserted if any of them are bad
+
+0.061  2014-07-15 11:06 CEST
+- t/001-init.t: make diagnostic messages more useful
+- config/sql/interval_Config.pm: new SQL for use in Interval.pm
+- Interval.pm: start developing the stub into something useful
+- dochazka_Config.pm: add DOCHAZKA_ADVANCE_INTERVALS_MAX_DAYS
+- dbinit_Config.pm: rename intervals.int_id to intervals.iid (Interval ID)
+- REST.pm: revamp 'try' code block in 'create_tables'
+- Activity.pm, Employee.pm: use new best practice for 'cud' calls
+- Privhistory.pm, Schedhistory.pm: rewrite insert and delete methods to use 'cud'
+- Schedule.pm: rewrite insert method to use 'cud'
+- Shared.pm: add 'open_transaction' and 'close_transaction', revamp 'cud' to use
+  Try::Tiny
+
+0.062  2014-07-15 13:17 CEST
+- make adjustments so test suite succeeds even if PostgreSQL server not
+  present
+
+0.063  2014-07-15 16:56 CEST
+- dbinit_Config.pm, REST.pm: get rid of DBINIT_AUTOCOMMIT
+- dbinit_Config.pm, Dochazka_Config.pm, REST.pm: use DOCHAZKA_DBNAME
+  instead of DBINIT_DBNAME
+- REST.pm: reset_db now drops/re-creates 'dochazka' user and grants all
+  dochazka database privileges to that user, 'create_tables' runs as 
+  user 'dochazka'
+- REST.pm: connect_db_pristine takes full PARAMHASH
+
+0.064  2014-07-15 17:48 CEST
+- more modifications to ensure test suite runs cleanly on build workers and
+  other automatons
+
+  2014-07-15 18:00 CEST
+- renamed to App::Dochazka::REST
+
+0.066  2014-07-15 18:02 CEST
+- fix current_ver.plx and prepare release script for CPAN
+

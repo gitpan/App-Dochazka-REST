@@ -1,0 +1,258 @@
+# ************************************************************************* 
+# Copyright (c) 2014, SUSE LLC
+# 
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+# 
+# 3. Neither the name of SUSE LLC nor the names of its contributors may be
+# used to endorse or promote products derived from this software without
+# specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ************************************************************************* 
+#
+# basic unit tests for schedules and schedule intervals
+#
+
+#!perl
+use 5.012;
+use strict;
+use warnings FATAL => 'all';
+
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
+use Data::Dumper;
+use DBI;
+use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Model::Schedule qw( get_json );
+use App::Dochazka::REST::Model::Schedhistory;
+use App::Dochazka::REST::Model::Schedintvls;
+use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
+use Scalar::Util qw( blessed );
+use Test::JSON;
+use Test::More; 
+
+my $status = $REST->init( sitedir => '/etc/dochazka' );
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+} else {
+    plan tests => 70;
+}
+
+my $dbh = $REST->{dbh};
+my $rc = $dbh->ping;
+is( $rc, 1, "PostgreSQL database is alive" );
+
+# spawn and insert employee object
+my $emp = App::Dochazka::REST::Model::Employee->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    nick => 'mrsched',
+    remark => 'SCHEDULE TESTING OBJECT',
+);
+$status = $emp->insert;
+ok( $status->ok, "Schedule testing object inserted" );
+ok( $emp->eid > 0, "Schedule testing object has an EID" );
+
+# insert some intervals into the scratch table
+
+# spawn a schedintvls ("scratch schedule") object
+my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+ok( ref($schedintvls), "object is a reference" );
+ok( blessed($schedintvls), "object is a blessed reference" );
+is( $schedintvls->{dbh}, $dbh, "database handle is in the object" );
+ok( $schedintvls->{acleid} > 0, "There is an ACL EID" );
+ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" ); 
+ok( $schedintvls->{scratch_sid} > 0, "Scratch SID is > 0" ); 
+
+# insert a schedule (i.e. a list of schedintvls)
+{ 
+    my $yesterday = $yesterday;
+    my $today = $today;
+    my $tomorrow = $tomorrow;
+    $yesterday =~ s/ 00:00:00//;
+    $today =~ s/ 00:00:00//;
+    $tomorrow =~ s/ 00:00:00//;
+
+    $schedintvls->{intvls} = [
+        "[$tomorrow 12:30, $tomorrow 16:30)",
+        "[$tomorrow 08:00, $tomorrow 12:00)",
+        "[$today 12:30, $today 16:30)",
+        "[$today 08:00, $today 12:00)",
+        "[$yesterday 12:30, $yesterday 16:30)",
+        "[$yesterday 08:00, $yesterday 12:00)",
+    ];
+}
+
+# Insert all the schedintvls in one go
+$status = $schedintvls->insert;
+diag( $status->text ) unless $status->ok;
+ok( $status->ok, "OK scratch intervals inserted OK" );
+ok( $schedintvls->scratch_sid, "OK there is a scratch SID" );
+is( scalar @{ $schedintvls->{intvls} }, 6, "Object now has 6 intervals" );
+
+# Load the schedintvls, translating them as we go
+$status = $schedintvls->load;
+ok( $status->ok, "OK scratch intervals translated OK" );
+is( scalar @{ $schedintvls->{intvls} }, 6, "Still have 6 intervals" );
+is( scalar @{ $schedintvls->{schedule} }, 6, "And now have 6 translated intervals as well" );
+like( $status->code, qr/6 rows/, "status code says 6 rows" );
+like( $status->text, qr/6 rows/, "status code says 6 rows" );
+ok( exists $schedintvls->{schedule}->[0]->{high_time}, "Conversion to hash OK" );
+is_valid_json( $schedintvls->json );
+
+# Now we can insert the JSON into the schedules table
+my $schedule = App::Dochazka::REST::Model::Schedule->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    schedule => $schedintvls->json,
+    remark => 'TESTING',
+);
+$status = $schedule->insert;
+ok( $status->ok, "Schedule insert OK" );
+ok( $schedule->sid > 0, "There is an SID" );
+is_valid_json( $schedule->schedule );
+is( $schedule->remark, 'TESTING' );
+
+# And now we can delete the schedintvls object and its associated database rows
+$status = $schedintvls->delete;
+ok( $status->ok, "scratch intervals deleted" );
+like( $status->text, qr/6 records/, "Six records deleted" );
+
+# Make a bogus schedintvls object and attempt to delete it
+my $bogus_intvls = App::Dochazka::REST::Model::Schedintvls->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+$status = $bogus_intvls->delete;
+is( $status->level, 'WARN', "Could not delete bogus intervals" );
+
+# Attempt to re-insert the same schedule
+my $sid_copy = $schedule->sid;        # store a local copy of the SID
+my $sched_copy = $schedule->schedule; # store a local copy of the schedule (JSON)
+$schedule->reset;		      # reset object to factory settings
+$schedule->{schedule} = $sched_copy;  # set up object to "re-insert" the same schedule
+is( $schedule->{sid}, undef, "SID Is undefined at this point" );
+$status = $schedule->insert;
+ok( $status->ok );
+is( $schedule->{sid}, $sid_copy );    # SID is unchanged
+
+# attempt to insert the same schedule string in a completely 
+# new schedule object
+my ( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedules', undef );
+is( $count, 1, "schedules row count is 1" );
+my $schedule2 = App::Dochazka::REST::Model::Schedule->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    schedule => $sched_copy,
+    remark => 'DUPLICATE',
+);
+is_valid_json( $schedule2->schedule, "String is valid JSON" );
+$status = $schedule2->insert;
+ok( $schedule2->sid > 0, "SID was assigned" );
+ok( $status->ok, "Schedule insert OK" );
+is( $schedule2->sid, $sid_copy, "But SID is the same as before" );
+( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedules', undef );
+is( $count, 1, "and schedules row count is still 1" );
+
+# tests for get_json function
+my $json = get_json( $dbh, $sid_copy );
+is_valid_json( $json );
+is( get_json( $dbh, 994), undef, "Non-existent SID" );
+
+# Now that we finally have the schedule safely in the database,
+# we can assign it to the employee (Mr. Sched) by inserting a record 
+# in the schedhistory table
+my $schedhistory = App::Dochazka::REST::Model::Schedhistory->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    eid => $emp->{eid},
+    sid => $schedule->{sid},
+    effective => $today,
+    remark => 'TESTING',
+);
+ok( blessed( $schedhistory ), "schedhistory object is an object" );
+
+# test schedhistory accessors
+is( $schedhistory->eid, $emp->{eid} );
+is( $schedhistory->sid, $schedule->{sid} );
+is( $schedhistory->effective, $today );
+is( $schedhistory->remark, 'TESTING' );
+
+$status = undef;
+$status = $schedhistory->insert;
+ok( $status->ok, "OK schedhistory insert OK" );
+ok( defined( $schedhistory->int_id), "schedhistory object has int_id" );
+ok( $schedhistory->int_id > 0, "schedhistory object int_id is > 0" );
+is( $schedhistory->eid, $emp->{eid} );
+is( $schedhistory->sid, $schedule->{sid} );
+is( $schedhistory->effective, $today );
+is( $schedhistory->remark, 'TESTING' );
+
+# and now Mr. Sched's employee object should contain the schedule
+my $mrsched = App::Dochazka::REST::Model::Employee->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+$status = $mrsched->load_by_eid( $emp->{eid} );
+ok( $status->ok );
+is_valid_json( $mrsched->{schedule} );
+
+# try to load the same schedhistory record into an empty object
+my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+ok( blessed( $sh2 ) );
+$status = undef;
+$status = $sh2->load( $emp->eid ); # get the current record
+ok( $status->ok );
+is( $sh2->int_id, $schedhistory->int_id );
+is( $sh2->eid, $schedhistory->eid);
+is( $sh2->sid, $schedhistory->sid);
+is( $sh2->effective, $schedhistory->effective);
+is( $sh2->remark, $schedhistory->remark);
+# 
+# Tomorrow this same schedhistory record will still be valid
+$sh2->reset;
+$status = $sh2->load( $emp->eid, $tomorrow );
+ok( $status->ok );
+is( $sh2->int_id, $schedhistory->int_id );
+is( $sh2->eid, $schedhistory->eid);
+is( $sh2->sid, $schedhistory->sid);
+is( $sh2->effective, $schedhistory->effective);
+is( $sh2->remark, $schedhistory->remark);
+
+# but it wasn't valid yesterday
+$sh2->reset;
+$status = $sh2->load( $emp->eid, $yesterday );
+ok( $status->not_ok );
+is( $sh2->int_id, undef );
+is( $sh2->eid, undef );
+is( $sh2->sid, undef );
+is( $sh2->effective, undef );
+is( $sh2->remark, undef );
+
