@@ -29,48 +29,44 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-
-# -----------------------------------
-# Dochazka-REST
-# -----------------------------------
-# interval_Config.pm
 #
-# configuration parameters related to activity intervals
-# -----------------------------------
-
-# 
-set( 'SQL_INTERVAL_SELECT_BY_IID', q/
-      SELECT iid, eid, aid, intvl, long_desc, remark
-      FROM activities WHERE iid = ?
-      / );
-
+# unit tests demonstrating how to compare two tsrange strings for equality
+# using App::Dochazka::REST::Util::Timestamp::tsrange_equal
 #
-set( 'SQL_INTERVAL_INSERT', q/
-      INSERT INTO intervals
-                (eid, aid, intvl, long_desc, remark)
-      VALUES    (?,   ?,   ?,     ?,         ?) 
-      RETURNING  iid, eid, aid, intvl, long_desc, remark
-      / );
 
-#
-set( 'SQL_INTERVAL_UPDATE', q/
-      UPDATE intervals SET eid = ?, aid = ?, intvl = ?, long_desc = ?, remark = ?
-      WHERE iid = ?
-      RETURNING  iid, eid, aid, intvl, long_desc, remark
-      / );
-
-#
-set( 'SQL_INTERVAL_DELETE', q/
-      DELETE FROM intervals
-      WHERE iid = ?
-      RETURNING  iid, eid, aid, intvl, long_desc, remark
-      / );
-      
-
-# -----------------------------------
-# DO NOT EDIT ANYTHING BELOW THIS LINE
-# -----------------------------------
+#!perl
+use 5.012;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
-1;
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
+use Data::Dumper;
+use DBI;
+use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Model::Interval;
+use App::Dochazka::REST::Util::Timestamp qw( tsrange_equal );
+use Scalar::Util qw( blessed );
+use Test::More;
+
+my $status = $REST->init( sitedir => '/etc/dochazka' );
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+} else {
+    plan tests => 8;
+}
+
+my $dbh = $REST->{dbh};
+my $rc = $dbh->ping;
+is( $rc, 1, "PostgreSQL database is alive" );
+
+my $intvl1 = '[2014-07-15 08:00, 2014-07-15 12:00)';
+ok( tsrange_equal( $dbh, $intvl1, '[2014-07-15 8:0, 2014-07-15 12:0)' ) );
+ok( ! tsrange_equal( $dbh, $intvl1, '[2014-07-15 8:01, 2014-07-15 12:0)' ) );
+ok( ! tsrange_equal( $dbh, $intvl1, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
+my $intvl2 = '["2014-07-15 08:00", "2014-07-15 12:00")';
+ok( tsrange_equal( $dbh, $intvl1, $intvl2) );
+ok( tsrange_equal( $dbh, $intvl2, '[2014-07-15 8:0   , "2014-07-15 12:0")' ) );
+ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:01, 2014-07-15 12:00)' ) );
+ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );

@@ -51,11 +51,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -75,22 +75,34 @@ This module provides the following exports:
 
 =over 
 
-=item C<$today> (string), e.g. '2014-07-09 00:00:00'
+=item C<$today> (string), e.g. '2014-07-09'
 
-=item C<$yesterday> (string), e.g. '2014-07-08 00:00:00'
+=item C<$today_ts> (string), e.g. '2014-07-09 00:00:00'
 
-=item C<$tomorrow> (string), e.g. '2014-07-10 00:00:00'
+=item C<$yesterday> (string), e.g. '2014-07-08'
+
+=item C<$yesterday_ts> (string), e.g. '2014-07-08 00:00:00'
+
+=item C<$tomorrow> (string), e.g. '2014-07-10'
+
+=item C<$tomorrow_ts> (string), e.g. '2014-07-10 00:00:00'
+
+=item C<tsrange_equal> (function)
 
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( $today $yesterday $tomorrow );
+our @EXPORT_OK = qw( $today $today_ts $yesterday $yesterday_ts $tomorrow $tomorrow_ts tsrange_equal );
+
 our $t = localtime;
-our $today = $t->ymd . ' 00:00:00';
-our $yesterday = ($t - ONE_DAY)->ymd . ' 00:00:00';
-our $tomorrow = ($t + ONE_DAY)->ymd . ' 00:00:00';
+our $today = $t->ymd;
+our $today_ts = $today . ' 00:00:00';
+our $yesterday = ($t - ONE_DAY)->ymd;
+our $yesterday_ts = $yesterday . ' 00:00:00';
+our $tomorrow = ($t + ONE_DAY)->ymd;
+our $tomorrow_ts = $tomorrow . ' 00:00:00';
 
 
 
@@ -112,6 +124,28 @@ sub subtract_days {
     my ( $result ) = $sth->fetchrow_array;
     return $result;
 }
+
+
+=head2 tsrange_equal
+
+Given a database handle and two strings that might be equal tsranges, consult 
+the database and return the result (true or false).
+
+=cut
+
+sub tsrange_equal {
+    my ( $dbh, $tr1, $tr2 ) = @_;
+
+    my ( $result ) = $dbh->selectrow_array( 
+        'SELECT CAST( ? AS tsrange) = CAST( ? AS tsrange )',
+        undef,
+        $tr1, $tr2
+    );
+
+    return $result;
+}
+
+
 
 =head1 AUTHOR
 

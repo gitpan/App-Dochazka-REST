@@ -38,8 +38,7 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud );
-use App::Dochazka::REST::Util::Factory;
+use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid );
 use DBI qw(:sql_types);
 
 
@@ -54,11 +53,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -110,7 +109,7 @@ method.
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Util::Factory::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
 }
 
 
@@ -124,7 +123,7 @@ or to the state given in PARAMHASH.
 
 BEGIN {
     no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Util::Factory::make_reset( 
+    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
         'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark',
     );
 }
@@ -182,7 +181,7 @@ Accessor method.
 
 =head3 priv
 
-Accessor method. Wrapper for App::Dochazka::REST::Util::Factory::priv_by_eid
+Accessor method. Wrapper for App::Dochazka::REST::Model::Shared::priv_by_eid
 N.B.: for this method to work, the 'eid' attribute must be populated
 
 =cut
@@ -192,16 +191,16 @@ sub priv {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return App::Dochazka::REST::Util::Factory::priv_by_eid( $self->{dbh}, $self->{eid} );
+        return priv_by_eid( $self->{dbh}, $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return App::Dochazka::REST::Util::Factory::priv_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
+    return priv_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
 }
 
 
 =head3 schedule
 
-Accessor method. Wrapper for App::Dochazka::REST::Util::Factory::schedule_by_eid
+Accessor method. Wrapper for App::Dochazka::REST::Model::Shared::schedule_by_eid
 N.B.: for this method to work, the 'eid' attribute must be populated
 
 =cut
@@ -211,10 +210,10 @@ sub schedule {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return App::Dochazka::REST::Util::Factory::schedule_by_eid( $self->{dbh}, $self->{eid} );
+        return schedule_by_eid( $self->{dbh}, $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return App::Dochazka::REST::Util::Factory::schedule_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
+    return schedule_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
 }
 
 
@@ -337,7 +336,7 @@ sub _load {
     my ( $spec ) = keys %ARGS;
 
     # check ACL
-    return $CELL->status_err('DOCHAZKA_INSUFFICIENT_PRIV') unless $self->{aclpriv};
+    $self->{aclpriv} = priv_by_eid( $dbh, $self->{acleid} ) if not defined( $self->{aclpriv} );
     ACL: {
         last ACL if $self->{aclpriv} eq 'admin';
         last ACL if $self->{acleid} == $self->{eid} and ( 

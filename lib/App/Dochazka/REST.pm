@@ -41,7 +41,7 @@ use Carp;
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST::Model::Activity;
-use App::Dochazka::REST::Model::Shared qw( open_transaction close_transaction);
+#use App::Dochazka::REST::Model::Shared;
 use File::ShareDir;
 use Try::Tiny;
 
@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -348,7 +348,10 @@ Execute all the SQL statements contained in DBINIT_CREATE param
 sub create_tables {
     my $dbh = $REST->{dbh};
     my ( $status, $eid_of_root, $counter );
-    open_transaction( $dbh );
+
+    $dbh->{AutoCommit} = 0;
+    $dbh->{RaiseError} = 1;
+
     try {
         my $counter = 0;
 
@@ -398,7 +401,9 @@ sub create_tables {
         $dbh->rollback;
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-    close_transaction( $dbh );
+
+    $dbh->{AutoCommit} = 1;
+    $dbh->{RaiseError} = 0;
 
     return $status;
 }

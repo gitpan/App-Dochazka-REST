@@ -51,7 +51,7 @@ BEGIN {
     use_ok( 'App::Dochazka::REST::Model::Schedhistory' );
     use_ok( 'App::Dochazka::REST::Model::Schedintvls' );
     use_ok( 'App::Dochazka::REST::Model::Shared' );
-    use_ok( 'App::Dochazka::REST::Util::Factory' );
+    use_ok( 'App::Dochazka::REST::Util::Timestamp' );
 }
 
 #diag( "Testing App::Dochazka::REST $App::Dochazka::REST::VERSION, Perl $], $^X" );

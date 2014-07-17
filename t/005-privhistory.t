@@ -42,7 +42,7 @@ use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory;
-use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday );
+use App::Dochazka::REST::Util::Timestamp qw( $today_ts $yesterday_ts );
 use Scalar::Util qw( blessed );
 use Test::More;
 
@@ -69,7 +69,7 @@ ok( $status->ok, "Inserted Mr. Privhistory" );
 # assign an initial privilege level to the employee
 my $ins_eid = $emp->eid;
 my $ins_priv = 'active';
-my $ins_effective = $today;
+my $ins_effective = $today_ts;
 my $ins_remark = 'TESTING';
 my $priv = App::Dochazka::REST::Model::Privhistory->spawn(
               dbh => $dbh,
@@ -108,11 +108,11 @@ is( $priv->remark, $ins_remark );
 
 # get Mr. Priv History's priv level as of yesterday
 $priv->reset;
-$status = $priv->load( $emp->eid, $yesterday );
+$status = $priv->load( $emp->eid, $yesterday_ts );
 ok( $status->not_ok, "This shouldn't return any rows" );
 is( $status->level, 'WARN', "It should also trigger a warning" );
-is( $emp->priv( $yesterday ), 'passerby' );
-is( $emp->priv( $today ), 'active' );
+is( $emp->priv( $yesterday_ts ), 'passerby' );
+is( $emp->priv( $today_ts ), 'active' );
 
 # Get Mr. Privhistory's record again
 $priv->reset;

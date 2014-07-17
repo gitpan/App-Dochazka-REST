@@ -251,11 +251,21 @@ set( 'DBINIT_CREATE', [
 
     q/-- intervals
       CREATE TABLE intervals (
-          iid      serial PRIMARY KEY,
-          eid      integer REFERENCES employees (eid) NOT NULL,
-          aid      integer REFERENCES activities (aid) NOT NULL,
-          intvl    tsrange NOT NULL,
-          remar    text,
+          iid        serial PRIMARY KEY,
+          eid        integer REFERENCES employees (eid) NOT NULL,
+          aid        integer REFERENCES activities (aid) NOT NULL,
+          intvl      tsrange NOT NULL,
+          long_desc  text,
+          remark     text,
+          EXCLUDE USING gist (eid WITH =, intvl WITH &&)
+      )/,
+
+    q/-- locks
+      CREATE TABLE locks (
+          lid     serial PRIMARY KEY,
+          eid     integer REFERENCES Employees (EID),
+          intvl   tsrange NOT NULL,
+          remark  text,
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
 

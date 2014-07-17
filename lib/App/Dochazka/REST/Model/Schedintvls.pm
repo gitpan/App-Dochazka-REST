@@ -36,9 +36,9 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::Model::Shared; 
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Util::Factory;
 use DBI;
 use JSON;
 use Try::Tiny;
@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -97,7 +97,7 @@ Constructor. See Employee.pm->spawn for general comments.
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Util::Factory::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
 }
 
 
@@ -111,7 +111,7 @@ or to the state given in PARAMHASH.
 
 BEGIN {
     no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Util::Factory::make_reset( 
+    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
         'scratch_sid', 'intvls' 
     );
 }
@@ -225,10 +225,7 @@ sub insert {
     # the insert operation needs to take place within a transaction,
     # because all the intervals are inserted in one go
 
-    # setting AutoCommit to 0 starts the transaction
-    my $autocommit = $dbh->{AutoCommit};
     $dbh->{AutoCommit} = 0;
-    my $raiseerror = $dbh->{RaiseError};
     $dbh->{RaiseError} = 1;
 
     # the transaction
@@ -238,10 +235,8 @@ sub insert {
         # the next sequence value is already in $self->{scratch_sid}
         $sth->bind_param( 1, $self->{scratch_sid} );
 
-	# the intervals to be inserted are in $self->{intvls} (an arrayref):
-	# execute SQL_SCHEDINTVLS_INSERT for each element
+	# execute SQL_SCHEDINTVLS_INSERT for each element of $self->{intvls}
         map {
-                $log->info( "About to INSERT bogus interval $_" );
                 $sth->bind_param( 2, $_ );
                 $sth->execute;
             } @{ $self->{intvls} };
@@ -253,8 +248,8 @@ sub insert {
     };
 
     # restore AutoCommit and RaiseError
-    $dbh->{AutoCommit} = $autocommit;
-    $dbh->{RaiseError} = $raiseerror;
+    $dbh->{AutoCommit} = 1;
+    $dbh->{RaiseError} = 0;
 
     # done: all green
     return $status;
@@ -271,14 +266,36 @@ Returns a status object.
 
 sub delete {
     my ( $self ) = @_;
-    my $result = $self->{dbh}->do( $site->SQL_SCHEDINTVLS_DELETE,
-                                   undef,
-                                   $self->{scratch_sid} );
-    return $CELL->status_err( $self->{dbh}->errstr ) if $self->{dbh}->err;
-    return $CELL->status_warn( "No records to delete" ) if $result eq '0E0';
-    return $CELL->status_ok( "Deleted $result records for scratch_sid " . $self->{scratch_sid} )
-        if defined( $result ) and defined( $self->{scratch_sid} );
-    return $CELL->status_not_ok;
+    my $dbh = $self->{dbh};
+    my $status;
+
+    $dbh->{AutoCommit} = 0;
+    $dbh->{RaiseError} = 1;
+
+    try {
+        $dbh->{AutoCommit} = 0; 
+        my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_DELETE );
+        $sth->bind_param( 1, $self->scratch_sid );
+        $sth->execute;
+        $dbh->commit;
+        my $rows = $sth->rows;
+        if ( $rows > 0 ) {
+            $status = $CELL->status_ok( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
+        } elsif ( $rows == 0 ) {
+            $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
+        } else {
+            die( "\$sth->rows returned a weird value $rows" );
+        }
+    } catch {
+        $dbh->rollback;
+        #$log->err( 'DBI ERR' . $self->{dbh}->errstr );
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+
+    $dbh->{AutoCommit} = 1;
+    $dbh->{RaiseError} = 0;
+
+    return $status;
 }
 
 

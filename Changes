@@ -391,12 +391,50 @@ Revision history for Dochazka-REST
 - REST.pm: connect_db_pristine takes full PARAMHASH
 
 0.064  2014-07-15 17:48 CEST
-- more modifications to ensure test suite runs cleanly on build workers and
-  other automatons
+- more modifications to ensure test suite doesn't fail on build workers and
+  other automatons (CPAN Testers, Open Build Service)
 
-  2014-07-15 18:00 CEST
-- renamed to App::Dochazka::REST
+0.065  2014-07-15 18:00 CEST
+- rename to App::Dochazka::REST
 
 0.066  2014-07-15 18:02 CEST
 - fix current_ver.plx and prepare release script for CPAN
+
+0.067  2014-07-15 22:36 CEST
+- dbinit_Config.pm: fix 'intervals' table definition
+- interval_Config.pm, Interval.pm: add missing 'long_desc' everywhere
+- t/010-interval.t: start unit test file for activity intervals
+- move priv_by_eid and sched_by_eid functions from Factory.pm to Shared.pm,
+  populate 'aclpriv' attribute in each function that consults it, instead of in
+  Factory.pm->make_reset
+- POD cleanup
+- Util/Timestamp.pm, t/011-tsrange_equal.t: add tsrange_equal function
+- Util/Timestamp.pm, t/: split $today into two ($today and $today_ts), and
+  do the same for $yesterday and $tomorrow -- hopefully this makes the code
+  _less_ complicated
+
+0.068  2014-07-16 08:35 CEST
+- Build.PL: add DBD::Pg and DBI dependencies
+
+0.069  2014-07-16 22:11 CEST
+- move 'make_spawn' and 'reset' from Util/Factory.pm to Model/Shared.pm,
+  delete Util/Factory.pm
+
+0.070  2014-07-17 11:42 CEST
+- Shared.pm, REST.pm: get rid of open_transaction and close_transaction as they
+  don't work as expected
+- Schedintvls.pm, t/007-schedule.t: revamp 'delete' method
+- Dochazka_Message_en.conf: add DOCHAZKA_RECORDS_DELETED
+
+0.071  2014-07-17 21:37 CEST
+- dbinit_Config.pm: add locks table
+- Spec.pm: work on Lock section
+- Interval.pm: make load_by_iid also load the long_desc, add 'update' and 
+  'delete' methods
+- Lock.pm: first crack at lock data model
+- Activity.pm: fix order of attributes in update and make delete reset the 
+  object on success
+
+0.072  2014-07-17 21:42 CEST
+- MANIFEST: minor fix
 

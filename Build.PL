@@ -22,8 +22,10 @@ my $builder = Module::Build->new(
     },
     requires => {
         'App::CELL'     => 0.183,
+        'DBD::Pg'       => 0,
+        'DBI'           => 0,
     },
-    add_to_cleanup     => [ 'Dochazka-REST-*' ],
+    add_to_cleanup     => [ 'App-Dochazka-REST-*' ],
     create_makefile_pl => 'traditional',
 );
 

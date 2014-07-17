@@ -22,7 +22,6 @@ lib/App/Dochazka/REST/Model/Schedintvls.pm
 lib/App/Dochazka/REST/Model/Schedule.pm
 lib/App/Dochazka/REST/Model/Shared.pm
 lib/App/Dochazka/REST/Spec.pm
-lib/App/Dochazka/REST/Util/Factory.pm
 lib/App/Dochazka/REST/Util/Timestamp.pm
 LICENSE
 Makefile.PL
@@ -40,6 +39,8 @@ t/006-reset.t
 t/007-schedule.t
 t/008-schedintvls.t
 t/009-activity.t
+t/010-interval.t
+t/011-tsrange_equal.t
 t/203-util-timestamp.t
 t/manifest.t
 t/pod-coverage.t

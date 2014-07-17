@@ -39,32 +39,29 @@ use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
-use App::Dochazka::REST::Util::Factory;
 use DBI;
 
 
 
 =head1 NAME
 
-App::Dochazka::REST::Model::Privhistory - Employee privilege history functions
+App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 
 
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
 
 =head1 SYNOPSIS
-
-Employee privilege history functions
 
     use App::Dochazka::REST::Model::Privhistory;
 
@@ -98,7 +95,7 @@ Constructor. See Employee.pm->spawn for general comments.
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Util::Factory::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
 }
 
 
@@ -112,7 +109,7 @@ or to the state given in PARAMHASH.
 
 BEGIN {
     no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Util::Factory::make_reset(
+    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset(
         'int_id', 'eid', 'priv', 'effective', 'remark' 
     );
 }

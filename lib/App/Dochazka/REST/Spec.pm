@@ -52,11 +52,11 @@ App::Dochazka::REST::Spec - Dochazka REST technical specification
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -109,28 +109,28 @@ Dochazka data can be seen to exist in the following classes of objects:
 
 =over
 
-=item Policy (parameters set when database is first created)
+=item * Policy (parameters set when database is first created)
 
-=item Employee (an individual employee)
+=item * Employee (an individual employee)
 
-=item Privhistory (history of changes in an employee's privilege level)
+=item * Privhistory (history of changes in an employee's privilege level)
 
-=item Schedule (a schedule)
+=item * Schedule (a schedule)
 
-=item Schedhistory (history of changes in an employee's schedule)
+=item * Schedhistory (history of changes in an employee's schedule)
 
-=item Activities (what kinds of work are recognized)
+=item * Activities (what kinds of work are recognized)
 
-=item Intervals ("work", "attendance", and/or "time tracked")
+=item * Intervals ("work", "attendance", and/or "time tracked")
 
-=item Locks (determining whether a reporting period is locked or not)
+=item * Locks (determining whether a reporting period is locked or not)
 
 =back
 
 These classes are described in the following sections.
 
 
-=head2 Employees
+=head2 Employee
 
 =head3 High-level description
 
@@ -222,7 +222,7 @@ details.
 
 Individual employees are represented by "employee objects". All methods and
 functions for manipulating these objects are contained in
-C<App::Dochazka::REST::Model::Employee>. The most important methods are:
+L<App::Dochazka::REST::Model::Employee>. The most important methods are:
 
 =over
 
@@ -249,7 +249,7 @@ C<passhash>, C<salt>, C<remark>)
 
 =back
 
-C<App::Dochazka::REST::Model::Employee> also exports some convenience
+L<App::Dochazka::REST::Model::Employee> also exports some convenience
 functions:
 
 =over
@@ -272,17 +272,17 @@ C<passerby>:
 
 =over
 
-=item C<admin> -- employee can view, modify, and place/remove locks on her
+=item * C<admin> -- employee can view, modify, and place/remove locks on her
 own attendance data as well as that of other employees; she can also
 administer employee accounts and set privilege levels of other employees
 
-=item C<active> -- employee can view her own profile, attendance data,
+=item * C<active> -- employee can view her own profile, attendance data,
 modify her own unlocked attendance data, and place locks on her attendance
 data
 
-=item C<inactive> -- employee can view her own profile and attendance data
+=item * C<inactive> -- employee can view her own profile and attendance data
 
-=item C<passerby> -- employee can view her own profile
+=item * C<passerby> -- employee can view her own profile
 
 =back
 
@@ -333,12 +333,12 @@ There are also two stored procedures for determining privilege levels:
 
 =over
 
-=item C<priv_at_timestamp> 
+=item * C<priv_at_timestamp> 
 Takes an EID and a timestamp; returns privilege level of that employee as
 of the timestamp. If the privilege level cannot be determined for the given
 timestamp, defaults to the lowest privilege level ('passerby').
 
-=item C<current_priv>
+=item * C<current_priv>
 Wrapper for C<priv_at_timestamp>. Takes an EID and returns the current
 privilege level for that employee.
 
@@ -355,7 +355,7 @@ employee's privilege history is to be viewed.
 
 In the data model, individual privhistory records are represented by
 "privhistory objects". All methods and functions for manipulating these objects
-are contained in C<App::Dochazka::REST::Model::Privhistory>. The most important
+are contained in L<App::Dochazka::REST::Model::Privhistory>. The most important
 methods are:
 
 =over
@@ -379,7 +379,7 @@ For basic C<privhistory> workflow, see C<t/005-privhistory.t>.
 
 
 
-=head2 Schedules
+=head2 Schedule
 
 
 =head3 High-level description
@@ -621,9 +621,7 @@ See also L<When history changes take effect>.
 
 =item * C<insert> method (straightforward)
 
-# FIXME
-=item C<delete> method (straightforward) -- not tested yet
-# FIXME
+=item * C<delete> method (straightforward) -- not tested yet # FIXME
 
 =back
 
@@ -632,7 +630,7 @@ For basic workflow, see C<t/007-schedule.t>.
 
 
 
-=head2 Activities
+=head2 Activity
 
 
 =head3 High-level description
@@ -669,7 +667,7 @@ before every INSERT and UPDATE on this table.
 
 =head3 Activities in the Perl API
 
-=head4 C<App::Dochazka::REST::Model::Activity>
+=head4 L<App::Dochazka::REST::Model::Activity>
 
 =over
 
@@ -691,7 +689,7 @@ before every INSERT and UPDATE on this table.
 
 =back
 
-C<App::Dochazka::REST::Model::Activity> also exports some convenience
+L<App::Dochazka::REST::Model::Activity> also exports some convenience
 functions:
 
 =over
@@ -704,7 +702,7 @@ For basic C<activity> object workflow, see C<t/008-activity.t>.
 
 
 
-=head2 Intervals
+=head2 Interval
 
 
 =head3 High-level description
@@ -714,7 +712,8 @@ interval is an amount of time that an employee spends doing an activity.
 In the database, intervals are represented using the C<tsrange> range
 operator introduced in PostgreSQL 9.2.
 
-Optionally, an interval can have an explanatory text field ("remark").
+Optionally, an interval can have a C<long_desc> (employee's description
+of what she did during the interval) and a C<remark> (admin remark).
 
 
 =head3 Intervals in the database
@@ -726,6 +725,7 @@ The C<intervals> database table has the following structure:
        eid         integer REFERENCES employees (eid) NOT NULL,
        aid         integer REFERENCES activities (aid) NOT NULL,
        intvl       tsrange NOT NULL,
+       long_desc   text,
        remark      text,
        EXCLUDE USING gist (eid WITH =, intvl WITH &&)
     );
@@ -737,62 +737,57 @@ The C<intervals> database table has the following structure:
 
 
 
-=head2 Locks
+=head2 Lock
 
 
-=head3 HIgh-level description
+=head3 High-level description
 
-Dochazka supports locking: attendance data for any particular day can be
-"locked", which means they become read-only and stay that way until a
-user with administrator privileges removes the lock.
+In Dochazka, a "lock" is a record in the "locks" table specifying that
+a particular user's attendance data (i.e. activity intervals) for a 
+given period (tsrange) cannot be changed. That means, for intervals in 
+the locked tsrange:
+
+=over
+
+=item * existing intervals cannot be updated or deleted
+
+=item * no new intervals can be inserted
+
+=back
+
+Employees can create locks (i.e., insert records into the locks table) on their
+own EID, but they cannot delete or update those locks (or any others).
+Administrators can insert, update, or delete locks at will.
 
 How the lock is used will differ from site to site, and some sites may not
 even use locking at all. The typical use case would be to lock all the
 employee's attendance data within the given period as part of pre-payroll
-processing. For example, the client may be set up to enable reports to be
-generated only on fully locked periods. ("Fully locked" means that all days
-in the period are locked.) Or the report may simply indicate whether or not
-the period is fully locked. 
+processing. For example, the Dochazka client application may be set up to
+enable reports to be generated only on fully locked periods. 
 
-In the database, attendance data is locked on a per-employee and per-day
-basis. Any attempts (even by administrators) to enter intervals for a day
-that has been locked will result in an error.
+"Fully locked" means either that a single lock record has been inserted
+covering the entire period, or that the entire period is covered by multiple
+locks.
 
-The reason why locking has such a small granularity is simple: different
-sites have different reporting requirements and, more particularly,
-different reporting periods. If, for example, Dochazka were to
-lock attendance data on a per-month basis, it would not be possible to lock
-just one week's worth of attendance data. The only viable reporting periods
-in such a scenario would be those divisible into months (i.e. "monthly",
-"quarterly", and "annually"). Sites with any other reporting period (e.g.,
-weekly, ad-hoc, etc.) would not be able to use Dochazka's locking feature
-at all.
+Any attempts (even by administrators) to enter activity intervals that 
+intersect an existing lock will result in an error.
 
 Clients can of course make it easy for the employee to lock entire blocks
-of days (week, month, quarter, etc.) at once, if that is deemed expedient.
+of time (weeks, months, years . . .) at once, if that is deemed expedient.
 
 
 =head3 Locks in the database
 
     CREATE TABLE locks (
-        int_id      serial PRIMARY KEY,
-        eid         integer REFERENCES Employees (EID),
-        lock_range  tsrange NOT NULL,
-        remark      text
+        lid     serial PRIMARY KEY,
+        eid     integer REFERENCES Employees (EID),
+        period  tsrange NOT NULL,
+        remark  text
     )
 
-#
-# FIXME: implement trigger so the tsrange must be 
-#        [YYYY-MM-DD 00:00, YYYY-MM-DD 24:00)
-#
-    
-There is also a stored procedure, C<date_range_locked>, that takes an EID
-and a date range, and returns a boolean value indicating whether or not
-B<all> the dates in that range are locked for the employee with that EID.
-
-=head4 C<date_range_locked>
-
-...
+There is also a stored procedure, C<fully_locked>, that takes an EID
+and a tsrange, and returns a boolean value indicating whether or not
+that period is fully locked for the given employee.
 
 
 =head3 Locks in the Perl API
@@ -922,43 +917,43 @@ It entails the following steps:
 
 =over
 
-=item Server preparation
+=item * Server preparation
 Dochazka REST needs hardware (either physical or virtualized) to run on. 
 The hardware will need to have a network connection, etc. Obviously, this
 step is entirely beyond the scope of this document.
 
-=item Software installation
+=item * Software installation
 Once the hardware is ready, the Dochazka REST software and all its
 dependencies are installed on it.  This could be accomplished by
 downloading and unpacking the tarball (or running C<git clone>) and
 following the installation instructions, or, more expediently, by
 installing a packaged version of Dochazka REST if one is available.
 
-=item PostgreSQL setup
+=item * PostgreSQL setup
 One of Dochazka REST's principal dependencies is PostgreSQL server (version
 9.2 or higher). This needs to be installed and most likely also enabled to
 start automatically at boot.
 
-=item Site configuration
+=item * Site configuration
 Before the Dochazka REST service can be started, the site administrator
 will need to go over the core configuration defaults in
 F<Dochazka_Config.pm> and prepare the site configuration,
 F<Dochazka_SiteConfig.pm>, which will contain just those parameters that
 need to be different from the defaults.
 
-=item Syslog setup
+=item * Syslog setup
 It is much easier to administer a Dochazka instance if C<syslog> is running
 and configured properly to place Dochazka's log messages into a separate
 file in a known location. Dochazka REST provides a C<syslog_test> script to
 help the administrator complete this step.
 
-=item Database initialization
+=item * Database initialization
 Once F<Dochazka_SiteConfig.pm> is ready, the administrator executes the
 database initialization script as the PostgreSQL superuser, C<postgres>.
 The script will send log messages to C<syslog> so these can be analyzed in
 case the script generates an error.
 
-=item Service start
+=item * Service start
 The last step is to start the Dochazka REST service using a command like
 C<systemctl start dochazka.service> -- and, if desired, enable the service
 to start automatically at boot. Here again, an examination of the C<syslog>
@@ -1000,9 +995,9 @@ Authentication consists of:
 
 =over
 
-=item a check against Dochazka's own list (database) of employees
+=item * a check against Dochazka's own list (database) of employees
 
-=item an optional, additional check against an LDAP database
+=item * an optional, additional check against an LDAP database
 
 =back
 
@@ -1052,25 +1047,25 @@ In Dochazka, some commonly-used terms have special meanings:
 
 =over
 
-=item B<employee> -- 
+=item * B<employee> -- 
 Regardless of whether they are employees in reality, for the
 purposes of Dochazka employees are the folks whose attendance/time is being
 tracked.  Employees are expected to interact with Dochazka using the
 following functions and commands.
 
-=item B<administrator> -- 
+=item * B<administrator> -- 
 In Dochazka, administrators are employees with special powers. Certain
 REST/CLI functions are available only to administrators.
 
-=item B<CLI client> --
+=item * B<CLI client> --
 CLI stands for Command-Line Interface. The CLI client is the Perl script
 that is run when an employee types C<dochazka> at the bash prompt.
 
-=item B<REST server> --
+=item * B<REST server> --
 REST stands for ... . The REST server is a collection of Perl modules 
 running on a server at the site.
 
-=item B<site> --
+=item * B<site> --
 In a general sense, the "site" is the company, organization, or place that
 has implemented (installed, configured) Dochazka for attendance/time
 tracking. In a technical sense, a site is a specific instance of the

@@ -39,7 +39,6 @@ use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
-use App::Dochazka::REST::Util::Factory;
 use DBI;
 
 
@@ -53,11 +52,11 @@ App::Dochazka::REST::Model::Interval - Activity intervals data model
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -94,7 +93,7 @@ Constructor. See Employee.pm->spawn for general comments.
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Util::Factory::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
 }
 
 
@@ -108,8 +107,8 @@ or to the state given in PARAMHASH.
 
 BEGIN {
     no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Util::Factory::make_reset(
-        'int_id', 'eid', 'aid', 'intvl', 'remark'
+    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset(
+        'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark'
     );
 }
 
@@ -124,7 +123,7 @@ with no guarantee that it matches the database.
 =cut
 
 BEGIN {
-    foreach my $subname ( 'iid', 'eid', 'aid', 'intvl', 'remark' ) {
+    foreach my $subname ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ) {
         no strict 'refs';
         *{"$subname"} = sub { 
             my ( $self ) = @_; 
@@ -153,6 +152,11 @@ Accessor method.
 Accessor method.
 
 
+=head3 long_desc
+
+Accessor method.
+
+
 =head3 remark
 
 Accessor method.
@@ -169,7 +173,7 @@ object, rewriting whatever was there before.  Returns a status object.
 sub load_by_iid {
     my ( $self, $iid ) = @_;
     my $dbh = $self->{dbh};
-    my @attrs = ( 'iid', 'eid', 'aid', 'intvl', 'remark' );
+    my @attrs = ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' );
     my $sql = $site->SQL_INTERVAL_SELECT_BY_IID;
     my ( $result ) = $dbh->selectrow_hashref( $sql, undef, $iid );
     if ( defined $result ) {
@@ -187,7 +191,7 @@ sub load_by_iid {
 
 =head2 insert
 
-Instance method. Attempts to INSERT a record into the 'intervals' table.
+Instance method. Attempts to INSERT a record.
 Field values are taken from the object. Returns a status object.
 
 =cut
@@ -198,11 +202,54 @@ sub insert {
     my $status = cud( 
         $self,
         $site->SQL_INTERVAL_INSERT,
-        ( 'eid', 'aid', 'intvl', 'remark' ),
+        ( 'eid', 'aid', 'intvl', 'long_desc', 'remark' ),
     );
 
     return $status;
 }
+
+
+=head2 update
+
+Instance method. Attempts to UPDATE a record.
+Field values are taken from the object. Returns a status object.
+
+=cut
+
+sub update {
+    my ( $self ) = @_;
+
+    my $status = cud( 
+        $self,
+        $site->SQL_INTERVAL_UPDATE,
+        ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ),
+    );
+
+    return $status;
+}
+
+
+=head2 delete
+
+Instance method. Attempts to DELETE a record.
+Field values are taken from the object. Returns a status object.
+
+=cut
+
+sub delete {
+    my ( $self ) = @_;
+
+    my $status = cud( 
+        $self,
+        $site->SQL_INTERVAL_DELETE,
+        ( 'iid' ),
+    );
+    $self->reset( iid => $self->{iid} ) if $status->ok;
+
+    return $status;
+}
+
+
 
 
 

@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.066
+    Version 0.072
 
 SYNOPSIS
     This is the top-level module of the Dochazka REST server. For a full

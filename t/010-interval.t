@@ -30,7 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# unit tests for scratch schedules
+# basic unit tests for activity intervals
 #
 
 #!perl
@@ -44,83 +44,67 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Schedule qw( get_json );
-use App::Dochazka::REST::Model::Schedhistory;
-use App::Dochazka::REST::Model::Schedintvls;
-#use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
+use App::Dochazka::REST::Model::Interval;
+use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow tsrange_equal );
 use Scalar::Util qw( blessed );
-use Test::JSON;
 use Test::More;
 
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 31;
+    plan tests => 13;
 }
 
 my $dbh = $REST->{dbh};
-
-sub count {
-    my ( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedintvls' );
-    return $count;
-}
-
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
-# spawn a schedintvls object
-my $sto = App::Dochazka::REST::Model::Schedintvls->spawn(
+# spawn interval object
+my $int = App::Dochazka::REST::Model::Interval->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
 );
-ok( blessed $sto );
-ok( $sto->scratch_sid > 0 );
+ok( blessed( $int ) );
 
-# attempt to insert bogus intervals individually
-my $bogus_intvls = [
-        [ "[)" ],
-        [ "[,)" ],
-        [ "(2014-07-14 09:00, 2014-07-14 17:05)" ],
-        [ "[2014-07-14 09:00, 2014-07-14 17:05]" ],
-	[ "[,2014-07-14 17:00)" ],
-        [ "[2014-07-14 17:15,)" ],
-        [ "[2014-07-14 09:00, 2014-07-14 17:07)" ],
-        [ "[2014-07-14 08:57, 2014-07-14 17:05)" ],
-        [ "[2014-07-14 06:43, 2014-07-14 25:00)" ],
-    ];
-map {
-        $sto->{intvls} = $_;
-        $status = $sto->insert;
-        #diag( $status->level . ' ' . $status->text );
-        is( $status->level, 'ERR' ); 
-    } @$bogus_intvls;
+# to insert an interval, we need an employee and an activity
 
-# check that no records made it into the database
-is( count(), 0 );
+# load Mr. Sched
+my $emp = App::Dochazka::REST::Model::Employee->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+$status = $emp->load_by_nick( 'mrsched' );
+ok( $status->ok );
+ok( $emp->eid > 0 );
 
-# attempt to slip in a bogus interval by hiding it among normal intervals
-$bogus_intvls = [
-        "[)",
-        "[,)",
-        "(2014-07-14 09:00, 2014-07-14 17:05)",
-        "[2014-07-14 09:00, 2014-07-14 17:05]",
-	"[,2014-07-14 17:00)",
-        "[2014-07-14 17:15,)",
-        "[2014-07-14 09:00, 2014-07-14 17:07)",
-        "[2014-07-14 08:57, 2014-07-14 17:05)",
-        "[2014-07-14 06:43, 2014-07-14 25:00)",
-    ];
-map {
-        $sto->{intvls} = [
-            "[2014-07-14 10:00, 2014-07-14 10:15)",
-            "[2014-07-14 10:15, 2014-07-14 10:30)",
-            $_,
-            "[2014-07-14 11:15, 2014-07-14 11:30)",
-            "[2014-07-14 11:30, 2014-07-14 11:45)",
-        ];
-        $status = $sto->insert;
-        is( $status->level, 'ERR' );
-        is( count(), 0 );
-     } @$bogus_intvls;
+# load 'WORK'
+my $work = App::Dochazka::REST::Model::Activity->spawn(
+    dbh => $dbh,
+    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+);
+$status = $work->load_by_code( 'work' );
+ok( $status->ok );
+ok( $work->aid > 0 );
+
+# Load up the object
+$int->{eid} = $emp->eid;
+$int->{aid} = $work->aid;
+my $intvl = "[$today 08:00, $today 12:00)";
+$int->{intvl} = $intvl;
+$int->{long_desc} = 'Pencil pushing';
+$int->{remark} = 'TEST INTERVAL';
+
+# Insert the interval
+$status = $int->insert;
+diag( $status->code . " " . $status->text ) unless $status->ok;
+ok( $status->ok );
+
+# test accessors
+ok( $int->iid > 0 );
+is( $int->eid, $emp->eid );
+is( $int->aid, $work->aid );
+ok( tsrange_equal( $dbh, $int->intvl, $intvl ) );
+is( $int->long_desc, 'Pencil pushing' );
+is( $int->remark, 'TEST INTERVAL' );
 

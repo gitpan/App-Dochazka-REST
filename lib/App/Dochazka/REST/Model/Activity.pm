@@ -38,8 +38,7 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Util::Factory;
-use App::Dochazka::REST::Model::Shared qw( cud );
+use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid );
 use DBI;
 
 
@@ -54,11 +53,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.066
+Version 0.072
 
 =cut
 
-our $VERSION = '0.066';
+our $VERSION = '0.072';
 
 
 
@@ -101,7 +100,7 @@ Activity constructor. For details, see Employee.pm->spawn.
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Util::Factory::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
 }
 
 
@@ -115,7 +114,7 @@ or to the state given in PARAMHASH.
 
 BEGIN {
     no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Util::Factory::make_reset( 
+    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
         'aid', 'code', 'long_desc', 'remark',
     );
 }
@@ -197,7 +196,7 @@ sub update {
     my $status = cud(
         $self,
         $site->SQL_ACTIVITY_UPDATE,
-        ( 'aid', 'code', 'long_desc', 'remark' ),
+        ( 'code', 'long_desc', 'remark', 'aid'),
     );
 
     return $status;
@@ -221,6 +220,7 @@ sub delete {
         $site->SQL_ACTIVITY_DELETE,
         ( 'aid' ),
     );
+    $self->reset( aid => $self->{aid} ) if $status->ok;
 
     return $status;
 }
@@ -276,7 +276,7 @@ sub _load {
     my ( $spec ) = keys %ARGS;
 
     # check ACL
-    return $CELL->status_err('DOCHAZKA_INSUFFICIENT_PRIV') unless $self->{aclpriv};
+    $self->{aclpriv} = priv_by_eid( $dbh, $self->{acleid} ) if not defined( $self->{aclpriv} );
     ACL: {
         last ACL if $self->{aclpriv} eq 'admin';
         last ACL if $self->{acleid} == $self->{eid} and ( 

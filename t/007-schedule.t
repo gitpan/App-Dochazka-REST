@@ -47,7 +47,7 @@ use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedule qw( get_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
-use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
+use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday $tomorrow );
 use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More; 
@@ -89,23 +89,14 @@ ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" );
 ok( $schedintvls->{scratch_sid} > 0, "Scratch SID is > 0" ); 
 
 # insert a schedule (i.e. a list of schedintvls)
-{ 
-    my $yesterday = $yesterday;
-    my $today = $today;
-    my $tomorrow = $tomorrow;
-    $yesterday =~ s/ 00:00:00//;
-    $today =~ s/ 00:00:00//;
-    $tomorrow =~ s/ 00:00:00//;
-
-    $schedintvls->{intvls} = [
-        "[$tomorrow 12:30, $tomorrow 16:30)",
-        "[$tomorrow 08:00, $tomorrow 12:00)",
-        "[$today 12:30, $today 16:30)",
-        "[$today 08:00, $today 12:00)",
-        "[$yesterday 12:30, $yesterday 16:30)",
-        "[$yesterday 08:00, $yesterday 12:00)",
-    ];
-}
+$schedintvls->{intvls} = [
+    "[$tomorrow 12:30, $tomorrow 16:30)",
+    "[$tomorrow 08:00, $tomorrow 12:00)",
+    "[$today 12:30, $today 16:30)",
+    "[$today 08:00, $today 12:00)",
+    "[$yesterday 12:30, $yesterday 16:30)",
+    "[$yesterday 08:00, $yesterday 12:00)",
+];
 
 # Insert all the schedintvls in one go
 $status = $schedintvls->insert;
@@ -140,7 +131,7 @@ is( $schedule->remark, 'TESTING' );
 # And now we can delete the schedintvls object and its associated database rows
 $status = $schedintvls->delete;
 ok( $status->ok, "scratch intervals deleted" );
-like( $status->text, qr/6 records/, "Six records deleted" );
+like( $status->text, qr/6 record/, "Six records deleted" );
 
 # Make a bogus schedintvls object and attempt to delete it
 my $bogus_intvls = App::Dochazka::REST::Model::Schedintvls->spawn(
@@ -209,7 +200,7 @@ ok( defined( $schedhistory->int_id), "schedhistory object has int_id" );
 ok( $schedhistory->int_id > 0, "schedhistory object int_id is > 0" );
 is( $schedhistory->eid, $emp->{eid} );
 is( $schedhistory->sid, $schedule->{sid} );
-is( $schedhistory->effective, $today );
+is( $schedhistory->effective, $today_ts );
 is( $schedhistory->remark, 'TESTING' );
 
 # and now Mr. Sched's employee object should contain the schedule
