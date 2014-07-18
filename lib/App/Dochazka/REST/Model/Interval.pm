@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Interval - Activity intervals data model
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -66,6 +66,32 @@ our $VERSION = '0.074';
     use App::Dochazka::REST::Model::Interval;
 
     ...
+
+
+=head1 DESCRIPTION
+
+A description of the interval data model follows.
+
+
+=head2 Intervals in the database
+
+The C<intervals> database table has the following structure:
+
+    CREATE TABLE intervals (
+       int_id      serial PRIMARY KEY,
+       eid         integer REFERENCES employees (eid) NOT NULL,
+       aid         integer REFERENCES activities (aid) NOT NULL,
+       intvl       tsrange NOT NULL,
+       long_desc   text,
+       remark      text,
+       EXCLUDE USING gist (eid WITH =, intvl WITH &&)
+    );
+
+
+=head2 Intervals in the Perl API
+
+# FIXME: MISSING VERBIAGE
+
 
 
 =head1 EXPORTS

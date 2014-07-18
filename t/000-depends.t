@@ -40,8 +40,8 @@ BEGIN {
     use_ok( 'App::CELL' );
     use_ok( 'DBD::Pg' );
     use_ok( 'DBI' );
+    use_ok( 'JSON' );
     use_ok( 'App::Dochazka::REST' );
-    use_ok( 'App::Dochazka::REST::Spec' );
     use_ok( 'App::Dochazka::REST::Model::Activity' );
     use_ok( 'App::Dochazka::REST::Model::Employee' );
     use_ok( 'App::Dochazka::REST::Model::Interval' );

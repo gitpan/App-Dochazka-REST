@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -66,6 +66,32 @@ our $VERSION = '0.074';
     use App::Dochazka::REST::Model::Lock;
 
     ...
+
+
+=head1 DESCRIPTION
+
+A description of the lock data model follows.
+
+
+=head2 Locks in the database
+
+    CREATE TABLE locks (
+        lid     serial PRIMARY KEY,
+        eid     integer REFERENCES Employees (EID),
+        period  tsrange NOT NULL,
+        remark  text
+    )
+
+There is also a stored procedure, C<fully_locked>, that takes an EID
+and a tsrange, and returns a boolean value indicating whether or not
+that period is fully locked for the given employee.
+
+
+=head3 Locks in the Perl API
+
+# FIXME: MISSING VERBIAGE
+
+
 
 
 =head1 EXPORTS

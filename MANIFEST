@@ -9,7 +9,7 @@ config/sql/activity_Config.pm
 config/sql/dbinit_Config.pm
 config/sql/employee_Config.pm
 config/sql/interval_Config.pm
-config/sql/priv_Config.pm
+config/sql/privhistory_Config.pm
 config/sql/schedule_Config.pm
 lib/App/Dochazka/REST.pm
 lib/App/Dochazka/REST/Model/Activity.pm
@@ -21,7 +21,6 @@ lib/App/Dochazka/REST/Model/Schedhistory.pm
 lib/App/Dochazka/REST/Model/Schedintvls.pm
 lib/App/Dochazka/REST/Model/Schedule.pm
 lib/App/Dochazka/REST/Model/Shared.pm
-lib/App/Dochazka/REST/Spec.pm
 lib/App/Dochazka/REST/Util/Timestamp.pm
 LICENSE
 Makefile.PL

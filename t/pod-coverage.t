@@ -17,12 +17,15 @@ eval "use Pod::Coverage $min_pc";
 plan skip_all => "Pod::Coverage $min_pc required for testing POD coverage"
     if $@;
 
-plan tests => 8;
+plan tests => 11;
 pod_coverage_ok ( "App::Dochazka::REST" );
-pod_coverage_ok ( "App::Dochazka::REST::Spec" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Activity" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Employee" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Interval" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Lock" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Privhistory" );
 pod_coverage_ok ( "App::Dochazka::REST::Model::Schedhistory" );
+pod_coverage_ok ( "App::Dochazka::REST::Model::Schedintvls" );
+pod_coverage_ok ( "App::Dochazka::REST::Model::Schedule" );
+pod_coverage_ok ( "App::Dochazka::REST::Model::Shared" );
+pod_coverage_ok ( "App::Dochazka::REST::Util::Timestamp" );

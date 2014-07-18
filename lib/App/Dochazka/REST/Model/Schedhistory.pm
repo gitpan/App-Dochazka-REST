@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -66,6 +66,61 @@ our $VERSION = '0.074';
     use App::Dochazka::REST::Model::Schedhistory;
 
     ...
+
+
+
+=head1 DESCRIPTION
+
+A description of the schedhistory data model follows.
+
+
+=head2 Schedhistory in the database
+
+=head3 Table
+
+Once we know the SID of the schedule we would like to assign to a given
+employee, it is time to insert a record into the C<schedhistory> table:
+
+      CREATE TABLE IF NOT EXISTS schedhistory (
+        int_id     serial PRIMARY KEY,
+        eid        integer REFERENCES employees (eid) NOT NULL,
+        sid        integer REFERENCES schedules (sid) NOT NULL,
+        effective  timestamp NOT NULL,
+        remark     text,
+        stamp      json
+      );
+
+=head3 Stored procedures
+
+This table also includes two stored procedures -- C<schedule_at_timestamp> and
+C<current_schedule> -- which will return an employee's schedule as of a given
+date/time and as of 'now', respectively. For the procedure definitions, see
+C<dbinit_Config.pm>
+
+See also L<When history changes take effect>.
+
+
+=head2 Schedhistory in the Perl API
+
+=over
+
+=item * constructor (L<spawn>)
+
+=item * L<reset> method (recycles an existing object)
+
+=item * basic accessors (L<int_id>, L<eid>, L<sid>, L<effective>, L<remark>)
+
+=item * L<load> method (load schedhistory record from EID and optional timestamp)
+
+=item * L<insert> method (straightforward)
+
+=item * L<delete> method (straightforward) -- not tested yet # FIXME
+
+=back
+
+For basic workflow, see C<t/007-schedule.t>.
+
+
 
 
 =head1 EXPORTS
@@ -80,6 +135,7 @@ This module provides the following exports:
 
 use Exporter qw( import );
 our @EXPORT_OK = qw( );
+
 
 
 
@@ -249,4 +305,6 @@ Nathan Cutler, C<< <presnypreklad@gmail.com> >>
 =cut 
 
 1;
+
+
 

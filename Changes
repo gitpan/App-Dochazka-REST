@@ -448,3 +448,10 @@ Revision history for Dochazka-REST
 0.074  2014-07-18 08:39 CEST
 - Build.PL: add another missing dependency (JSON.pm)
 
+0.075  2014-07-18 09:44 CEST
+- now that App::Dochazka::REST is on CPAN, and since Spec.pm was getting to
+  be too big, make the following documentation changes:
+  - break out the "... in the database" and "... in the Perl API" sections
+    into the respective data model modules under C<App::Dochazka::REST::Model>
+  - move the rest of the Spec.pm verbiage into L<App::Dochazka::REST>
+

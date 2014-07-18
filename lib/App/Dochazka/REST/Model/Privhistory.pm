@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -68,13 +68,98 @@ our $VERSION = '0.074';
     ...
 
 
+
+=head1 DESCRIPTION
+
+A description of the privhistory data model follows.
+
+
+=head2 Privilege levels in the database
+
+=head3 Type
+
+The privilege levels themselves are defined in the C<privilege> enumerated
+type:
+
+    CREATE TYPE privilege AS ENUM ('passerby', 'inactive', 'active',
+    'admin')
+
+
+=head3 Table
+
+Employees are associated with privilege levels using a C<privhistory>
+table:
+
+    CREATE TABLE IF NOT EXISTS privhistory (
+        int_id     serial PRIMARY KEY,
+        eid        integer REFERENCES employees (eid) NOT NULL,
+        priv       privilege NOT NULL;
+        effective  timestamp NOT NULL,
+        remark     text,
+        stamp      json
+    );
+
+
+
+=head3 Stored procedures
+
+There are also two stored procedures for determining privilege levels:
+
+=over
+
+=item * C<priv_at_timestamp> 
+Takes an EID and a timestamp; returns privilege level of that employee as
+of the timestamp. If the privilege level cannot be determined for the given
+timestamp, defaults to the lowest privilege level ('passerby').
+
+=item * C<current_priv>
+Wrapper for C<priv_at_timestamp>. Takes an EID and returns the current
+privilege level for that employee.
+
+=back
+
+
+=head2 Privhistory in the Perl API
+
+When an employee object is loaded (assuming the employee exists), the
+employee's current privilege level and schedule are included in the employee
+object. No additional object need be created for this. Privhistory objects
+are created only when an employee's privilege level changes or when an
+employee's privilege history is to be viewed.
+
+In the data model, individual privhistory records are represented by
+"privhistory objects". All methods and functions for manipulating these objects
+are contained in L<App::Dochazka::REST::Model::Privhistory>. The most important
+methods are:
+
+=over
+
+=item * constructor (L<spawn>)
+
+=item * basic accessors (L<int_id>, L<eid>, L<priv>, L<effective>, L<remark>)
+
+=item * L<reset> (recycles an existing object by setting it to desired state)
+
+=item * L<load> (loads a single privhistory record)
+
+=item * L<insert> (inserts object into database)
+
+=item * L<delete> (deletes object from database)
+
+=back
+
+For basic C<privhistory> workflow, see C<t/005-privhistory.t>.
+
+
+
+
 =head1 EXPORTS
 
 This module provides the following exports:
 
 =over 
 
-=item C<get_privhistory>
+=item L<get_privhistory>
 
 =back
 
@@ -82,6 +167,7 @@ This module provides the following exports:
 
 use Exporter qw( import );
 our @EXPORT_OK = qw( get_privhistory );
+
 
 
 

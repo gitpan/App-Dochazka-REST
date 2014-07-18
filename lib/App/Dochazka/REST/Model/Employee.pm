@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -72,6 +72,118 @@ Employee data model
 
 
 
+=head1 DESCRIPTION
+
+A description of the employee data model follows.
+
+
+=head2 Employees in the database
+
+At the database level, C<App::Dochazka::REST> needs to be able to distinguish
+one employee from another. This is accomplished by the EID. All the other
+fields in the C<employees> table are optional. 
+
+The C<employees> database table is defined as follows:
+
+    CREATE TABLE employees (
+        eid       serial PRIMARY KEY,
+        nick      varchar(32) UNIQUE,
+        fullname  varchar(96) UNIQUE,
+        email     text UNIQUE,
+        passhash  text,
+        salt      text,
+        remark    text,
+        stamp     json
+    )
+
+
+=head3 EID
+
+The Employee ID (EID) is Dochazka's principal means of identifying an 
+employee. At the site, employees will be known by other means, like their
+full name, their username, their user ID, etc. But these can and will
+change from time to time. The EID should never, ever change.
+
+
+=head3 nick
+
+The C<nick> field is intended to be used for storing the employee's username.
+While storing each employee's username in the Dochazka database has undeniable
+advantages, it is not required - how employees are identified is a matter of
+site policy, and internally Dochazka does not use the nick to identify
+employees. Should the nick field have a value, however, Dochazka requires that
+it be unique.
+
+
+=head3 fullname, email
+
+Dochazka does not maintain any history of changes to the C<employees> table. 
+
+The C<full_name> and C<email> fields must also be unique if they have a
+value. Dochazka does not check if the email address is valid. 
+
+#
+# FIXME: NOT IMPLEMENTED depending on how C<App::Dochazka::REST> is configured,
+# these fields may be read-only for employees (changeable by admins only), or
+# the employee may be allowed to maintain their own information.
+
+
+=head3 passhash, salt
+
+The passhash and salt fields are optional. See L</AUTHENTICATION> for
+details.
+
+
+=head3 remark, stamp
+
+# FIXME
+
+
+
+=head2 Employees in the Perl API
+
+Individual employees are represented by "employee objects". All methods and
+functions for manipulating these objects are contained in
+L<App::Dochazka::REST::Model::Employee>. The most important methods are:
+
+=over
+
+=item * constructor (L<spawn>)
+
+=item * basic accessors (L<eid>, L<fullname>, L<nick>, L<email>,
+L<passhash>, L<salt>, L<remark>)
+
+=item * privilege accessor (L<priv>)
+
+=item * schedule accessor (L<schedule>)
+
+=item * L<reset> (recycles an existing object by setting it to desired state)
+
+=item * L<insert> (inserts object into database)
+
+=item * L<update> (updates database to match the object)
+
+=item * L<delete> (deletes record from database if nothing references it)
+
+=item * L<load_by_eid> (loads a single employee into the object)
+
+=item * L<load_by_nick> (loads a single employee into the object)
+
+=back
+
+L<App::Dochazka::REST::Model::Employee> also exports some convenience
+functions:
+
+=over
+
+=item * L<eid_by_nick> (given a nick, returns EID)
+
+=back
+
+For basic C<employee> object workflow, see the unit tests in
+C<t/004-employee.t>.
+
+
 
 =head1 EXPORTS
 
@@ -79,7 +191,7 @@ This module provides the following exports:
 
 =over 
 
-=item C<eid_by_nick> - function
+=item L<eid_by_nick> - function
 
 =back
 

@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.074
+Version 0.075
 
 =cut
 
-our $VERSION = '0.074';
+our $VERSION = '0.075';
 
 
 
@@ -68,6 +68,58 @@ our $VERSION = '0.074';
 
     ...
 
+
+=head1 DATA MODEL
+
+=head2 Activities in the database 
+
+
+   CREATE TABLE activities (
+       aid        serial PRIMARY KEY,
+       code       varchar(32) UNIQUE NOT NULL,
+       long_desc  text,
+       remark     text
+   )
+
+Activity codes will always be in ALL CAPS thanks to a trigger (entitled 
+C<code_to_upper>) that runs the PostgreSQL C<upper> function on the code
+before every INSERT and UPDATE on this table.
+
+
+
+=head2 Activities in the Perl API
+
+=over
+
+=item * constructor (L<spawn>)
+
+=item * basic accessors (L<aid>, L<code>, L<long_desc>, L<remark>)
+
+=item * L<reset> (recycles an existing object by setting it to desired state)
+
+=item * L<insert> (inserts object into database)
+
+=item * L<update> (updates database to match the object)
+
+=item * L<delete> (deletes record from database if nothing references it)
+
+=item * L<load_by_aid> (loads a single employee into the object)
+
+=item * L<load_by_code> (loads a single employee into the object)
+
+=back
+
+L<App::Dochazka::REST::Model::Activity> also exports some convenience
+functions:
+
+=over
+
+=item * L<aid_by_code> (given a code, returns AID)
+
+=back
+
+For basic C<activity> object workflow, see the unit tests in
+C<t/008-activity.t>.
 
 
 
