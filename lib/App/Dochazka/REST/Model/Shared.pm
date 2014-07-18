@@ -36,6 +36,7 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::CELL::Util qw( stringify_args );
 use Carp;
 use Data::Dumper;
 use DBI;
@@ -54,11 +55,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.072
+Version 0.073
 
 =cut
 
-our $VERSION = '0.072';
+our $VERSION = '0.073';
 
 
 
@@ -230,7 +231,7 @@ sub make_spawn {
     return sub {
         # process arguments
         my ( $class, @ARGS ) = @_;
-        croak "Odd number of arguments in PARAMHASH" if @ARGS and (@ARGS % 2);
+        croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
         croak "Database handle is undefined" unless defined( $ARGS{dbh} );
         croak "Missing ACL EID in spawn; cannot check ACLs" unless $ARGS{acleid};
@@ -262,7 +263,7 @@ sub make_reset {
     return sub {
         # process arguments
         my ( $self, @ARGS ) = @_;
-        croak "Odd number of arguments in PARAMHASH" if @ARGS and (@ARGS % 2);
+        croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
         croak "Database handle is undefined" unless defined( $self->{dbh} );
         croak "Missing ACL EID in spawn; cannot check ACLs" unless $self->{acleid};

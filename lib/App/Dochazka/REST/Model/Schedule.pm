@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.072
+Version 0.073
 
 =cut
 
-our $VERSION = '0.072';
+our $VERSION = '0.073';
 
 
 
@@ -177,6 +177,35 @@ sub insert {
 
     return $status;
 }
+
+
+=head2 update
+
+There is no update method for schedules. To update a schedule, delete it
+and then re-create it (see Spec.pm for a description of how to do this, 
+or refer to t/007-schedule.t).
+
+
+=head2 delete
+
+Instance method. Attempts to DELETE a schedule record. This may succeed
+if no other records in the database refer to this schedule.
+
+=cut
+
+sub delete {
+    my ( $self ) = @_;
+
+    my $status = cud(
+        $self,
+        $site->SQL_SCHEDULE_DELETE,
+        ( sid ),
+    );
+    $self->reset( sid => $self->{sid} ) if $status->ok;
+
+    return $status;
+}
+
 
 
 

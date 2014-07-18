@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.072
+Version 0.073
 
 =cut
 
-our $VERSION = '0.072';
+our $VERSION = '0.073';
 
 
 
@@ -255,6 +255,10 @@ sub insert {
     return $status;
 }
 
+
+=head2 update
+
+There is no update method for schedintvls. Instead, delete and re-create.
 
 
 =head2 delete

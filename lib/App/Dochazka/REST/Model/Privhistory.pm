@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.072
+Version 0.073
 
 =cut
 
-our $VERSION = '0.072';
+our $VERSION = '0.073';
 
 
 
@@ -213,6 +213,12 @@ sub insert {
 
     return $status;
 }
+
+
+=head2 update
+
+There is no 'update' method for privhistory records. Instead, delete and
+re-recreate.
 
 
 =head2 delete

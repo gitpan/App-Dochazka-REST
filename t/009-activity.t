@@ -50,8 +50,8 @@ use Test::More;
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 46;
+} else { 
+    plan tests => 55;
 }
 
 my $dbh = $REST->{dbh};
@@ -97,8 +97,8 @@ my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
     acleid => $site->DOCHAZKA_EID_OF_ROOT,
     code => 'boguS',
-    long_desc => "A bogus activity that doesn't belong here",
-    remark => 'BOGUS ACTIVITY',
+    long_desc => 'An activity',
+    remark => 'ACTIVITY',
 );
 $status = $bogus_act->insert;
 diag( $status->text ) unless $status->ok;
@@ -107,12 +107,35 @@ ok( defined( $bogus_act->aid ) );
 ok( $bogus_act->aid > 0 );
 # test code accessor method and code_to_upper trigger
 is( $bogus_act->code, 'BOGUS' );
-is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
-is( $bogus_act->remark, 'BOGUS ACTIVITY' );
+is( $bogus_act->long_desc, "An activity" );
+is( $bogus_act->remark, 'ACTIVITY' );
 
 # try to insert the bogus activity again
 $status = $bogus_act->insert;
 ok( $status->not_ok );
+
+# update the bogus activity
+$bogus_act->{code} = "bogosITYVille";
+$bogus_act->{long_desc} = "A bogus activity that doesn't belong here";
+$bogus_act->{remark} = "BOGUS ACTIVITY";
+$status = $bogus_act->update;
+ok( $status->ok );
+# test accessors
+is( $bogus_act->code, 'BOGOSITYVILLE' );
+is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
+is( $bogus_act->remark, 'BOGUS ACTIVITY' );
+
+# load it and compare it
+my $ba2 = App::Dochazka::REST::Model::Activity->spawn(
+    dbh => $dbh,
+    acleid => $REST->eid_of_root,
+);
+ok( blessed( $ba2 ) );
+$status = $ba2->load_by_code( $bogus_act->code );
+ok( $status->ok );
+is( $ba2->code, 'BOGOSITYVILLE' );
+is( $ba2->long_desc, "A bogus activity that doesn't belong here" );
+is( $ba2->remark, 'BOGUS ACTIVITY' );
 
 # delete the bogus activity
 $status = $bogus_act->delete;

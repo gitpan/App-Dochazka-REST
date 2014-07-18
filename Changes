@@ -438,3 +438,10 @@ Revision history for Dochazka-REST
 0.072  2014-07-17 21:42 CEST
 - MANIFEST: minor fix
 
+0.073  2014-07-18 08:19 CEST
+- Schedule.pm: add an untested 'delete' method
+- Privhistory.pm, Schedhistory.pm, Schedintvls.pm: add 'no update method' verbiage
+- Shared.pm: when croaking on odd number of arguments, stringify the actual
+  arguments and include them in the error message
+- t/009-activity.pm: add tests for 'update' method
+
