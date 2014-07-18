@@ -455,3 +455,7 @@ Revision history for Dochazka-REST
     into the respective data model modules under C<App::Dochazka::REST::Model>
   - move the rest of the Spec.pm verbiage into L<App::Dochazka::REST>
 
+0.076  2014-07-18 10:20 CEST
+- MANIFEST: update to reflect current state
+- REST.pm, Privhistory.pm, Schedhistory.pm: work on POD
+

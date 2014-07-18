@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.075
+Version 0.076
 
 =cut
 
-our $VERSION = '0.075';
+our $VERSION = '0.076';
 
 
 
@@ -343,6 +343,53 @@ undef if nothing is found.
 # FIXME: implement
 sub get_privhistory {
 }
+
+
+
+
+=head1 EXAMPLES
+
+In this section, some examples are presented to help understand how this
+module is used.
+
+=head2 Mr. Moujersky joins the firm
+
+Mr. Moujersky was hired and his first day on the job was 2012-06-04. The
+C<privhistory> entry for that might be:
+
+    int_id     1037 (automatically assigned by PostgreSQL)
+    eid        135 (Mr. Moujersky's Dochazka EID)
+    priv       'active'
+    effective  '2012-06-04 00:00'
+
+
+=head2 Mr. Moujersky becomes an administrator
+
+Effective 2013-01-01, Mr. Moujersky was given the additional responsibility
+of being a Dochazka administrator for his site.
+
+    int_id     1512 (automatically assigned by PostgreSQL)
+    eid        135 (Mr. Moujersky's Dochazka EID)
+    priv       'admin'
+    effective  '2013-01-01 00:00'
+
+
+=head2 Mr. Moujersky goes on parental leave
+
+In February 2014, Mrs. Moujersky gave birth to a baby boy and effective
+2014-07-01 Mr. Moujersky went on parental leave to take care of the
+Moujersky's older child over the summer while his wife takes care of the
+baby.
+
+    int_id     1512 (automatically assigned by PostgreSQL)
+    eid        135 (Mr. Moujersky's Dochazka EID)
+    priv       'inactive'
+    effective  '2014-07-01 00:00'
+
+Note that Dochazka will begin enforcing the new privilege level as of 
+C<effective>, and not before. However, if Dochazka's session management
+is set up to use LDAP authentication, Mr. Moujersky's access to Dochazka may be
+revoked at any time at the LDAP level, effectively shutting him out.
 
 
 

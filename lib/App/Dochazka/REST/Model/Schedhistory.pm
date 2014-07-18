@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.075
+Version 0.076
 
 =cut
 
-our $VERSION = '0.075';
+our $VERSION = '0.076';
 
 
 
@@ -294,6 +294,57 @@ sub delete {
 
     return $status;
 }
+
+
+
+
+=head1 EXAMPLES
+
+In this section, some examples are presented to give an idea of how this
+module is used.
+
+
+=head2 Sam Wallace joins the firm
+
+Let's say Sam's initial schedule is 09:00-17:00, Monday to Friday. To
+reflect that, the C<schedintvls> table might contain the following intervals
+for C<< sid = 9 >>
+
+    '[2014-06-02 09:00, 2014-06-02 17:00)'
+    '[2014-06-03 09:00, 2014-06-03 17:00)'
+    '[2014-06-04 09:00, 2014-06-04 17:00)'
+    '[2014-06-05 09:00, 2014-06-05 17:00)'
+    '[2014-06-06 09:00, 2014-06-06 17:00)'
+
+and the C<schedhistory> table would contain a record like this:
+
+    sid       848 (automatically assigned by PostgreSQL)
+    eid       39 (Sam's Dochazka EID)
+    sid       9
+    effective '2014-06-04 00:00'
+
+(This is a straightfoward example.)
+
+
+=head2 Sam goes on night shift
+
+A few months later, Sam gets assigned to the night shift. A new
+C<schedhistory> record is added:
+
+    int_id     1215 (automatically assigned by PostgreSQL)
+    eid        39 (Sam's Dochazka EID)
+    sid        17 (link to Sam's new weekly work schedule)
+    effective  '2014-11-17 12:00'
+
+And the schedule intervals for C<< sid = 17 >> could be:
+
+    '[2014-06-02 23:00, 2014-06-03 07:00)'
+    '[2014-06-03 23:00, 2014-06-04 07:00)'
+    '[2014-06-04 23:00, 2014-06-05 07:00)'
+    '[2014-06-05 23:00, 2014-06-06 07:00)'
+    '[2014-06-06 23:00, 2014-06-07 07:00)'
+    
+(Remember: the date part in this case designates the day of the week)
 
 
 

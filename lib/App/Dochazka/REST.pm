@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.075
+Version 0.076
 
 =cut
 
-our $VERSION = '0.075';
+our $VERSION = '0.076';
 
 
 
@@ -81,41 +81,49 @@ Read on for documentation.
 
 
 
-=head1 INTRODUCTION
+=head1 DESCRIPTION
 
-This is the technical specification of C<App::Dochazka::REST>, the module that
-implements the REST interface, data model, and underlying database of
-Dochazka, the open-source Attendance/Time Tracking (ATT) system.
-C<App::Dochazka::REST> is written in Perl. It uses PostgreSQL 9.2 for its
-database backend and Plack for its web-related functions.
-
-The specification attempts to fully explain Dochazka REST's design and
-function. 
+This is C<App::Dochazka::REST>, the Perl module that implements the REST
+interface, data model, and underlying database of Dochazka, the open-source
+Attendance/Time Tracking (ATT) system. 
 
 Dochazka as a whole aims to be a convenient, open-source ATT solution. Its
 reference implementation runs on the Linux platform. 
 
 
+=head2 Development status
+
+Dochazka is currently a Work In Progress (WIP). Do not expect it to do
+anything useful.
+
+
 =head2 Dochazka architecture
 
 There is more to Dochazka than C<App::Dochazka::REST>, of course. Dochazka REST
-is the "server component" of Dochazka, consisting of a web server, a data
-model, and an underlying PostgreSQL database. In order to actually use
-Dochazka, a client is needed. Several clients are planned: a command-line
-interface (Dochazka CLI), a web front-end (Dochazka WWW). Stand-alone
-report generators and other utilities can also be thought of as clients.
+is the "server component" of Dochazka, consisting of a web server
+(L<Plack>) and a data model (L<DATA MODEL>). Assuming
+C<App::Dochazka::REST> is installed, configured, and running, in order to
+actually use Dochazka, a client will be needed.
+
+Though no client yet exists, two are planned: a command-line interface
+(L<App::Dochazka::CLI>) and a web front-end (L<App::Dochazka::WebGUI>).
+Stand-alone report generators and other utilities that may or may not ever
+be implemented can also be thought of as clients.
 
 
 =head2 REST interface
 
-Dochazka REST implements a I<REST> interface. A client sends HTTP(S)
-requests (usually C<GET> and C<POST>) to a well-known hostname and port
-where a Dochazka REST instance is listening. Dochazka REST processes the
-incoming HTTP requests and sends back HTTP responses. Simpler requests
-are made using the GET method with the details of the request specified in
-the URL itself (e.g., http://dochazka.example.com/employee/Dolejsi).
-More complex requests are encoded in JSON and handed to the server by the
-POST method. All responses from the server are in JSON.
+Dochazka REST implements a I<REST> interface. In practice, a client will
+send HTTP(S) requests (usually C<GET> and C<POST>) to a well-known hostname
+and port where a Dochazka REST instance is listening.
+C<App::Dochazka::REST> will process the incoming HTTP requests and send
+back HTTP responses. 
+
+Simpler requests can be made using the GET method with the details of the
+request specified in the URL itself (e.g.,
+http://dochazka.example.com/employee/Dolejsi).  More complex requests need
+to be encoded in JSON and handed to the server by the POST method. All
+responses from the server are in JSON.
 
 
 
@@ -336,79 +344,6 @@ Clients can of course make it easy for the employee to lock entire blocks
 of time (weeks, months, years . . .) at once, if that is deemed expedient.
 
 For details, see L<App::Dochazka::REST::Model::Lock>.
-
-
-
-=head1 EXAMPLES
-
-=head2 Privhistory and schedhistory examples
-
-=head3 Mr. Moujersky joins the firm
-
-For example, Mr. Moujersky was hired and his first day on the job was 2014-06-04. The
-C<privhistory> entry for that might be:
-
-    int_id     1037 (automatically assigned by PostgreSQL)
-    eid        135 (Mr. Moujersky's Dochazka EID)
-    priv       'active'
-    effective  '2014-06-04 00:00'
-
-Let's say Mr. Moujersky's initial schedule is 09:00-17:00, Monday to Friday. To
-reflect that, the C<schedintvls> table might contain the following intervals
-for C<< sid = 9 >>
-
-    '[2014-06-02 09:00, 2014-06-02 17:00)'
-    '[2014-06-03 09:00, 2014-06-03 17:00)'
-    '[2014-06-04 09:00, 2014-06-04 17:00)'
-    '[2014-06-05 09:00, 2014-06-05 17:00)'
-    '[2014-06-06 09:00, 2014-06-06 17:00)'
-
-and the C<schedhistory> table would contain a record like this:
-
-    sid       1037 (automatically assigned by PostgreSQL)
-    eid       135 (Mr. Moujersky's Dochazka EID)
-    sid       9
-    effective '2014-06-04 00:00'
-
-(This is a straightfoward example.)
-
-
-=head3 Mr. Moujersky goes on night shift
-
-A few months later, Mr. Moujersky gets assigned to the night shift. A new
-C<schedhistory> record is added:
-
-    int_id     1215 (automatically assigned by PostgreSQL)
-    eid        135 (Mr. Moujersky's Dochazka EID)
-    sid        17 (link to Mr. Moujersky's new weekly work schedule)
-    effective  '2014-11-17 12:00'
-
-And the schedule intervals for C<< sid = 17 >> could be:
-
-    '[2014-06-02 23:00, 2014-06-03 07:00)'
-    '[2014-06-03 23:00, 2014-06-04 07:00)'
-    '[2014-06-04 23:00, 2014-06-05 07:00)'
-    '[2014-06-05 23:00, 2014-06-06 07:00)'
-    '[2014-06-06 23:00, 2014-06-07 07:00)'
-    
-(Remember: the date part in this case designates the day of the week)
-
-
-=head3 Mr. Moujersky moves on
-
-Some weeks later, Mr. Moujersky decides he doesn't like the night shift and
-resigns.  His last day on the job is 2014-12-31. To reflect this, a
-Dochazka admin adds a new record to the C<privhistory> table:
-
-    int_id     1263 (automatically assigned by PostgreSQL)
-    eid        135 (Mr. Moujersky's Dochazka EID)
-    priv       'inactive'
-    effective  '2015-01-01 00:00'
-
-Note that Dochazka will begin enforcing the new privilege level as of 
-C<effective>, and not before. However, if Dochazka's session management
-is set up to use LDAP authentication, Mr. Moujersky's access to Dochazka may be
-revoked at any time at the LDAP level, effectively shutting him out.
 
 
 
