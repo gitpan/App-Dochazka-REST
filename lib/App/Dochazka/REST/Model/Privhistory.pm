@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.076
+Version 0.079
 
 =cut
 
-our $VERSION = '0.076';
+our $VERSION = '0.079';
 
 
 
@@ -91,7 +91,7 @@ Employees are associated with privilege levels using a C<privhistory>
 table:
 
     CREATE TABLE IF NOT EXISTS privhistory (
-        int_id     serial PRIMARY KEY,
+        phid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         priv       privilege NOT NULL;
         effective  timestamp NOT NULL,
@@ -136,7 +136,7 @@ methods are:
 
 =item * constructor (L<spawn>)
 
-=item * basic accessors (L<int_id>, L<eid>, L<priv>, L<effective>, L<remark>)
+=item * basic accessors (L<phid>, L<eid>, L<priv>, L<effective>, L<remark>)
 
 =item * L<reset> (recycles an existing object by setting it to desired state)
 
@@ -196,7 +196,7 @@ or to the state given in PARAMHASH.
 BEGIN {
     no strict 'refs';
     *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset(
-        'int_id', 'eid', 'priv', 'effective', 'remark' 
+        'phid', 'eid', 'priv', 'effective', 'remark' 
     );
 }
 
@@ -211,7 +211,7 @@ with no guarantee that it matches the database.
 =cut
 
 BEGIN {
-    foreach my $subname ( 'int_id', 'eid', 'priv', 'effective', 'remark') {
+    foreach my $subname ( 'phid', 'eid', 'priv', 'effective', 'remark') {
         no strict 'refs';
         *{"$subname"} = sub { 
             my ( $self ) = @_; 
@@ -220,7 +220,7 @@ BEGIN {
     }   
 }
 
-=head3 int_id
+=head3 phid
 
 Accessor method.
 
@@ -257,7 +257,7 @@ Returns a status object.
 sub load {
     my ( $self, $eid, $ts ) = @_;
     my $dbh = $self->{dbh};
-    my @attrs = ( 'int_id', 'eid', 'priv', 'effective', 'remark' );
+    my @attrs = ( 'phid', 'eid', 'priv', 'effective', 'remark' );
     my ( $sql, $result );
     if ( $ts ) {
         # timestamp given
@@ -319,9 +319,9 @@ sub delete {
     my $status = cud(
         $self,
         $site->SQL_PRIVHISTORY_DELETE,
-        ( 'int_id' ),
+        ( 'phid' ),
     );
-    $self->reset( 'int_id' => $self->{int_id} ) if $status->ok;
+    $self->reset( 'phid' => $self->{phid} ) if $status->ok;
 
     return $status;
 }
@@ -357,7 +357,7 @@ module is used.
 Mr. Moujersky was hired and his first day on the job was 2012-06-04. The
 C<privhistory> entry for that might be:
 
-    int_id     1037 (automatically assigned by PostgreSQL)
+    phid       1037 (automatically assigned by PostgreSQL)
     eid        135 (Mr. Moujersky's Dochazka EID)
     priv       'active'
     effective  '2012-06-04 00:00'
@@ -368,7 +368,7 @@ C<privhistory> entry for that might be:
 Effective 2013-01-01, Mr. Moujersky was given the additional responsibility
 of being a Dochazka administrator for his site.
 
-    int_id     1512 (automatically assigned by PostgreSQL)
+    phid        1512 (automatically assigned by PostgreSQL)
     eid        135 (Mr. Moujersky's Dochazka EID)
     priv       'admin'
     effective  '2013-01-01 00:00'
@@ -381,7 +381,7 @@ In February 2014, Mrs. Moujersky gave birth to a baby boy and effective
 Moujersky's older child over the summer while his wife takes care of the
 baby.
 
-    int_id     1512 (automatically assigned by PostgreSQL)
+    phid        1692 (automatically assigned by PostgreSQL)
     eid        135 (Mr. Moujersky's Dochazka EID)
     priv       'inactive'
     effective  '2014-07-01 00:00'

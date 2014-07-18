@@ -41,13 +41,15 @@ use App::CELL qw( $log $meta $site );
 use App::Dochazka::REST qw( $REST );
 use Carp;
 
+# initialize but do not connect to database
 my $status = $REST->init_no_db( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "Not configured. Please run the test suite manually after initial site configuration";
 } else {
-    plan tests => 5;
+    plan tests => 6;
 }
 
+# connect to postgres database
 $status = $REST->connect_db_pristine( 
     dbname => 'postgres',
     dbuser => $site->DBINIT_CONNECT_USER,
@@ -56,10 +58,12 @@ $status = $REST->connect_db_pristine(
 # die if this doesn't succeed -- no point in continuing
 croak( $status->code . " " . $status->text ) unless $status->ok;
 
+# drop dochazka database if it exists, re-create it
 $status = $REST->reset_db( $site->DOCHAZKA_DBNAME );
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Database dropped and re-created" );
 
+# connect to pristine dochazka database
 $status = $REST->connect_db_pristine( 
     dbname => $site->DOCHAZKA_DBNAME,
     dbuser => $site->DOCHAZKA_DBUSER,
@@ -68,6 +72,7 @@ $status = $REST->connect_db_pristine(
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Now connected to dochazka testing database for initialization" );
 
+# create tables, triggers, stored procedures, etc.
 $status = $REST->create_tables();
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Tables created OK" );
@@ -80,5 +85,11 @@ $status = $REST->connect_db( $site->DOCHAZKA_DBNAME );
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Now connected to dochazka testing database for 'production'" );
 
-# check that post-connect initialization took place
-is( $site->DOCHAZKA_EID_OF_ROOT, 1, "EID of root is 1" );
+# check that 'connect_db' initialized DOCHAZKA_EID_OF_ROOT parameter
+my $eid_of_root = $site->DOCHAZKA_EID_OF_ROOT;
+diag( "eid_of_root == $eid_of_root" );
+ok( $eid_of_root > 0, "EID of root is $eid_of_root" );
+
+# REST.pm has an 'eid_of_root' method -- test it
+is( $REST->eid_of_root, $eid_of_root );
+

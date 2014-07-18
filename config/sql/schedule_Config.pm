@@ -76,12 +76,25 @@ set( 'SQL_SCHEDINTVLS_DELETE', q/
       DELETE FROM schedintvls WHERE scratch_sid = ?
       / );
 
-# SQL_SCHEDULES_INSERT
+# SQL_SCHEDULE_INSERT
 #     SQL to insert a single schedule
 #
-set( 'SQL_SCHEDULES_INSERT', q/
+set( 'SQL_SCHEDULE_INSERT', q/
       INSERT INTO schedules (schedule, remark) 
       VALUES (?, ?)
+      RETURNING sid, schedule, remark
+      / );
+
+# SQL_SCHEDULE_SELECT
+#     SQL query to retrieve entire row given a SID
+set( 'SQL_SCHEDULE_SELECT', q/
+      SELECT sid, schedule, remark FROM schedules WHERE sid = ? 
+      / );
+
+# SQL_SCHEDULE_DELETE
+#     SQL query to delete a row given a SID
+set( 'SQL_SCHEDULE_DELETE', q/
+      DELETE FROM schedules WHERE sid = ?
       RETURNING sid, schedule, remark
       / );
 
@@ -102,14 +115,22 @@ set( 'SQL_SCHEDULES_SELECT_SCHEDULE', q/
 set( 'SQL_SCHEDHISTORY_INSERT', q/
       INSERT INTO schedhistory (eid, sid, effective, remark)
       VALUES (?, ?, ?, ?)
-      RETURNING int_id, eid, sid, effective, remark
+      RETURNING shid, eid, sid, effective, remark
+      / );
+
+# SQL_SCHEDHISTORY_DELETE
+#     SQL query to delete a schedhistory row
+set( 'SQL_SCHEDHISTORY_DELETE', q/
+      DELETE FROM schedhistory
+      WHERE shid = ?
+      RETURNING shid, eid, sid, effective, remark
       / );
 
 # SQL_SCHEDHISTORY_SELECT_ARBITRARY
 #     SQL to select from schedhistory based on EID and arbitrary timestamp
 #
 set( 'SQL_SCHEDHISTORY_SELECT_ARBITRARY', q/
-      SELECT int_id, eid, sid, effective, remark FROM schedhistory
+      SELECT shid, eid, sid, effective, remark FROM schedhistory
       WHERE eid = ? and effective <= ?
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY
@@ -119,7 +140,7 @@ set( 'SQL_SCHEDHISTORY_SELECT_ARBITRARY', q/
 #     SQL to select from schedhistory based on EID and current timestamp
 #
 set( 'SQL_SCHEDHISTORY_SELECT_CURRENT', q/
-      SELECT int_id, eid, sid, effective, remark FROM schedhistory
+      SELECT shid, eid, sid, effective, remark FROM schedhistory
       WHERE eid = ? and effective <= CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE )
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY

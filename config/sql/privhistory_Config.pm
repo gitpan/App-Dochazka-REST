@@ -44,21 +44,22 @@
 set( 'SQL_PRIVHISTORY_INSERT', q/
       INSERT INTO privhistory (eid, priv, effective, remark) 
       VALUES (?, ?, ?, ?)
-      RETURNING int_id, eid, priv, effective, remark
+      RETURNING phid, eid, priv, effective, remark
       / );
 
 # SQL_PRIVHISTORY_DELETE
 #     SQL to delete a single row from privhistory table
 #
 set( 'SQL_PRIVHISTORY_DELETE', q/
-      DELETE FROM privhistory WHERE int_id = ?
+      DELETE FROM privhistory WHERE phid = ?
+      RETURNING phid, eid, priv, effective, remark
       / );
 
 # SQL_PRIVHISTORY_SELECT_ARBITRARY
 #     SQL to select from privhistory based on EID and arbitrary timestamp
 #
 set( 'SQL_PRIVHISTORY_SELECT_ARBITRARY', q/
-      SELECT int_id, eid, priv, effective, remark FROM privhistory
+      SELECT phid, eid, priv, effective, remark FROM privhistory
       WHERE eid = ? and effective <= ?
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY
@@ -68,7 +69,7 @@ set( 'SQL_PRIVHISTORY_SELECT_ARBITRARY', q/
 #     SQL to select from privhistory based on EID and current timestamp
 #
 set( 'SQL_PRIVHISTORY_SELECT_CURRENT', q/
-      SELECT int_id, eid, priv, effective, remark FROM privhistory
+      SELECT phid, eid, priv, effective, remark FROM privhistory
       WHERE eid = ? and effective <= CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE )
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY

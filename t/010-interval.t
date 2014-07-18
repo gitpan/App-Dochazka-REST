@@ -45,17 +45,20 @@ use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Interval;
+use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow tsrange_equal );
 use Scalar::Util qw( blessed );
 use Test::More;
 
+# initialize, connect to DBD, and plan tests
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 13;
+    plan tests => 20;
 }
 
+# get database handle and verify DBD connection
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
@@ -63,25 +66,27 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn interval object
 my $int = App::Dochazka::REST::Model::Interval->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
 );
 ok( blessed( $int ) );
 
 # to insert an interval, we need an employee and an activity
 
-# load Mr. Sched
+# insert Mr. Sched
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
+    nick => 'mrsched',
 );
-$status = $emp->load_by_nick( 'mrsched' );
+$status = $emp->insert;
 ok( $status->ok );
 ok( $emp->eid > 0 );
+is( noof( $dbh, 'employees'), 2 );
 
 # load 'WORK'
 my $work = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
 );
 $status = $work->load_by_code( 'work' );
 ok( $status->ok );
@@ -107,4 +112,17 @@ is( $int->aid, $work->aid );
 ok( tsrange_equal( $dbh, $int->intvl, $intvl ) );
 is( $int->long_desc, 'Pencil pushing' );
 is( $int->remark, 'TEST INTERVAL' );
+
+# CLEANUP:
+# 1. delete the interval
+is( noof( $dbh, 'intervals' ), 1 );
+$status = $int->delete;
+ok( $status->ok );
+is( noof( $dbh, 'intervals' ), 0 );
+
+# 2. delete Mr. Sched
+is( noof( $dbh, 'employees' ), 2 );
+$status = $emp->delete;
+ok( $status->ok );
+is( noof( $dbh, 'employees' ), 1 );
 

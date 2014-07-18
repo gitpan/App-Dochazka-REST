@@ -42,17 +42,20 @@ use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory;
+use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today_ts $yesterday_ts );
 use Scalar::Util qw( blessed );
 use Test::More;
 
+# plan tests
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 20;
+    plan tests => 27;
 }
 
+# get database handle and ping the database just to be sure
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
@@ -60,10 +63,10 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
         dbh => $dbh,
-        acleid => $site->DOCHAZKA_EID_OF_ROOT,
+        acleid => $REST->eid_of_root,
         nick => 'mrprivhistory',
    );
-$status = $emp->insert();
+$status = $emp->insert;
 ok( $status->ok, "Inserted Mr. Privhistory" );
 
 # assign an initial privilege level to the employee
@@ -79,11 +82,11 @@ my $priv = App::Dochazka::REST::Model::Privhistory->spawn(
               effective => $ins_effective,
               remark => $ins_remark,
           );
-is( $priv->int_id, undef, "int_id undefined before INSERT" );
+is( $priv->phid, undef, "phid undefined before INSERT" );
 $priv->insert;
 diag( $status->text ) if $status->not_ok;
 ok( $status->ok, "Post-insert status ok" );
-ok( $priv->int_id > 0, "INSERT assigned an int_id" );
+ok( $priv->phid > 0, "INSERT assigned an phid" );
 
 # get the entire privhistory record just inserted
 $priv->reset;
@@ -120,16 +123,23 @@ $status = $priv->load( $emp->eid );
 ok( $status->ok, "Load OK" );
 #diag( Dumper( $priv ) );
 
-#
-# FIXME: Privhistory.pm->delete implemented, but not tested
-#
-# delete it
-#$status = $priv->delete;
-#ok( $status->ok, "DELETE OK" );
+# Count of privhistory records should be 2
+is( noof( $dbh, "privhistory" ), 2 );
+
+# delete the privhistory record
+$status = $priv->delete;
+ok( $status->ok, "DELETE OK" );
 
 # It's gone
-#$priv->reset;
-#$status = $priv->load( $emp->eid );
-#is( $status->level, 'WARN', "No records" );
-#diag( Dumper( $priv ) );
+$priv->reset;
+$status = $priv->load( $emp->eid );
+is( $status->level, 'WARN', "No records" );
+is( noof( $dbh, "privhistory" ), 1 );
 
+# Total number of employees should now be 2 (root and Mr. Privhistory)
+is( noof( $dbh, 'employees' ), 2 );
+
+# Delete Mr. Privhistory himself, too, to clean up
+$status = $emp->delete;
+ok( $status->ok );
+is( noof( $dbh, 'employees' ), 1 );

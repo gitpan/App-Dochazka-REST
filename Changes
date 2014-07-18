@@ -459,3 +459,26 @@ Revision history for Dochazka-REST
 - MANIFEST: update to reflect current state
 - REST.pm, Privhistory.pm, Schedhistory.pm: work on POD
 
+0.077  2014-07-18 13:16 CEST
+- REST.pm: POD cleanup
+- Interval.pm: add missing POD verbiage
+- release.sh: attempt to fix minor brokenness that sometimes causes version
+  numbers to get messed up when switching from one development machine to
+  another
+- Shared.pm: add 'noof' function
+- t/001-init.t: add comments and two unit tests
+- t/003-current_priv.t, t/004-employee.t: rework tests, clean up database
+  when done
+
+0.078  2014-07-18 13:43 CEST
+- Privhistory.pm, etc.: change privhistory.int_id to privhistory.phid
+- Schedhistory.pm, etc.: change schedhistory.int_id to schedhistory.shid
+- schedule_Config.pm: add missing SQL_SCHEDHISTORY_DELETE parameter
+
+0.079  2014-07-18 16:13 CEST
+- schedule_Config.pm: add SQL_SCHEDULE_SELECT and SQL_SCHEDULE_DELETE
+- Schedule.pm: fix bug in 'delete' method, implement 'load_by_sid' method
+- t/: clean up several unit test files (unit test files no longer leave
+  any database artifacts behind, so each one starts from a clean slate
+  and can be run independently)
+

@@ -86,7 +86,8 @@ set( 'SQL_EMPLOYEE_UPDATE', q/
 
 #
 set( 'SQL_EMPLOYEE_DELETE', q/
-      DELETE FROM employees WHERE eid = ? RETURNING eid
+      DELETE FROM employees WHERE eid = ? 
+      RETURNING  eid, fullname, nick, email, passhash, salt, remark
       / );
 
 

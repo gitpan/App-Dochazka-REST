@@ -45,18 +45,18 @@ use DBI;
 
 =head1 NAME
 
-App::Dochazka::REST::Model::Interval - Activity intervals data model
+App::Dochazka::REST::Model::Interval - activity intervals data model
 
 
 
 
 =head1 VERSION
 
-Version 0.076
+Version 0.079
 
 =cut
 
-our $VERSION = '0.076';
+our $VERSION = '0.079';
 
 
 
@@ -70,15 +70,16 @@ our $VERSION = '0.076';
 
 =head1 DESCRIPTION
 
-A description of the interval data model follows.
+A description of the activity interval data model follows.
 
 
 =head2 Intervals in the database
 
-The C<intervals> database table has the following structure:
+Activity intervals are stored in the C<intervals> database table, which has
+the following structure:
 
     CREATE TABLE intervals (
-       int_id      serial PRIMARY KEY,
+       iid         serial PRIMARY KEY,
        eid         integer REFERENCES employees (eid) NOT NULL,
        aid         integer REFERENCES activities (aid) NOT NULL,
        intvl       tsrange NOT NULL,
@@ -87,10 +88,40 @@ The C<intervals> database table has the following structure:
        EXCLUDE USING gist (eid WITH =, intvl WITH &&)
     );
 
+Note the use of the C<tsrange> operator introduced in PostgreSQL 9.2.
+
+In addition to the Interval ID (C<iid>), which is assigned by PostgreSQL,
+the Employee ID (C<eid>), and the Activity ID (C<aid>), which are provided
+by the client, an interval can optionally have a long description
+(C<long_desc>), which is the employee's description of what she did during
+the interval, and an admin remark (C<remark>).
+
 
 =head2 Intervals in the Perl API
 
-# FIXME: MISSING VERBIAGE
+In the data model, individual activity intervals (records in the
+C<intervals> table) are represented by "interval objects". All methods
+and functions for manipulating these objects are contained in this module.
+The most important methods are:
+
+=over
+
+=item * constructor (L<spawn>)
+
+=item * basic accessors (L<iid>, L<eid>, L<aid>, L<intvl>, L<long_desc>,
+L<remark>)
+
+=item * L<reset> (recycles an existing object by setting it to desired
+state)
+
+=item * L<insert> (inserts object into database)
+
+=item * L<delete> (deletes object from database)
+
+=back
+
+For basic activity interval workflow, see C<t/010-interval.t>.
+
 
 
 

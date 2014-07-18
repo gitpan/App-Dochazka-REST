@@ -41,6 +41,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee qw( eid_by_nick );
+use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
 use Test::More;
 
@@ -48,7 +49,7 @@ my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 47;
+    plan tests => 56;
 }
 
 # test database handle
@@ -70,6 +71,7 @@ ok( $emp->{acleid} > 0, "There is an ACL EID" );
 $status = $emp->load_by_nick( 'mrfu' ); 
 is( $status->level, 'WARN', "Mr. Fu's nick doesn't exist" );
 
+# (root employee is created at dbinit time)
 # attempt to load root by nick and test accessors
 $status = $emp->load_by_nick( 'root' ); 
 diag( $status->text ) unless $status->ok;
@@ -87,20 +89,6 @@ ok( exists( $emp->{priv} ) );
 is( $emp->{priv}, 'admin', "root is an admin" );
 is( $emp->priv, 'admin', "root is an admin another way" );
 
-$status = $emp->load_by_nick( 'bubba' );
-ok( $status->ok, "employee bubba loaded into object" );
-my $eid_of_bubba = $emp->{eid};
-
-# compare it with the EID from eid_by_nick
-ok( $dbh->ping, "Database handle is valid" );
-is( $eid_of_bubba, eid_by_nick( $dbh, 'bubba' ), "Bubba EID match" );
-
-# get bubba's priv level
-is( $emp->{priv}, 'passerby', "bubba is a passerby" );
-
-$status = $emp->load_by_eid( $eid_of_bubba );
-ok( $status->ok, "employee bubba loaded into object" );
-
 # spawn an employee object
 $emp = App::Dochazka::REST::Model::Employee->spawn( 
     dbh => $dbh,
@@ -109,6 +97,7 @@ $emp = App::Dochazka::REST::Model::Employee->spawn(
     fullname => 'Mr. Fu',
     email => 'mrfu@example.com',
 );
+
 ok( ref($emp), "object is a reference" );
 ok( blessed($emp), "object is a blessed reference" );
 is( $emp->{dbh}, $dbh, "database handle is in the object" );
@@ -136,31 +125,43 @@ $emp = App::Dochazka::REST::Model::Employee->spawn(
     email => 'consort@futown.orient.cn',
     fullname => 'Mrs. Fu',
 );
+ok( blessed( $emp ) );
+
+# insert Mrs. Fu
 $status = $emp->insert;
 ok( $status->ok, "Mrs. Fu inserted" );
 my $eid_of_mrsfu = $emp->{eid};
-#diag( Dumper( $emp ) );
+isnt( $eid_of_mrsfu, $eid_of_mrfu, "Mr. and Mrs. Fu are distinct entities" );
 
-# recycle the same object
+# recycle the object
+$status = $emp->reset;
+is( $emp->eid, undef );
+is( $emp->nick, undef );
+is( $emp->fullname, undef );
+is( $emp->email, undef );
+is( $emp->passhash, undef );
+is( $emp->salt, undef );
+is( $emp->remark, undef );
+
+# attempt to load a non-existent EID
 $status = $emp->load_by_eid(443);
 ok( $status->not_ok, "Nick ID 443 does not exist" );
+
+# attempt to load a non-existent nick
 $status = $emp->load_by_nick( 'smithfarm' );
 ok( $status->not_ok, "Nick smithfarm does not exist" );
-$status = $emp->load_by_nick( 'bubba' );
-$eid_of_bubba = undef;
-ok( $status->ok, "bubba exists" );
-$eid_of_bubba = $emp->{eid};
-is( $emp->{priv}, 'passerby', "Bubba is just a passerby" );
-is( $emp->{eid}, $eid_of_bubba, "EID matches" );
+
+# load Mrs. Fu
 $status = $emp->load_by_nick( 'mrsfu' );
 ok( $status->ok, "Nick mrsfu exists" );
-#is( $emp->{nick}, 'mrsfu', "Mrs. Fu's nick is the right string" );
+is( $emp->nick, 'mrsfu', "Mrs. Fu's nick is the right string" );
 
 # update Mrs. Fu
 $emp->{fullname} = "Mrs. Fu that's Ma'am to you";
 $status = $emp->update;
 ok( $status->ok, "UPDATE status is OK" );
 is( $emp->{fullname}, "Mrs. Fu that's Ma'am to you", "Fullname updated" );
+is( $emp->fullname, "Mrs. Fu that's Ma'am to you" );
 
 # test accessors
 is( $emp->eid, $emp->{eid}, "accessor: eid" );
@@ -173,3 +174,18 @@ is( $emp->remark, $emp->{remark}, "accessor: remark" );
 is( $emp->priv, $emp->{priv}, "accessor: priv" );
 is( $emp->priv, "passerby", "accessor: priv" );
 
+# Employees table should have three records (root, Mrs. Fu, and Mr. Fu)
+is( noof( $dbh, 'employees' ), 3 );
+
+# delete Mr. and Mrs. Fu
+$status = $emp->load_by_nick( "mrsfu" );
+ok( $status->ok );
+$status = $emp->delete;
+ok( $status->ok );
+$status = $emp->load_by_nick( "mrfu" );
+ok( $status->ok );
+$status = $emp->delete;
+ok( $status->ok );
+
+# Employees table should now have one record (root)
+is( noof( $dbh, 'employees' ), 1 );

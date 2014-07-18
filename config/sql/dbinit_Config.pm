@@ -152,7 +152,7 @@ set( 'DBINIT_CREATE', [
       )/,
 
     q/CREATE TABLE IF NOT EXISTS schedhistory (
-        int_id     serial PRIMARY KEY,
+        shid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         sid        integer REFERENCES schedules (sid) NOT NULL,
         effective  timestamp NOT NULL,
@@ -163,7 +163,7 @@ set( 'DBINIT_CREATE', [
     q/CREATE TYPE privilege AS ENUM ('passerby', 'inactive', 'active', 'admin')/,
 
     q/CREATE TABLE IF NOT EXISTS privhistory (
-        int_id     serial PRIMARY KEY,
+        phid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         priv       privilege NOT NULL,
         effective  timestamp NOT NULL,

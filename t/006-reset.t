@@ -39,8 +39,8 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Model::Shared qw( noof );
 use Test::More tests => 14;
 
 # insert a testing employee
@@ -74,4 +74,5 @@ is( $emp->passhash, undef );
 is( $emp->salt, undef );
 is( $emp->remark, undef );
 
-
+# nothing to clean up, as this unit test file does not
+# actually touch the database

@@ -47,6 +47,7 @@ use App::Dochazka::REST::Model::Activity qw( aid_by_code );
 use Scalar::Util qw( blessed );
 use Test::More;
 
+# initialize, connect to DBD, and plan tests
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
@@ -54,6 +55,7 @@ if ( $status->not_ok ) {
     plan tests => 55;
 }
 
+# get database handle and check DBD connection
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
@@ -61,7 +63,7 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn activity object
 my $act = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
 );
 
 # test existence of initial set of activities
@@ -81,7 +83,7 @@ foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
 # load the work activity
 my $work = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
 );
 $status = $work->load_by_code( 'wOrK' );
 ok( $status->ok );
@@ -137,7 +139,7 @@ is( $ba2->code, 'BOGOSITYVILLE' );
 is( $ba2->long_desc, "A bogus activity that doesn't belong here" );
 is( $ba2->remark, 'BOGUS ACTIVITY' );
 
-# delete the bogus activity
+# CLEANUP: delete the bogus activity
 $status = $bogus_act->delete;
 ok( $status->ok );
 

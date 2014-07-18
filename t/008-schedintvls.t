@@ -47,6 +47,7 @@ use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedule qw( get_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
+use App::Dochazka::REST::Model::Shared qw( noof );
 #use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
 use Scalar::Util qw( blessed );
 use Test::JSON;
@@ -60,11 +61,6 @@ if ( $status->not_ok ) {
 }
 
 my $dbh = $REST->{dbh};
-
-sub count {
-    my ( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedintvls' );
-    return $count;
-}
 
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
@@ -97,7 +93,7 @@ map {
     } @$bogus_intvls;
 
 # check that no records made it into the database
-is( count(), 0 );
+is( noof( $dbh, 'schedintvls' ), 0 );
 
 # attempt to slip in a bogus interval by hiding it among normal intervals
 $bogus_intvls = [
@@ -121,6 +117,7 @@ map {
         ];
         $status = $sto->insert;
         is( $status->level, 'ERR' );
-        is( count(), 0 );
+        is( noof( $dbh, 'schedintvls' ), 0 );
      } @$bogus_intvls;
 
+# CLEANUP: none as this unit test doesn't change the database

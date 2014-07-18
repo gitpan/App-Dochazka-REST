@@ -47,18 +47,21 @@ use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedule qw( get_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
+use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday $tomorrow );
 use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More; 
 
+# initialize (load configuration and connect to database)
 my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 70;
+    plan tests => 84;
 }
 
+# get database handle and ping DBD
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
@@ -66,7 +69,7 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn and insert employee object
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
     nick => 'mrsched',
     remark => 'SCHEDULE TESTING OBJECT',
 );
@@ -75,6 +78,9 @@ ok( $status->ok, "Schedule testing object inserted" );
 ok( $emp->eid > 0, "Schedule testing object has an EID" );
 
 # insert some intervals into the scratch table
+
+# at the beginning, count of schedintvls should be 0
+is( noof( $dbh, 'schedintvls' ), 0 );
 
 # spawn a schedintvls ("scratch schedule") object
 my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
@@ -98,14 +104,17 @@ $schedintvls->{intvls} = [
     "[$yesterday 08:00, $yesterday 12:00)",
 ];
 
-# Insert all the schedintvls in one go
+# insert all the schedintvls in one go
 $status = $schedintvls->insert;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok, "OK scratch intervals inserted OK" );
 ok( $schedintvls->scratch_sid, "OK there is a scratch SID" );
 is( scalar @{ $schedintvls->{intvls} }, 6, "Object now has 6 intervals" );
 
-# Load the schedintvls, translating them as we go
+# after insert, count of schedintvls should be 6
+is( noof( $dbh, 'schedintvls' ), 6 );
+
+# load the schedintvls, translating them as we go
 $status = $schedintvls->load;
 ok( $status->ok, "OK scratch intervals translated OK" );
 is( scalar @{ $schedintvls->{intvls} }, 6, "Still have 6 intervals" );
@@ -132,6 +141,7 @@ is( $schedule->remark, 'TESTING' );
 $status = $schedintvls->delete;
 ok( $status->ok, "scratch intervals deleted" );
 like( $status->text, qr/6 record/, "Six records deleted" );
+is( noof( $dbh, 'schedintvls' ), 0 );
 
 # Make a bogus schedintvls object and attempt to delete it
 my $bogus_intvls = App::Dochazka::REST::Model::Schedintvls->spawn(
@@ -153,8 +163,7 @@ is( $schedule->{sid}, $sid_copy );    # SID is unchanged
 
 # attempt to insert the same schedule string in a completely 
 # new schedule object
-my ( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedules', undef );
-is( $count, 1, "schedules row count is 1" );
+is( noof( $dbh, 'schedules' ), 1, "schedules row count is 1" );
 my $schedule2 = App::Dochazka::REST::Model::Schedule->spawn(
     dbh => $dbh,
     acleid => $site->DOCHAZKA_EID_OF_ROOT,
@@ -166,8 +175,7 @@ $status = $schedule2->insert;
 ok( $schedule2->sid > 0, "SID was assigned" );
 ok( $status->ok, "Schedule insert OK" );
 is( $schedule2->sid, $sid_copy, "But SID is the same as before" );
-( $count ) = $dbh->selectrow_array( 'SELECT count(*) FROM schedules', undef );
-is( $count, 1, "and schedules row count is still 1" );
+is( noof( $dbh, 'schedules' ), 1, "schedules row count is still 1" );
 
 # tests for get_json function
 my $json = get_json( $dbh, $sid_copy );
@@ -196,12 +204,13 @@ is( $schedhistory->remark, 'TESTING' );
 $status = undef;
 $status = $schedhistory->insert;
 ok( $status->ok, "OK schedhistory insert OK" );
-ok( defined( $schedhistory->int_id), "schedhistory object has int_id" );
-ok( $schedhistory->int_id > 0, "schedhistory object int_id is > 0" );
+ok( defined( $schedhistory->shid), "schedhistory object has shid" );
+ok( $schedhistory->shid > 0, "schedhistory object shid is > 0" );
 is( $schedhistory->eid, $emp->{eid} );
 is( $schedhistory->sid, $schedule->{sid} );
 is( $schedhistory->effective, $today_ts );
 is( $schedhistory->remark, 'TESTING' );
+is( noof( $dbh, 'schedhistory' ), 1 );
 
 # and now Mr. Sched's employee object should contain the schedule
 my $mrsched = App::Dochazka::REST::Model::Employee->spawn(
@@ -221,7 +230,7 @@ ok( blessed( $sh2 ) );
 $status = undef;
 $status = $sh2->load( $emp->eid ); # get the current record
 ok( $status->ok );
-is( $sh2->int_id, $schedhistory->int_id );
+is( $sh2->shid, $schedhistory->shid );
 is( $sh2->eid, $schedhistory->eid);
 is( $sh2->sid, $schedhistory->sid);
 is( $sh2->effective, $schedhistory->effective);
@@ -231,7 +240,8 @@ is( $sh2->remark, $schedhistory->remark);
 $sh2->reset;
 $status = $sh2->load( $emp->eid, $tomorrow );
 ok( $status->ok );
-is( $sh2->int_id, $schedhistory->int_id );
+is( $sh2->shid, $schedhistory->shid );
+my $shid_copy = $sh2->shid;
 is( $sh2->eid, $schedhistory->eid);
 is( $sh2->sid, $schedhistory->sid);
 is( $sh2->effective, $schedhistory->effective);
@@ -241,9 +251,34 @@ is( $sh2->remark, $schedhistory->remark);
 $sh2->reset;
 $status = $sh2->load( $emp->eid, $yesterday );
 ok( $status->not_ok );
-is( $sh2->int_id, undef );
+is( $sh2->shid, undef );
 is( $sh2->eid, undef );
 is( $sh2->sid, undef );
 is( $sh2->effective, undef );
 is( $sh2->remark, undef );
 
+# CLEANUP
+# 1. delete the schedhistory record
+is( noof( $dbh, 'schedhistory' ), 1 );
+$sh2->{shid} = $shid_copy;
+$status = $sh2->delete;
+diag( $status->text ) unless $status->ok;
+ok( $status->ok );
+is( noof( $dbh, 'schedhistory' ), 0 );
+
+# 2. delete the schedule
+is( noof( $dbh, 'schedules' ), 1 );
+$schedule->reset;
+$status = $schedule->load_by_sid( $sid_copy );
+ok( $status->ok );
+#diag( Dumper( $schedule ) );
+$status = $schedule->delete;
+diag( $status->text ) unless $status->ok;
+ok( $status->ok );
+is( noof( $dbh, 'schedules' ), 0 );
+
+# 3. delete the employee (Mr. Sched)
+is( noof( $dbh, 'employees' ), 2 );
+$status = $emp->delete;
+ok( $status->ok );
+is( noof( $dbh, 'employees' ), 1 );

@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.076
+Version 0.079
 
 =cut
 
-our $VERSION = '0.076';
+our $VERSION = '0.079';
 
 
 
@@ -82,7 +82,7 @@ Once we know the SID of the schedule we would like to assign to a given
 employee, it is time to insert a record into the C<schedhistory> table:
 
       CREATE TABLE IF NOT EXISTS schedhistory (
-        int_id     serial PRIMARY KEY,
+        shid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         sid        integer REFERENCES schedules (sid) NOT NULL,
         effective  timestamp NOT NULL,
@@ -108,7 +108,7 @@ See also L<When history changes take effect>.
 
 =item * L<reset> method (recycles an existing object)
 
-=item * basic accessors (L<int_id>, L<eid>, L<sid>, L<effective>, L<remark>)
+=item * basic accessors (L<shid>, L<eid>, L<sid>, L<effective>, L<remark>)
 
 =item * L<load> method (load schedhistory record from EID and optional timestamp)
 
@@ -164,7 +164,7 @@ or to the state given in PARAMHASH.
 BEGIN {
     no strict 'refs';
     *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset(
-        'int_id', 'eid', 'sid', 'effective', 'remark' 
+        'shid', 'eid', 'sid', 'effective', 'remark' 
     );
 }
 
@@ -179,7 +179,7 @@ with no guarantee that it matches the database.
 =cut
 
 BEGIN {
-    foreach my $subname ( 'int_id', 'eid', 'sid', 'effective', 'remark') {
+    foreach my $subname ( 'shid', 'eid', 'sid', 'effective', 'remark') {
         no strict 'refs';
         *{"$subname"} = sub { 
             my ( $self ) = @_; 
@@ -188,7 +188,7 @@ BEGIN {
     }   
 }
 
-=head3 int_id
+=head3 shid
 
 Accessor method.
 
@@ -225,7 +225,7 @@ Returns a status object.
 sub load {
     my ( $self, $eid, $ts ) = @_;
     my $dbh = $self->{dbh};
-    my @attrs = ( 'int_id', 'eid', 'sid', 'effective', 'remark' );
+    my @attrs = ( 'shid', 'eid', 'sid', 'effective', 'remark' );
     my ( $sql, $result );
     if ( $ts ) {
         # timestamp given
@@ -288,9 +288,9 @@ sub delete {
     my $status = cud(
         $self,
         $site->SQL_SCHEDHISTORY_DELETE,
-        ( 'int_id' ),
+        ( 'shid' ),
     );
-    $self->reset( 'int_id' => $self->{int_id} ) if $status->ok;
+    $self->reset( 'shid' => $self->{shid} ) if $status->ok;
 
     return $status;
 }
@@ -318,7 +318,7 @@ for C<< sid = 9 >>
 
 and the C<schedhistory> table would contain a record like this:
 
-    sid       848 (automatically assigned by PostgreSQL)
+    shid      848 (automatically assigned by PostgreSQL)
     eid       39 (Sam's Dochazka EID)
     sid       9
     effective '2014-06-04 00:00'
@@ -331,7 +331,7 @@ and the C<schedhistory> table would contain a record like this:
 A few months later, Sam gets assigned to the night shift. A new
 C<schedhistory> record is added:
 
-    int_id     1215 (automatically assigned by PostgreSQL)
+    shid     1215 (automatically assigned by PostgreSQL)
     eid        39 (Sam's Dochazka EID)
     sid        17 (link to Sam's new weekly work schedule)
     effective  '2014-11-17 12:00'

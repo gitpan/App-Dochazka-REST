@@ -40,6 +40,7 @@ use Carp;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
+use Try::Tiny;
 
 
 
@@ -52,11 +53,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.076
+Version 0.079
 
 =cut
 
-our $VERSION = '0.076';
+our $VERSION = '0.079';
 
 
 
@@ -87,7 +88,8 @@ employees on a single, unified schedule.)
 
       CREATE TABLE IF NOT EXISTS schedules (
         sid        serial PRIMARY KEY,
-        schedule   text UNIQUE NOT NULL
+        schedule   text UNIQUE NOT NULL,
+        remark     text
       );
 
 The value of the 'schedule' field is a JSON array which looks something like this:
@@ -189,7 +191,7 @@ At this point, the scratch schedule is deleted from the C<schedintvls> table.
 
 =item * L<reset> method (recycles an existing object)
 
-=item * basic L<scratch_sid> accessor
+=item * basic accessors (L<scratch_sid> and L<remark>)
 
 =item * L<intvls> accessor (arrayref containing all tsrange intervals in schedule) 
 
@@ -220,9 +222,9 @@ For basic workflow, see C<t/007-schedule.t>.
 
 =item * L<insert> method (inserts the schedule if it isn't in the database already)
 
-# FIXME 
-=item L<load> method (not implemented yet) 
-# FIXME 
+=item * L<delete> method
+
+=item * L<load> method (not implemented yet) 
 
 =item * L<get_json> function (get JSON string associated with a given SID)
 
@@ -335,7 +337,7 @@ sub insert {
     # no exact match found, insert a new record
     my $status = cud(
         $self,
-        $site->SQL_SCHEDULES_INSERT,
+        $site->SQL_SCHEDULE_INSERT,
         ( 'schedule', 'remark' ),
     );
     $log->info( "Inserted new schedule with SID" . $self->{sid} ) if $status->ok;
@@ -364,13 +366,44 @@ sub delete {
     my $status = cud(
         $self,
         $site->SQL_SCHEDULE_DELETE,
-        ( sid ),
+        ( 'sid' ),
     );
     $self->reset( sid => $self->{sid} ) if $status->ok;
 
     return $status;
 }
 
+
+=head2 load_by_sid
+
+Given a SID, load the schedule into the object. Returns a status value.
+
+=cut
+
+sub load_by_sid {
+    my ( $self, $sid ) = @_;
+    my $status;
+
+    $self->{dbh}->{RaiseError} = 1;
+    try {
+        my $results = $self->{dbh}->selectrow_hashref( 
+            $site->SQL_SCHEDULE_SELECT,
+            undef,
+            $sid 
+        );
+        if ( $results ) {
+            map { $self->{$_} = $results->{$_}; } ( 'sid', 'schedule', 'remark' );
+            $status = $CELL->status_ok( 'DOCHAZKA_RECORDS_FETCHED', 1);
+        } else {
+            $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_FETCHED', 0 );
+        }
+    } catch {
+        $status = $CELL->status_err( $self->{dbh}->errstr );
+    };
+    $self->{dbh}->{RaiseError} = 0;
+
+    return $status;
+}
 
 
 

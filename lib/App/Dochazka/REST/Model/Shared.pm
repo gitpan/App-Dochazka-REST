@@ -55,11 +55,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.076
+Version 0.079
 
 =cut
 
-our $VERSION = '0.076';
+our $VERSION = '0.079';
 
 
 
@@ -81,6 +81,8 @@ This module provides the following exports:
 
 =item * C<cud> (Create, Update, Delete -- for single-record statements only)
 
+=item * C<noof> (get total number of records in a data model table)
+
 =item * C<priv_by_eid> 
 
 =item * C<schedule_by_eid>
@@ -90,7 +92,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( cud priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( cud noof priv_by_eid schedule_by_eid );
 
 
 
@@ -155,6 +157,38 @@ sub cud {
 
     $status = $CELL->status_ok if not defined( $status );
     return $status;
+}
+
+
+=head2 noof
+
+Given a database handle and the name of a data model table, returns the
+total number of records in the table.
+
+    activities employees intervals locks privhistory schedhistory
+    schedintvls schedules
+
+On failure, returns undef.
+
+=cut
+
+sub noof {
+    my ( $dbh, $table ) = @_;
+    my $result;
+
+    LUSTRATE: {
+        my $hr = {};
+        foreach my $key ( qw( activities employees intervals locks
+            privhistory schedhistory schedintvls schedules ) )
+        {
+            $hr->{$key} = '' if $key eq $table;
+        }
+        last LUSTRATE if exists( $hr->{$table} );
+        return undef;
+    }
+    
+    ( $result ) = $dbh->selectrow_array( "SELECT count(*) FROM $table" );
+    return $result;
 }
 
 

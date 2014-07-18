@@ -46,34 +46,43 @@ use DBI;
 use App::Dochazka::REST qw( $REST );
 use Test::More;
 
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-if ( $status->not_ok ) {
-    plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 14;
-}
 
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
-# get EID of root employee
-my ( $eid_of_root ) = $dbh->selectrow_array( $site->DBINIT_SELECT_EID_OF_ROOT, undef );
+# define helper functions
 
 sub test_sql_success {
     my ( $expected_rv, $sql ) = @_;
-    my $rv = $dbh->do($sql);
+    my $rv = $REST->{dbh}->do($sql);
     is( $rv, $expected_rv, "successfully executed $sql" );
 }
 
 sub test_sql_fail {
     my ( $expected_err, $sql ) = @_;
-    my $rv = $dbh->do($sql);
+    my $rv = $REST->{dbh}->do($sql);
     is( $rv, undef, "DBI returned undef" );
-    like( $dbh->errstr, $expected_err, "DBI errstr is as expected" );
+    like( $REST->{dbh}->errstr, $expected_err, "DBI errstr is as expected" );
 }
 
-# get root's current privilege level
+
+# plan our tests
+
+# initialize and connect to database
+my $status = $REST->init( sitedir => '/etc/dochazka' );
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+} else {
+    plan tests => 17;
+}
+
+# get database handle and ping the database just to be sure
+my $dbh = $REST->{dbh};
+my $rc = $dbh->ping;
+is( $rc, 1, "PostgreSQL database is alive" );
+
+# get EID of root employee, the hard way, and sanity-test it
+my ( $eid_of_root ) = $dbh->selectrow_array( $site->DBINIT_SELECT_EID_OF_ROOT, undef );
+is( $eid_of_root, $REST->eid_of_root );
+
+# get root's current privilege level, the hard way
 my $priv = $dbh->selectrow_array( "SELECT current_priv($eid_of_root)", undef );
 is( $priv, "admin", "root is admin" );
 
@@ -122,5 +131,15 @@ SQL
 # attempt to change his EID -- FAIL
 test_sql_fail(qr/violates foreign key constraint/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_bubba
+SQL
+
+# delete bubba privhistory
+test_sql_success(1, <<SQL);
+DELETE FROM privhistory WHERE eid=$eid_of_bubba
+SQL
+
+# delete bubba employee
+test_sql_success(1, <<SQL);
+DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 
