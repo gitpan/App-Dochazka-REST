@@ -445,3 +445,6 @@ Revision history for Dochazka-REST
   arguments and include them in the error message
 - t/009-activity.pm: add tests for 'update' method
 
+0.074  2014-07-18 08:39 CEST
+- Build.PL: add another missing dependency (JSON.pm)
+
