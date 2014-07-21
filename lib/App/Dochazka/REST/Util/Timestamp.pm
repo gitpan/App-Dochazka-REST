@@ -51,11 +51,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.079
+Version 0.080
 
 =cut
 
-our $VERSION = '0.079';
+our $VERSION = '0.080';
 
 
 
@@ -87,14 +87,21 @@ This module provides the following exports:
 
 =item C<$tomorrow_ts> (string), e.g. '2014-07-10 00:00:00'
 
-=item C<tsrange_equal> (function)
+=item L<split_tsrange> (function)
+
+=item L<canonicalize_ts> (function)
+
+=item L<subtract_days> (function)
+
+=item L<tsrange_equal> (function)
 
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( $today $today_ts $yesterday $yesterday_ts $tomorrow $tomorrow_ts tsrange_equal );
+our @EXPORT_OK = qw( $today $today_ts $yesterday $yesterday_ts $tomorrow
+    $tomorrow_ts canonicalize_ts subtract_days tsrange_equal );
 
 our $t = localtime;
 our $today = $t->ymd;
@@ -107,6 +114,52 @@ our $tomorrow_ts = $tomorrow . ' 00:00:00';
 
 
 =head1 FUNCTIONS
+
+
+=head2 split_tsrange
+
+Given a database handle and a string that might be a tsrange, split it into
+its lower and upper bounds (i.e. into two timestamps) by running it through the
+SQL statement:
+
+    SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))
+
+=cut
+
+sub split_tsrange {
+    my ( $dbh, $tsr ) = @_;
+
+    my ( $result ) = $dbh->selectrow_array( 
+        'SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))',
+        undef,
+        $tsr, $tsr,
+    ) if defined( $tsr );
+
+    return $result;
+}
+
+
+
+=head2 canonicalize_ts
+
+Given a database handle and a string that might be a timestamp, "canonicalize" it
+by running it through the database in the SQL statement:
+
+    SELECT CAST( ? AS TIMESTAMP )
+
+=cut
+
+sub canonicalize_ts {
+    my ( $dbh, $ts ) = @_;
+
+    my ( $result ) = $dbh->selectrow_array( 
+        'SELECT CAST( ? AS timestamp)',
+        undef,
+        $ts,
+    ) if defined( $ts );
+
+    return $result;
+}
 
 
 =head2 subtract_days

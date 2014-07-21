@@ -33,62 +33,31 @@
 # -----------------------------------
 # Dochazka-REST
 # -----------------------------------
-# priv_Config.pm
+# lock_Config.pm
 #
-# SQL code related to privilege levels
+# configuration parameters related to locks
 # -----------------------------------
 
-# SQL_PRIVHISTORY_INSERT
-#     SQL to insert a single row in privhistory table
+# 
+set( 'SQL_LOCK_SELECT_BY_LID', q/
+      SELECT lid, eid, intvl, remark
+      FROM locks WHERE lid = ?
+      / );
+
 #
-set( 'SQL_PRIVHISTORY_INSERT', q/
-      INSERT INTO privhistory (eid, priv, effective, remark) 
-      VALUES (?, ?, ?, ?)
-      RETURNING phid, eid, priv, effective, remark
+set( 'SQL_LOCK_INSERT', q/
+      INSERT INTO locks
+                (eid, intvl, remark)
+      VALUES    (?,   ?,     ?     ) 
+      RETURNING  lid, eid, intvl, remark
       / );
 
-# SQL_PRIVHISTORY_DELETE
-#     SQL to delete a single row from privhistory table
 #
-set( 'SQL_PRIVHISTORY_DELETE', q/
-      DELETE FROM privhistory WHERE phid = ?
-      RETURNING phid, eid, priv, effective, remark
+set( 'SQL_LOCK_DELETE', q/
+      DELETE FROM locks WHERE lid = ?
+      RETURNING lid, eid, intvl, remark
       / );
-
-# SQL_PRIVHISTORY_SELECT_ARBITRARY
-#     SQL to select from privhistory based on EID and arbitrary timestamp
-#
-set( 'SQL_PRIVHISTORY_SELECT_ARBITRARY', q/
-      SELECT phid, eid, priv, effective, remark FROM privhistory
-      WHERE eid = ? and effective <= ?
-      ORDER BY effective DESC
-      FETCH FIRST ROW ONLY
-      / );
-
-# SQL_PRIVHISTORY_SELECT_CURRENT
-#     SQL to select from privhistory based on EID and current timestamp
-#
-set( 'SQL_PRIVHISTORY_SELECT_CURRENT', q/
-      SELECT phid, eid, priv, effective, remark FROM privhistory
-      WHERE eid = ? and effective <= CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE )
-      ORDER BY effective DESC
-      FETCH FIRST ROW ONLY
-      / );
-
-# SQL_PRIVHISTORY_SELECT_BY_PHID
-#     SQL to select a privhistory record by its phid
-set( 'SQL_PRIVHISTORY_SELECT_BY_PHID', q/
-      SELECT phid, eid, priv, effective, remark FROM privhistory
-      WHERE phid = ? 
-      / );
-
-# SQL_PRIVHISTORY_SELECT_RANGE
-#     SQL to select a range of privhistory records
-set( 'SQL_PRIVHISTORY_SELECT_RANGE', q/
-      SELECT phid, eid, priv, effective, remark FROM privhistory 
-      WHERE eid = ? AND effective <@ CAST( ? AS tsrange )
-      ORDER BY effective
-      / );
+      
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

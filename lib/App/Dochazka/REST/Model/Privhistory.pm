@@ -40,6 +40,7 @@ use Carp;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
+use Try::Tiny;
 
 
 
@@ -52,11 +53,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.079
+Version 0.080
 
 =cut
 
-our $VERSION = '0.079';
+our $VERSION = '0.080';
 
 
 
@@ -248,26 +249,58 @@ Accessor method.
 
 =head2 load
 
-Instance method. Given an EID, and, optionally, a timestamp, loads a single
-privhistory record into the object, rewriting whatever was there before.
-Returns a status object.
+Instance method. Loads the privhistory record determining an employee's privilege
+level at a given point in time. Takes an EID, and, optionally, a timestamp. If
+no timestamp is given, it defaults to "now". A single privhistory record is loaded
+into the object, rewriting whatever was there before. Returns a status object:
+'OK' means "record fetched", 'WARN' means "query succeeded, but no record fetched",
+and 'ERR' means "DBI error".
 
 =cut
 
 sub load {
     my ( $self, $eid, $ts ) = @_;
-    my $dbh = $self->{dbh};
-    my @attrs = ( 'phid', 'eid', 'priv', 'effective', 'remark' );
-    my ( $sql, $result );
+    my ( $sql, @bind_params );
     if ( $ts ) {
         # timestamp given
         $sql = $site->SQL_PRIVHISTORY_SELECT_ARBITRARY;
-        $result = $dbh->selectrow_hashref( $sql, undef, $eid, $ts );
+        @bind_params = ( $eid, $ts );
     } else {
         # no timestamp - use 'now'
         $sql = $site->SQL_PRIVHISTORY_SELECT_CURRENT;
-        $result = $dbh->selectrow_hashref( $sql, undef, $eid );
+        @bind_params = ( $eid );
     }
+    return $self->_load( $sql, @bind_params );
+}
+
+
+=head2 load_by_phid
+
+Instance method. Loads a privhistory record by its 'phid'. General behavior is the
+same as for the 'load' method, above.
+
+=cut
+
+sub load_by_phid {
+    my ( $self, $phid ) = @_;
+    my $sql = $site->SQL_PRIVHISTORY_SELECT_BY_PHID;
+    my @bind_params = ( $phid );
+    return $self->_load( $sql, @bind_params );
+}
+
+
+
+=head2 _load
+
+Instance method. Loads a single privhistory record based on the SQL statement
+and bind parameters given in the arguments.
+
+=cut
+
+sub _load {
+    my ( $self, $sql, @bind_params ) = @_;
+    my $dbh = $self->{dbh};
+    my $result = $dbh->selectrow_hashref( $sql, undef, @bind_params );
     if ( defined $result ) {
         map { $self->{$_} = $result->{$_}; } keys %$result;
         return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
@@ -276,7 +309,7 @@ sub load {
         return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
     }
     # DBI error
-    return $CELL->status_err( $dbh->errstr );
+    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] );
 }
     
 
@@ -332,18 +365,48 @@ sub delete {
 
 =head2 get_privhistory
 
-Given a database handle, an EID, and an optional tsrange, return the
+Given a database handle, an ACLEID, an EID, and an optional tsrange, return the
 history of privilege level changes for that employee over the given
-tsrange, or the entire history if no tsrange is supplied. The history is
-returned as a reference to an array of C<privhistory> objects. Returns
-undef if nothing is found.
+tsrange, or the entire history if no tsrange is supplied. Returns a
+status object where the payload is a reference to an array of C<privhistory>
+objects. If nothing is found, the array will be empty. If there is 
+a DBI error, the payload will be undefined.
 
 =cut
 
-# FIXME: implement
 sub get_privhistory {
-}
+    my ( $dbh, $acleid, $eid, $tsr ) = @_;
+    $tsr = '[,)' if not $tsr;
+    my $status;
+    my $result = [];
+     
+    my $sth = $dbh->prepare( $site->SQL_PRIVHISTORY_SELECT_RANGE );
+    $dbh->{RaiseError} = 1;
+    try {
+        $sth->execute( $eid, $tsr );
+        my $counter = 0;
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+            $counter += 1;
+            my $ph = __PACKAGE__->spawn(
+                dbh => $dbh,
+                acleid => $acleid,
+            );
+            $ph->reset( %$tmpres );
+            push @$result, $ph;
+        }
+        if ( $counter > 0 ) {
+            $status = $CELL->status_ok( "$counter privhistory records found", payload => $result );
+        } else {
+            $status = $CELL->status_warn( "$counter privhistory records found", payload => $result );
+        }
+    } catch {
+        $status => $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef ); 
+    };
+    $dbh->{RaiseError} = 0;
 
+    return $status;
+}
+  
 
 
 

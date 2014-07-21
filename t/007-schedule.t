@@ -58,7 +58,7 @@ my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 84;
+    plan tests => 85;
 }
 
 # get database handle and ping DBD
@@ -67,6 +67,8 @@ my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
 # spawn and insert employee object
+is( noof( $dbh, "employees" ), 1 );
+
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
     acleid => $REST->eid_of_root,
@@ -85,7 +87,7 @@ is( noof( $dbh, 'schedintvls' ), 0 );
 # spawn a schedintvls ("scratch schedule") object
 my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
 );
 ok( ref($schedintvls), "object is a reference" );
 ok( blessed($schedintvls), "object is a blessed reference" );
@@ -127,7 +129,7 @@ is_valid_json( $schedintvls->json );
 # Now we can insert the JSON into the schedules table
 my $schedule = App::Dochazka::REST::Model::Schedule->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
+    acleid => $REST->eid_of_root,
     schedule => $schedintvls->json,
     remark => 'TESTING',
 );

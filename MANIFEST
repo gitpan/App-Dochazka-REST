@@ -9,6 +9,7 @@ config/sql/activity_Config.pm
 config/sql/dbinit_Config.pm
 config/sql/employee_Config.pm
 config/sql/interval_Config.pm
+config/sql/lock_Config.pm
 config/sql/privhistory_Config.pm
 config/sql/schedule_Config.pm
 lib/App/Dochazka/REST.pm
@@ -40,6 +41,7 @@ t/008-schedintvls.t
 t/009-activity.t
 t/010-interval.t
 t/011-tsrange_equal.t
+t/012-lock.t
 t/203-util-timestamp.t
 t/manifest.t
 t/pod-coverage.t

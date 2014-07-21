@@ -482,3 +482,11 @@ Revision history for Dochazka-REST
   any database artifacts behind, so each one starts from a clean slate
   and can be run independently)
 
+0.080  2014-07-19 18:03 CEST
+- lock_Config.pm, t/012-lock.t: add the beginnings of some SQL and unit tests
+  for lock objects
+- privhistory_Config.pm: add SQL_PRIVHISTORY_SELECT_BY_PHID and
+  SQL_PRIVHISTORY_SELECT_RANGE
+- Privhistory.pm, t/005-privhistory.t: add load_by_phid method and get_privhistory function
+- Timestamp.pm: add untested functions 'split_tsrange' and 'canonicalize_ts'
+

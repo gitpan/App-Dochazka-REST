@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.079
+Version 0.080
 
 =cut
 
-our $VERSION = '0.079';
+our $VERSION = '0.080';
 
 
 
@@ -78,7 +78,7 @@ A description of the lock data model follows.
     CREATE TABLE locks (
         lid     serial PRIMARY KEY,
         eid     integer REFERENCES Employees (EID),
-        period  tsrange NOT NULL,
+        intvl   tsrange NOT NULL,
         remark  text
     )
 

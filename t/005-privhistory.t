@@ -41,9 +41,9 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Privhistory;
+use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use App::Dochazka::REST::Model::Shared qw( noof );
-use App::Dochazka::REST::Util::Timestamp qw( $today_ts $yesterday_ts );
+use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
 use Scalar::Util qw( blessed );
 use Test::More;
 
@@ -52,7 +52,7 @@ my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 27;
+    plan tests => 36;
 }
 
 # get database handle and ping the database just to be sure
@@ -126,14 +126,47 @@ ok( $status->ok, "Load OK" );
 # Count of privhistory records should be 2
 is( noof( $dbh, "privhistory" ), 2 );
 
-# delete the privhistory record
-$status = $priv->delete;
-ok( $status->ok, "DELETE OK" );
+# test get_privhistory
+$status = get_privhistory( $dbh, $REST->eid_of_root, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+ok( $status->ok, "Privhistory record found" );
+my $ph = $status->payload;
+is( scalar @$ph, 1, "One record" );
+#diag( Dumper( $ph ) );
 
-# It's gone
-$priv->reset;
-$status = $priv->load( $emp->eid );
-is( $status->level, 'WARN', "No records" );
+# add another record within the range
+my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
+              dbh => $dbh,
+              acleid => $REST->eid_of_root,
+              eid => $ins_eid,
+              priv => 'passerby',
+              effective => "$today 02:00",
+              remark => $ins_remark,
+          );
+is( $priv3->phid, undef, "phid undefined before INSERT" );
+$priv3->insert;
+diag( $status->text ) if $status->not_ok;
+ok( $status->ok, "Post-insert status ok" );
+ok( $priv3->phid > 0, "INSERT assigned an phid" );
+
+# test get_privhistory again -- do we get two records?
+$status = get_privhistory( $dbh, $REST->eid_of_root, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+ok( $status->ok, "Privhistory record found" );
+$ph = $status->payload;
+is( scalar @$ph, 2, "Two records" );
+#diag( Dumper( $ph ) );
+
+# delete the privhistory records we just inserted
+foreach my $priv ( @$ph ) {
+    my $phid = $priv->phid;
+    $status = $priv->delete;
+    ok( $status->ok, "DELETE OK" );
+    $priv->reset;
+    $status = $priv->load_by_phid( $phid );
+    is( $status->level, 'WARN', "No records" );
+}
+
+# After deleting all the records we inserted, there should still be
+# one left (root's)
 is( noof( $dbh, "privhistory" ), 1 );
 
 # Total number of employees should now be 2 (root and Mr. Privhistory)
