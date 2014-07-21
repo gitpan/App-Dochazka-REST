@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.080
+Version 0.081
 
 =cut
 
-our $VERSION = '0.080';
+our $VERSION = '0.081';
 
 
 
@@ -101,7 +101,7 @@ anything useful.
 
 There is more to Dochazka than C<App::Dochazka::REST>, of course. Dochazka REST
 is the "server component" of Dochazka, consisting of a web server
-(L<Plack>) and a data model (L<DATA MODEL>). Assuming
+(L<Plack>) and a L<data model|DATA MODEL>. Assuming
 C<App::Dochazka::REST> is installed, configured, and running, in order to
 actually use Dochazka, a client will be needed.
 

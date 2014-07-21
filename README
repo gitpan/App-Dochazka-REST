@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.080
+    Version 0.081
 
 SYNOPSIS
     This is the top-level module of the Dochazka REST server.
@@ -31,9 +31,9 @@ DESCRIPTION
   Dochazka architecture
     There is more to Dochazka than `App::Dochazka::REST', of course.
     Dochazka REST is the "server component" of Dochazka, consisting of a web
-    server (Plack) and a data model (DATA MODEL). Assuming
-    `App::Dochazka::REST' is installed, configured, and running, in order to
-    actually use Dochazka, a client will be needed.
+    server (Plack) and a data model. Assuming `App::Dochazka::REST' is
+    installed, configured, and running, in order to actually use Dochazka, a
+    client will be needed.
 
     Though no client yet exists, two are planned: a command-line interface
     (App::Dochazka::CLI) and a web front-end (App::Dochazka::WebGUI).

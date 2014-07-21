@@ -490,3 +490,6 @@ Revision history for Dochazka-REST
 - Privhistory.pm, t/005-privhistory.t: add load_by_phid method and get_privhistory function
 - Timestamp.pm: add untested functions 'split_tsrange' and 'canonicalize_ts'
 
+0.081  2014-07-21 09:08 CEST
+- minor edit to bump version number as PAUSE refuses to accept version 0.080
+
