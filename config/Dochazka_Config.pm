@@ -39,6 +39,15 @@
 # -----------------------------------
 
 
+# DOCHAZKA_REST_HTML
+#    what we display when someone opens us in a browser
+set( 
+    'DOCHAZKA_REST_HTML',
+    '<html><body><h1>App::Dochazka::REST</h1><p>For documentation, ' . 
+    'see <a href="https://metacpan.org/pod/App::Dochazka::REST">' . 
+    'https://metacpan.org/pod/App::Dochazka::REST</a></p></body></html>'
+);
+
 # DOCHAZKA_APPNAME
 #    name of application for logging purposes
 set( 'DOCHAZKA_APPNAME', 'Dochazka-test' );

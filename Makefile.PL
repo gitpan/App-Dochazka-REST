@@ -5,16 +5,19 @@ WriteMakefile
   'NAME' => 'App::Dochazka::REST',
   'VERSION_FROM' => 'lib/App/Dochazka/REST.pm',
   'PREREQ_PM' => {
-                   'App::CELL' => '0.183',
+                   'App::CELL' => '0.19',
                    'DBD::Pg' => 0,
                    'DBI' => 0,
                    'File::ShareDir' => '1.00',
                    'JSON' => 0,
-                   'Test::More' => 0
+                   'Plack::Runner' => 0,
+                   'Plack::Test' => 0,
+                   'Test::JSON' => 0,
+                   'Test::More' => 0,
+                   'Web::Machine' => '0.15'
                  },
   'INSTALLDIRS' => 'site',
   'EXE_FILES' => [
-                   'bin/dochazka-dbinit',
                    'bin/dochazka-rest'
                  ],
   'PL_FILES' => {}

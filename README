@@ -2,7 +2,11 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.081
+    Version 0.084
+
+  Development status
+    Dochazka is currently a Work In Progress (WIP). Do not expect it to do
+    anything useful.
 
 SYNOPSIS
     This is the top-level module of the Dochazka REST server.
@@ -24,16 +28,12 @@ DESCRIPTION
     Dochazka as a whole aims to be a convenient, open-source ATT solution.
     Its reference implementation runs on the Linux platform.
 
-  Development status
-    Dochazka is currently a Work In Progress (WIP). Do not expect it to do
-    anything useful.
-
   Dochazka architecture
     There is more to Dochazka than `App::Dochazka::REST', of course.
     Dochazka REST is the "server component" of Dochazka, consisting of a web
-    server (Plack) and a data model. Assuming `App::Dochazka::REST' is
-    installed, configured, and running, in order to actually use Dochazka, a
-    client will be needed.
+    server (Plack) and a data model. Once `App::Dochazka::REST' is
+    installed, configured, and running, a client will be need in order to
+    actually use Dochazka.
 
     Though no client yet exists, two are planned: a command-line interface
     (App::Dochazka::CLI) and a web front-end (App::Dochazka::WebGUI).
@@ -312,17 +312,31 @@ INSTALLATION
     reverse proxies, firewalls, load balancers, connection pools, etc. will
     need to set those up, as well.
 
+STARTING THE SERVER
+    Once App::Dochazka::REST is installed, the server is started like this:
+
+        $ dochazka-rest
+
 AUTHENTICATION
     Since employees do not access the database directly, but only via the
     `App::Dochazka::REST' web server, the web server needs to tie all
-    incoming requests to an EID. This is done when the session is
-    established (see Session management). In the site configuration, the
-    administrator associates an LDAP field with either EID or nick. When an
-    employee initiates a session by contacting the server,
-    `App::Dochazka::REST' first looks up the employee in the LDAP database
-    and determines her EID, either directly or via the employee's nick. If
-    the EID is valid, the password entered by the employee is checked
-    against the password stored in the LDAP database.
+    incoming requests to an EID.
+
+    At the moment, this is accomplished via Web::Machine using HTTP Basic
+    Authentication with a single hardcoded username/password combination
+    `demo/demo'.
+
+    This allows us to use, e.g., `curl' like this:
+
+        $ curl http://demo:demo@0:5000/
+
+    This is done when the session is established (see Session management).
+    In the site configuration, the administrator associates an LDAP field
+    with either EID or nick. When an employee initiates a session by
+    contacting the server, `App::Dochazka::REST' first looks up the employee
+    in the LDAP database and determines her EID, either directly or via the
+    employee's nick. If the EID is valid, the password entered by the
+    employee is checked against the password stored in the LDAP database.
 
     Alternatively, `App::Dochazka::REST' can be configured to authenticate
     employees against passwords stored in the Dochazka database.
@@ -365,11 +379,6 @@ EXPORTS
     * `$REST' App::Dochazka::REST singleton object
 
 METHODS AND ROUTINES
-  `reset_db'
-    Drop and re-create a Dochazka database. Takes database name. Do not call
-    when connected to an existing database. Be very, _very_, _VERY_ careful
-    when calling this function.
-
   init
     Load site configuration, set up logging, and connect to the database.
 
@@ -386,8 +395,6 @@ METHODS AND ROUTINES
         my $status = $REST->init_no_db( verbose => 1 );
         my $status = $REST->init_no_db( sitedir => '/etc/fooapp' );
 
-    (The first example should be sufficient.)
-
   connect_db_pristine
     Connect to a pristine database. This function should be used only for
     newly created databases. Takes a PARAMHASH with 'dbname', 'dbuser', and
@@ -398,6 +405,11 @@ METHODS AND ROUTINES
     Connect to a pre-initialized database and initialize site params. This
     is the function that should be used in production. Takes database name.
     For username and password, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS are used.
+
+  reset_db
+    Drop and re-create a Dochazka database. Takes database name. Do not call
+    when connected to an existing database. Be very, _very_, _VERY_ careful
+    when calling this function.
 
   create_tables
     Execute all the SQL statements contained in DBINIT_CREATE param

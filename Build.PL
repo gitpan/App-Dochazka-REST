@@ -14,17 +14,24 @@ my $builder = Module::Build->new(
     share_dir           => {
         dist => [ 'config' ],
     },
+    script_files        => [
+        'bin/dochazka-rest',
+    ],
     configure_requires => {
         'Module::Build' => 0,
     },
     build_requires => {
-        'Test::More' => 0,
+        'Plack::Test' => 0,
+        'Test::More'  => 0,
+        'Test::JSON'  => 0,
     },
     requires => {
-        'App::CELL'     => 0.183,
+        'App::CELL'     => 0.190,
         'DBD::Pg'       => 0,
         'DBI'           => 0,
         'JSON'          => 0,
+        'Plack::Runner' => 0,
+        'Web::Machine'  => 0.15,
     },
     add_to_cleanup     => [ 'App-Dochazka-REST-*' ],
     create_makefile_pl => 'traditional',

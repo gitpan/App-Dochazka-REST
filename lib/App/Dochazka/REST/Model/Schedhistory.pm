@@ -52,11 +52,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.081
+Version 0.084
 
 =cut
 
-our $VERSION = '0.081';
+our $VERSION = '0.084';
 
 
 

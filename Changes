@@ -493,3 +493,25 @@ Revision history for Dochazka-REST
 0.081  2014-07-21 09:08 CEST
 - minor edit to bump version number as PAUSE refuses to accept version 0.080
 
+0.082  2014-07-21 19:44 CEST
+- Build.PL: add another dependency to appease CPAN Testers
+- bin/*, config/dochazka-rest.psgi, Resource.pm: start working on executable
+  for starting the server
+
+0.083  2014-07-22 10:18 CEST
+- dochazka-rest.psgi: minimize
+- Resource.pm: add POD, work on 'resource_exists' (path dispatcher)
+- Dispatch.pm: put path dispatch state machine into separate module
+
+0.084  2014-07-22 14:32 CEST
+- bin/dochazka-rest: reworked into standalone server startup script
+- t/301-psgi.t: start testing web server functionality
+- REST.pm: add POD re: starting server and authentication, include PSGI
+  $app coderef in $REST singleton
+- config/Dochazka_Config.pm, Resource.pm: add DOCHAZKA_REST_HTML param
+  defining the HTML displayed when someone accesses the server from a
+  browser
+- Resource.pm: enable HTTP Basic Authorization for authentication, using a
+  hard-coded dummy username/password pair for now
+- Build.PL, t/000-dependencies.t: update dependencies
+

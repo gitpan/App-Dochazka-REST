@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 # ************************************************************************* 
 # Copyright (c) 2014, SUSE LLC
 # 
@@ -30,22 +29,24 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-#
-# App::Dochazka::REST server executable
-#
-# -------------------------------------------------------------------------
 
-use 5.014;
+# ------------------------
+# Path dispatcher module
+# ------------------------
+
+package App::Dochazka::REST::Dispatch;
+
 use strict;
 use warnings;
 
-use App::CELL::Test::LogToFile;
-use App::Dochazka::REST qw( $REST );
-use Plack::Runner;
- 
+use App::CELL qw( $CELL );
+
+
 =head1 NAME
 
-dochazka-rest - App::Dochazka::REST server startup script
+App::Dochazka::REST::Dispatch - path dispatch
+
+
 
 
 
@@ -59,24 +60,62 @@ our $VERSION = '0.084';
 
 
 
+
+
 =head1 SYNOPSIS
 
-    $ dochazka-rest
+In Resource.pm:
+
+    use App::Dochazka::REST::Dispatch;
+
+    $self->{'context'} = App::Dochazka::REST::Dispatch::get_response( $path );
+
 
 
 
 =head1 DESCRIPTION
 
-Run this script from the bash prompt to start the server.
+Path dispatch state machine.
 
 =cut
 
-print "App::Dochazka::REST ver. $VERSION\n";
-print "Initializing and connecting to database\n";
-my $status = $REST->init;
-print $status->text unless $status->ok;
-print "Starting server\n";
-my $runner = Plack::Runner->new;
-$runner->parse_options(@ARGV);
-$runner->run( $REST->{'app'} );
 
+
+
+=head1 METHODS
+
+
+=head2 get_response
+
+Entry point. Takes a path, returns a data structure that will be converted
+into JSON and sent to the client.
+
+=cut
+ 
+sub get_response {
+    my ( $path ) = @_;
+
+    # ========================================================================
+    # big bad state machine
+    # ========================================================================
+
+    my $r; # allocate memory for response
+
+    # 1. "no path" or "/version"
+    if ( $path eq '' or $path eq '/' or $path =~ m/^\/version/i ) {
+        $r = { 
+            "App::Dochazka::REST" => { 
+                version => "$VERSION",
+                documentation => 'http://metacpan.org/pod/App::Dochazka::REST',
+            },
+        };
+
+    # 999. anything else
+    } else {
+        $r = { unrecognized => $path };
+    }
+
+    return $r;
+}
+
+1;

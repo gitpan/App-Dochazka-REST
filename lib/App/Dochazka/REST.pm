@@ -38,12 +38,12 @@ use warnings FATAL => 'all';
 
 use App::CELL qw( $CELL $log $meta $core $site );
 use Carp;
-use Data::Dumper;
 use DBI;
+use Data::Dumper;
 use App::Dochazka::REST::Model::Activity;
-#use App::Dochazka::REST::Model::Shared;
 use File::ShareDir;
 use Try::Tiny;
+use Web::Machine;
 
 
 
@@ -57,11 +57,17 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.081
+Version 0.084
 
 =cut
 
-our $VERSION = '0.081';
+our $VERSION = '0.084';
+
+
+=head2 Development status
+
+Dochazka is currently a Work In Progress (WIP). Do not expect it to do
+anything useful.
 
 
 
@@ -91,19 +97,13 @@ Dochazka as a whole aims to be a convenient, open-source ATT solution. Its
 reference implementation runs on the Linux platform. 
 
 
-=head2 Development status
-
-Dochazka is currently a Work In Progress (WIP). Do not expect it to do
-anything useful.
-
-
 =head2 Dochazka architecture
 
 There is more to Dochazka than C<App::Dochazka::REST>, of course. Dochazka REST
 is the "server component" of Dochazka, consisting of a web server
-(L<Plack>) and a L<data model|DATA MODEL>. Assuming
-C<App::Dochazka::REST> is installed, configured, and running, in order to
-actually use Dochazka, a client will be needed.
+(L<Plack>) and a L<data model|"DATA MODEL">. Once
+C<App::Dochazka::REST> is installed, configured, and running, a client will 
+be need in order to actually use Dochazka.
 
 Though no client yet exists, two are planned: a command-line interface
 (L<App::Dochazka::CLI>) and a web front-end (L<App::Dochazka::WebGUI>).
@@ -445,15 +445,30 @@ need to set those up, as well.
 
 
 
+=head1 STARTING THE SERVER
+
+Once L<App::Dochazka::REST> is installed, the server is started like this:
+
+    $ dochazka-rest
+
+
 
 =head1 AUTHENTICATION
 
-=for comment
-HAND WAVING
-
 Since employees do not access the database directly, but only via the
 C<App::Dochazka::REST> web server, the web server needs to tie all incoming requests
-to an EID. This is done when the session is established (see L</Session
+to an EID. 
+
+At the moment, this is accomplished via L<Web::Machine> using HTTP Basic
+Authentication with a single hardcoded username/password combination
+C<demo/demo>. 
+
+This allows us to use, e.g., C<curl> like this:
+
+    $ curl http://demo:demo@0:5000/
+
+
+This is done when the session is established (see L</Session
 management>). In the site configuration, the administrator associates an LDAP
 field with either EID or nick. When an employee initiates a session by
 contacting the server, C<App::Dochazka::REST> first looks up the employee in the
@@ -522,9 +537,10 @@ App::Dochazka::REST singleton object
 =cut 
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( $REST );
+our @EXPORT_OK = qw( $REST $app );
 
 our $REST = bless { 
+        app      => Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app,
         dbh      => '',
     }, __PACKAGE__;
 
@@ -533,70 +549,6 @@ our $REST = bless {
 
 =head1 METHODS AND ROUTINES
 
-
-
-=head2 C<reset_db>
-
-Drop and re-create a Dochazka database. Takes database name. Do not call
-when connected to an existing database. Be very, _very_, _VERY_ careful
-when calling this function.
-
-=cut
-
-sub reset_db {
-    my ( $self, $dbname ) = @_;
-
-    my $status;
-    if ( $REST->{dbh} and $REST->{dbh}->ping ) {
-        $log->warn( "reset_db: already connected to DB; disconnecting first" );
-        $REST->{dbh}->disconnect;
-    }
-
-    # connect to 'postgres' database
-    $status = $self->connect_db_pristine( 
-        dbname => 'postgres',
-        dbuser => $site->DBINIT_CONNECT_USER,
-        dbpass => $site->DBINIT_CONNECT_AUTH,
-    );
-    return $status unless $status->ok;
-
-    $REST->{dbh}->{AutoCommit} = 1;
-    $REST->{dbh}->{RaiseError} = 1;
-
-    # drop user dochazka if it exists, otherwise ignore the error
-    try {
-        $REST->{dbh}->do( 'DROP DATABASE IF EXISTS "' . $dbname . '"' );    
-        $REST->{dbh}->do( 'DROP USER dochazka' );
-    };
-
-    try {
-        $REST->{dbh}->do( 'CREATE USER dochazka' );
-        $REST->{dbh}->do( 'ALTER ROLE dochazka WITH PASSWORD \'dochazka\'' );
-        $REST->{dbh}->do( 'CREATE DATABASE "' . $dbname . '"' );    
-        $REST->{dbh}->do( 'GRANT ALL PRIVILEGES ON DATABASE "'.  $dbname . '" TO dochazka' );
-    } catch {
-        $status = $CELL->status_err( $DBI::errstr );
-    };
-    $REST->{dbh}->disconnect;
-
-    # connect to dochazka database as superuser
-    $status = $self->connect_db_pristine( 
-        dbname => $site->DOCHAZKA_DBNAME,
-        dbuser => $site->DBINIT_CONNECT_USER,
-        dbpass => $site->DBINIT_CONNECT_AUTH,
-    );  
-    return $status unless $status->ok;
-
-    try {
-        $REST->{dbh}->do( 'CREATE EXTENSION IF NOT EXISTS btree_gist' );
-    } catch {
-        $status = $CELL->status_err( $DBI::errstr );
-    };
-    $REST->{dbh}->disconnect;
-
-    $log->notice( 'Database ' . $dbname . ' dropped and re-created' ) if $status->ok;
-    return $status;
-}
 
 
 =head2 init
@@ -611,7 +563,7 @@ sub init {
     my %ARGS = @ARGS;
     my $status;
     $status = $self->init_no_db( %ARGS );
-    return $status if $status->not_ok;
+    return $status unless $status->ok;
     $status = $self->connect_db( $site->DOCHAZKA_DBNAME );
     return $status;
 }
@@ -630,8 +582,6 @@ sitedir specified in the PARAMHASH is loaded. Call examples:
     my $status = $REST->init_no_db;
     my $status = $REST->init_no_db( verbose => 1 );
     my $status = $REST->init_no_db( sitedir => '/etc/fooapp' );
-
-(The first example should be sufficient.)
 
 =cut
 
@@ -759,6 +709,70 @@ sub connect_db {
     return $CELL->status_ok;
 }
     
+
+
+=head2 reset_db
+
+Drop and re-create a Dochazka database. Takes database name. Do not call
+when connected to an existing database. Be very, _very_, _VERY_ careful
+when calling this function.
+
+=cut
+
+sub reset_db {
+    my ( $self, $dbname ) = @_;
+
+    my $status;
+    if ( $REST->{dbh} and $REST->{dbh}->ping ) {
+        $log->warn( "reset_db: already connected to DB; disconnecting first" );
+        $REST->{dbh}->disconnect;
+    }
+
+    # connect to 'postgres' database
+    $status = $self->connect_db_pristine( 
+        dbname => 'postgres',
+        dbuser => $site->DBINIT_CONNECT_USER,
+        dbpass => $site->DBINIT_CONNECT_AUTH,
+    );
+    return $status unless $status->ok;
+
+    $REST->{dbh}->{AutoCommit} = 1;
+    $REST->{dbh}->{RaiseError} = 1;
+
+    # drop user dochazka if it exists, otherwise ignore the error
+    try {
+        $REST->{dbh}->do( 'DROP DATABASE IF EXISTS "' . $dbname . '"' );    
+        $REST->{dbh}->do( 'DROP USER dochazka' );
+    };
+
+    try {
+        $REST->{dbh}->do( 'CREATE USER dochazka' );
+        $REST->{dbh}->do( 'ALTER ROLE dochazka WITH PASSWORD \'dochazka\'' );
+        $REST->{dbh}->do( 'CREATE DATABASE "' . $dbname . '"' );    
+        $REST->{dbh}->do( 'GRANT ALL PRIVILEGES ON DATABASE "'.  $dbname . '" TO dochazka' );
+    } catch {
+        $status = $CELL->status_err( $DBI::errstr );
+    };
+    $REST->{dbh}->disconnect;
+
+    # connect to dochazka database as superuser
+    $status = $self->connect_db_pristine( 
+        dbname => $site->DOCHAZKA_DBNAME,
+        dbuser => $site->DBINIT_CONNECT_USER,
+        dbpass => $site->DBINIT_CONNECT_AUTH,
+    );  
+    return $status unless $status->ok;
+
+    try {
+        $REST->{dbh}->do( 'CREATE EXTENSION IF NOT EXISTS btree_gist' );
+    } catch {
+        $status = $CELL->status_err( $DBI::errstr );
+    };
+    $REST->{dbh}->disconnect;
+
+    $log->notice( 'Database ' . $dbname . ' dropped and re-created' ) if $status->ok;
+    return $status;
+}
 
 
 =head2 create_tables

@@ -13,6 +13,7 @@ config/sql/lock_Config.pm
 config/sql/privhistory_Config.pm
 config/sql/schedule_Config.pm
 lib/App/Dochazka/REST.pm
+lib/App/Dochazka/REST/Dispatch.pm
 lib/App/Dochazka/REST/Model/Activity.pm
 lib/App/Dochazka/REST/Model/Employee.pm
 lib/App/Dochazka/REST/Model/Interval.pm
@@ -22,6 +23,7 @@ lib/App/Dochazka/REST/Model/Schedhistory.pm
 lib/App/Dochazka/REST/Model/Schedintvls.pm
 lib/App/Dochazka/REST/Model/Schedule.pm
 lib/App/Dochazka/REST/Model/Shared.pm
+lib/App/Dochazka/REST/Resource.pm
 lib/App/Dochazka/REST/Util/Timestamp.pm
 LICENSE
 Makefile.PL
@@ -29,6 +31,7 @@ MANIFEST			This list of files
 META.json
 META.yml
 README
+t/.000-depends.t.swp
 t/000-depends.t
 t/001-init.t
 t/002-root.t
@@ -43,6 +46,7 @@ t/010-interval.t
 t/011-tsrange_equal.t
 t/012-lock.t
 t/203-util-timestamp.t
+t/301-psgi.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t

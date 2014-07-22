@@ -44,13 +44,11 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Schedule qw( get_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
 use App::Dochazka::REST::Model::Shared qw( noof );
 #use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
 use Scalar::Util qw( blessed );
-use Test::JSON;
 use Test::More;
 
 my $status = $REST->init( sitedir => '/etc/dochazka' );
