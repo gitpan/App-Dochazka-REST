@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.087
+Version 0.088
 
 =cut
 
-our $VERSION = '0.087';
+our $VERSION = '0.088';
 
 
 

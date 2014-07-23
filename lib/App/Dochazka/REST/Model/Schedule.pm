@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.087
+Version 0.088
 
 =cut
 
-our $VERSION = '0.087';
+our $VERSION = '0.088';
 
 
 

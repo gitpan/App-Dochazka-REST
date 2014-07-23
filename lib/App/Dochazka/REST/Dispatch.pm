@@ -53,11 +53,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.087
+Version 0.088
 
 =cut
 
-our $VERSION = '0.087';
+our $VERSION = '0.088';
 
 
 
@@ -124,7 +124,7 @@ installed at the site. For example:
 
 =head2 C<< http://dochazka.site/help >>
 
-Returns a hopefully helpful status object containing a URL where
+Returns a hopefully helpful status object containing a URL where this
 documentation can be accessed.
 
 =cut
@@ -177,7 +177,7 @@ sub _version {
 
 sub _help {
     my ( $rest ) = @_;
-    my $du = "https://metacpan.org/pod/App::Dochazka::REST";
+    my $du = "https://metacpan.org/pod/App::Dochazka::REST::Dispatch";
     my $status = $CELL->status_ok( 
         'DISPATCH_HELP', 
         args => [ $du ],

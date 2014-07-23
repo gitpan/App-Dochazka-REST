@@ -532,3 +532,8 @@ Revision history for Dochazka-REST
   the page
 - obs.sh: add OBS CI script
 
+0.088  2014-07-23 12:53 CEST
+- bin/dochazka-rest: load the local sitedir
+- REST.pm: explain current installation/bootstrap process in detail in the
+  "INSTALLATION" section
+

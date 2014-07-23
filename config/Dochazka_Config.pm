@@ -49,7 +49,7 @@ set(
     '<p>For request syntax, see <a href="https://metacpan.org/pod/App::Dochazka::REST::Dispatch">' . 
     'https://metacpan.org/pod/App::Dochazka::REST::Dispatch</a></p>' . 
     '<p>HINT: for best results use <b>curl</b>, ' .
-    'e.g. <code>curl http://demo:demo@dochazka-devel.suse.cz/</code></p>' . 
+    'e.g. <code>curl http://demo:demo@dochazka-devel.suse.cz/help</code></p>' . 
     '</body></html>'
 );
 

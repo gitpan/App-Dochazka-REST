@@ -51,11 +51,11 @@ dochazka-rest - App::Dochazka::REST server startup script
 
 =head1 VERSION
 
-Version 0.087
+Version 0.088
 
 =cut
 
-our $VERSION = '0.087';
+our $VERSION = '0.088';
 
 
 
@@ -73,7 +73,7 @@ Run this script from the bash prompt to start the server.
 
 print "App::Dochazka::REST ver. $VERSION\n";
 print "Initializing and connecting to database\n";
-my $status = $REST->init;
+my $status = $REST->init( sitedir => '/etc/dochazka' );
 print $status->text unless $status->ok;
 print "Starting server\n";
 my $runner = Plack::Runner->new;
