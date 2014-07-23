@@ -39,7 +39,8 @@ package App::Dochazka::REST::Dispatch;
 use strict;
 use warnings;
 
-use App::CELL qw( $CELL );
+use App::CELL qw( $CELL $log $site );
+use Scalar::Util qw( blessed );
 
 
 =head1 NAME
@@ -52,11 +53,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.084
+Version 0.086
 
 =cut
 
-our $VERSION = '0.084';
+our $VERSION = '0.086';
 
 
 
@@ -70,52 +71,160 @@ In Resource.pm:
 
     $self->{'context'} = App::Dochazka::REST::Dispatch::get_response( $path );
 
+For documentation of request syntax, see L<"REQUEST SYNTAX">, below.
 
 
 
 =head1 DESCRIPTION
 
-Path dispatch state machine.
+Path dispatch state machine. 
 
 =cut
 
 
 
 
-=head1 METHODS
-
-
-=head2 get_response
-
-Entry point. Takes a path, returns a data structure that will be converted
-into JSON and sent to the client.
-
-=cut
- 
-sub get_response {
+sub _get_response {
     my ( $path ) = @_;
 
     # ========================================================================
     # big bad state machine
     # ========================================================================
 
-    my $r; # allocate memory for response
+    my $status; # allocate memory for response
+    my $extra;
 
-    # 1. "no path" or "/version"
-    if ( $path eq '' or $path eq '/' or $path =~ m/^\/version/i ) {
-        $r = { 
-            "App::Dochazka::REST" => { 
-                version => "$VERSION",
-                documentation => 'http://metacpan.org/pod/App::Dochazka::REST',
-            },
-        };
 
-    # 999. anything else
-    } else {
-        $r = { unrecognized => $path };
+
+=head1 REQUEST SYNTAX
+
+Documentation of L<App::Dochazka::REST> request syntax. Each section below
+corresponds to a URL, in which you should replace C<dochazka.site> with the
+FQDN of your own Dochazka REST server. The full URL is shown only for the
+first couple entries. All responses are JSON-encoded status objects unless
+otherwise noted.
+
+=head2 C<< http://dochazka.site/ >>
+
+(If this URL is opened in a browser, a HTML page will be displayed. The HTML
+source code is defined in C<< $site->DOCHAZKA_REST_HTML >>.)
+
+This is considered an empty request. The response will be the same as for 
+L<"http://dochazka.site/version">.
+
+=cut
+
+    # 1. "" or "/"
+    if ( $path eq '' or $path eq '/' ) {
+        $status = _version( '' );
     }
 
-    return $r;
+=head2 C<< http://dochazka.site/version >>
+
+Returns version number of the L<App::Dochazka::REST> that is
+installed at the site. For example:
+
+    /VERSION example here
+
+=cut
+
+    # 2. "/version"
+    elsif ( $path =~ s/^\/version//i ) {
+        $status = _version( '', $path );
+    }
+
+=head2 C<< http://dochazka.site/help >>
+
+Returns a hopefully helpful status object containing a URL where
+documentation can be accessed.
+
+=cut
+
+    # 3. "/help"
+    elsif ( $path =~ s/^\/help//i ) {
+        $status = _help( '' );
+    }
+
+=head2 C<< /site/[PARAM] >>
+
+(For the sake of brevity, the C<< http://dochazka.site >> part will be
+omitted from here on.)
+
+Returns value of the given site param in the payload.
+
+=cut
+
+    # 4. "/site"
+    elsif ( $path =~ s/^\/site//i ) {
+        $status = _site( $path );
+    }
+
+    # 999. anything else
+    #else {
+    #    $status = { unrecognized => $path };
+    #}
+
+    # if nothing matched, bail out
+    return unless blessed $status;
+
+    # sanitize the status object
+    return $status->expurgate;
 }
 
+
+sub _version {
+    my ( $rest ) = @_;
+    my $status = $CELL->status_ok( 
+        'DISPATCH_VERSION', 
+        args => [ $VERSION ],
+        payload => { 
+            version => "$VERSION",
+        },
+    );
+    $status->{'extraneous_url_part'} = $rest if $rest;
+    return $status;
+}
+
+
+sub _help {
+    my ( $rest ) = @_;
+    my $du = "https://metacpan.org/pod/App::Dochazka::REST";
+    my $status = $CELL->status_ok( 
+        'DISPATCH_HELP', 
+        args => [ $du ],
+        payload => { 
+            documentation_url => $du,
+        },
+    );
+    $status->{'extraneous_url_part'} = $rest if $rest;
+    return $status;
+}
+
+
+sub _site {
+    no strict 'refs';
+    my ( $path ) = @_;
+    my ( $param, $value, $status );
+
+    # correct value for $path looks like, e.g. '/DOCHAZKA_APPNAME'
+    if ( $path =~ s/^\/([^\/]+)// ) {
+        $param = $1;
+        $value = $site->$param;
+        $status = $value
+            ? $CELL->status_ok( 
+                  'DISPATCH_SITE_OK', 
+                  args => [ $param ], 
+                  payload => { $param => $value } 
+              )
+            : $CELL->status_err( 
+                  'DISPATCH_SITE_NOT_DEFINED', 
+                  args => [ $param ] 
+              );
+    } else {
+        $status = $CELL->status_err( 'DISPATCH_SITE_MISSING' );
+    }
+    $status->{'extraneous_url_part'} = $path if $path;
+    return $status;
+}
+    
 1;

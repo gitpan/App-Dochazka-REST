@@ -2,6 +2,7 @@ bin/dochazka-dbinit
 bin/dochazka-rest
 Build.PL
 Changes
+config/dispatch/dispatch_Message_en.conf
 config/Dochazka_Config.pm
 config/Dochazka_Message_en.conf
 config/README
@@ -31,7 +32,6 @@ MANIFEST			This list of files
 META.json
 META.yml
 README
-t/.000-depends.t.swp
 t/000-depends.t
 t/001-init.t
 t/002-root.t
@@ -46,7 +46,7 @@ t/010-interval.t
 t/011-tsrange_equal.t
 t/012-lock.t
 t/203-util-timestamp.t
-t/301-psgi.t
+t/301-dispatch.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t

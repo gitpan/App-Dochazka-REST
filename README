@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.084
+    Version 0.086
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -30,10 +30,11 @@ DESCRIPTION
 
   Dochazka architecture
     There is more to Dochazka than `App::Dochazka::REST', of course.
-    Dochazka REST is the "server component" of Dochazka, consisting of a web
-    server (Plack) and a data model. Once `App::Dochazka::REST' is
-    installed, configured, and running, a client will be need in order to
-    actually use Dochazka.
+    Dochazka REST is the "server component" of Dochazka, consisting of a
+    Plack/PSGI web server (implemented using Web::Machine) and a data model.
+
+    Once `App::Dochazka::REST' is installed, configured, and running, a
+    client will be need in order to actually use Dochazka.
 
     Though no client yet exists, two are planned: a command-line interface
     (App::Dochazka::CLI) and a web front-end (App::Dochazka::WebGUI).
@@ -52,6 +53,9 @@ DESCRIPTION
     http://dochazka.example.com/employee/Dolejsi). More complex requests
     need to be encoded in JSON and handed to the server by the POST method.
     All responses from the server are in JSON.
+
+    Request syntax is defined and documented in
+    App::Dochazka::REST::Dispatch.
 
 DATA MODEL
     This section describes the `App::Dochazka::REST' data model.
@@ -322,6 +326,7 @@ AUTHENTICATION
     `App::Dochazka::REST' web server, the web server needs to tie all
     incoming requests to an EID.
 
+  Current implementation
     At the moment, this is accomplished via Web::Machine using HTTP Basic
     Authentication with a single hardcoded username/password combination
     `demo/demo'.
@@ -330,6 +335,7 @@ AUTHENTICATION
 
         $ curl http://demo:demo@0:5000/
 
+  Possible future implementation
     This is done when the session is established (see Session management).
     In the site configuration, the administrator associates an LDAP field
     with either EID or nick. When an employee initiates a session by

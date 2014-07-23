@@ -26,7 +26,7 @@ my $builder = Module::Build->new(
         'Test::JSON'  => 0,
     },
     requires => {
-        'App::CELL'     => 0.190,
+        'App::CELL'     => 0.194,
         'DBD::Pg'       => 0,
         'DBI'           => 0,
         'JSON'          => 0,

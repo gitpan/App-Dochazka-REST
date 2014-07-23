@@ -59,11 +59,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.084
+Version 0.086
 
 =cut
 
-our $VERSION = '0.084';
+our $VERSION = '0.086';
 
 
 
@@ -93,7 +93,7 @@ L<Web::Machine::Resource>.
 =cut
 
 # a package variable to streamline calls to the JSON module
-my $JSON = JSON->new->allow_nonref->pretty;
+my $JSON = JSON->new->pretty;
 
 
 
@@ -220,9 +220,10 @@ sub resource_exists {
     my $path = decode_utf8( $self->request->path_info );
 
     # Since the path dispatching state machine is complex, it resides in 
-    # a separate module. The routine 'get_response' returns the data structure
-    # that will be encoded as JSON and sent to the client.
-    $self->context( App::Dochazka::REST::Dispatch::get_response( $path ) );
+    # a separate module. The C<_get_response> routine in that module
+    # returns the data structure that will be encoded as JSON and sent to
+    # the client.
+    $self->context( App::Dochazka::REST::Dispatch::_get_response( $path ) );
 
 }
 

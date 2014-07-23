@@ -515,3 +515,13 @@ Revision history for Dochazka-REST
   hard-coded dummy username/password pair for now
 - Build.PL, t/000-dependencies.t: update dependencies
 
+0.085  2014-07-23 09:12 CEST
+- t/000-depends.t: fix bug (wrong number of tests)
+- dispatch_Message_en.conf: new file for path dispatch messages
+- Dispatch.pm: work on 'get_response'
+- Resource.pm: use 'expurgate' method (new in App::CELL::Status 0.194)
+- t/301-dispatch.t: rename from 301-psgi.t and add unit tests
+
+0.086  2014-07-23 09:40 CEST
+- REST.pm, Dispatch.pm: document request syntax
+

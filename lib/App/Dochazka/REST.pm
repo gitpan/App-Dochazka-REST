@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.084
+Version 0.086
 
 =cut
 
-our $VERSION = '0.084';
+our $VERSION = '0.086';
 
 
 =head2 Development status
@@ -100,10 +100,11 @@ reference implementation runs on the Linux platform.
 =head2 Dochazka architecture
 
 There is more to Dochazka than C<App::Dochazka::REST>, of course. Dochazka REST
-is the "server component" of Dochazka, consisting of a web server
-(L<Plack>) and a L<data model|"DATA MODEL">. Once
-C<App::Dochazka::REST> is installed, configured, and running, a client will 
-be need in order to actually use Dochazka.
+is the "server component" of Dochazka, consisting of a Plack/PSGI web server
+(implemented using L<Web::Machine>) and a L<data model|"DATA MODEL">.
+
+Once C<App::Dochazka::REST> is installed, configured, and running, a client
+will be need in order to actually use Dochazka.
 
 Though no client yet exists, two are planned: a command-line interface
 (L<App::Dochazka::CLI>) and a web front-end (L<App::Dochazka::WebGUI>).
@@ -124,6 +125,9 @@ request specified in the URL itself (e.g.,
 http://dochazka.example.com/employee/Dolejsi).  More complex requests need
 to be encoded in JSON and handed to the server by the POST method. All
 responses from the server are in JSON.
+
+Request syntax is defined and documented in
+L<App::Dochazka::REST::Dispatch>.
 
 
 
@@ -459,6 +463,9 @@ Since employees do not access the database directly, but only via the
 C<App::Dochazka::REST> web server, the web server needs to tie all incoming requests
 to an EID. 
 
+
+=head2 Current implementation
+
 At the moment, this is accomplished via L<Web::Machine> using HTTP Basic
 Authentication with a single hardcoded username/password combination
 C<demo/demo>. 
@@ -467,6 +474,8 @@ This allows us to use, e.g., C<curl> like this:
 
     $ curl http://demo:demo@0:5000/
 
+
+=head2 Possible future implementation
 
 This is done when the session is established (see L</Session
 management>). In the site configuration, the administrator associates an LDAP

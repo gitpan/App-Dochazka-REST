@@ -46,8 +46,9 @@ use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 2;
+use Test::More tests => 14;
 
+# create request object with authorization header appended
 sub req {
     my @args = @_;
     my $r = HTTP::Request->new( @args );
@@ -55,8 +56,45 @@ sub req {
     return $r;
 }
 
+# initialize App::Dochazka::REST instance
+my $status = $REST->init_no_db( site => '/etc/dochazka' );
+ok( $status->ok );
+
+# instantiate Plack::Test object
 my $test = Plack::Test->create( $REST->{'app'} );
+ok( blessed $test );
+
+# path dispatcher tests (numbers in comments correspond to numbers in
+# Dispatch.pm)
+
+# 1. /
 my $res = $test->request( req GET => '/' );
-#diag( $res->content );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
+
+# 2. /version
+$res = $test->request( req GET => '/verSIOn' );
+is_valid_json( $res->content );
+like( $res->content, qr/App::Dochazka::REST/ );
+
+# 3. /help
+$res = $test->request( req GET => '/HELP' );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_HELP/ );
+
+# 4. /site
+$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/' );
+is_valid_json( $res->content );
+my $match_string = $site->DOCHAZKA_APPNAME;
+like( $res->content, qr/$match_string/ );
+
+# 4. /site
+$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME' );
+is_valid_json( $res->content );
+like( $res->content, qr/$match_string/ );
+
+# 4. /site
+$res = $test->request( req GET => '/site/DOCHAZKA_appname' );
+is_valid_json( $res->content );
+unlike( $res->content, qr/$match_string/ );
+

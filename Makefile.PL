@@ -5,7 +5,7 @@ WriteMakefile
   'NAME' => 'App::Dochazka::REST',
   'VERSION_FROM' => 'lib/App/Dochazka/REST.pm',
   'PREREQ_PM' => {
-                   'App::CELL' => '0.19',
+                   'App::CELL' => '0.194',
                    'DBD::Pg' => 0,
                    'DBI' => 0,
                    'File::ShareDir' => '1.00',
