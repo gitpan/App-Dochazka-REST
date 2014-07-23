@@ -60,6 +60,12 @@ set( 'SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP', q/
       SELECT schedule_at_timestamp($1, CAST( $2 AS TIMESTAMP WITHOUT TIME ZONE ) )
       / );
 
+# 
+set( 'SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK', q/
+      SELECT eid, fullname, nick, email, passhash, salt, remark,
+          current_priv(eid) AS priv, current_schedule(eid) AS schedule
+      FROM employees WHERE nick=?/ );
+
 #
 set( 'SQL_EMPLOYEE_CURRENT_PRIV', q/
       SELECT current_priv(?)/ );

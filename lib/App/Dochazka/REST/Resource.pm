@@ -59,11 +59,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 

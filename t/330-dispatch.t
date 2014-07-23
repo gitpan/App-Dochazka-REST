@@ -96,11 +96,11 @@ unlike( $res->content, qr/DISPATCH_SITE_UNDEFINED/ );
 
 $res = $test->request( req GET => '/site' );
 is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_SITE_MISSING/ );
+like( $res->content, qr/DISPATCH_MISSING_PARAMETER/ );
 
 $res = $test->request( req GET => '/site/' );
 is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_SITE_MISSING/ );
+like( $res->content, qr/DISPATCH_MISSING_PARAMETER/ );
 
 $res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/foobar' );
 is_valid_json( $res->content );

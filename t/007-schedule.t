@@ -58,7 +58,7 @@ my $status = $REST->init( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 85;
+    plan tests => 84;
 }
 
 # get database handle and ping DBD
@@ -71,7 +71,6 @@ is( noof( $dbh, "employees" ), 1 );
 
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     nick => 'mrsched',
     remark => 'SCHEDULE TESTING OBJECT',
 );
@@ -87,12 +86,10 @@ is( noof( $dbh, 'schedintvls' ), 0 );
 # spawn a schedintvls ("scratch schedule") object
 my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 ok( ref($schedintvls), "object is a reference" );
 ok( blessed($schedintvls), "object is a blessed reference" );
 is( $schedintvls->{dbh}, $dbh, "database handle is in the object" );
-ok( $schedintvls->{acleid} > 0, "There is an ACL EID" );
 ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" ); 
 ok( $schedintvls->{scratch_sid} > 0, "Scratch SID is > 0" ); 
 
@@ -129,7 +126,6 @@ is_valid_json( $schedintvls->json );
 # Now we can insert the JSON into the schedules table
 my $schedule = App::Dochazka::REST::Model::Schedule->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     schedule => $schedintvls->json,
     remark => 'TESTING',
 );
@@ -148,7 +144,6 @@ is( noof( $dbh, 'schedintvls' ), 0 );
 # Make a bogus schedintvls object and attempt to delete it
 my $bogus_intvls = App::Dochazka::REST::Model::Schedintvls->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
 );
 $status = $bogus_intvls->delete;
 is( $status->level, 'WARN', "Could not delete bogus intervals" );
@@ -168,7 +163,6 @@ is( $schedule->{sid}, $sid_copy );    # SID is unchanged
 is( noof( $dbh, 'schedules' ), 1, "schedules row count is 1" );
 my $schedule2 = App::Dochazka::REST::Model::Schedule->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
     schedule => $sched_copy,
     remark => 'DUPLICATE',
 );
@@ -189,7 +183,6 @@ is( get_json( $dbh, 994), undef, "Non-existent SID" );
 # in the schedhistory table
 my $schedhistory = App::Dochazka::REST::Model::Schedhistory->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
     eid => $emp->{eid},
     sid => $schedule->{sid},
     effective => $today,
@@ -217,7 +210,6 @@ is( noof( $dbh, 'schedhistory' ), 1 );
 # and now Mr. Sched's employee object should contain the schedule
 my $mrsched = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
 );
 $status = $mrsched->load_by_eid( $emp->{eid} );
 ok( $status->ok );
@@ -226,7 +218,6 @@ is_valid_json( $mrsched->{schedule} );
 # try to load the same schedhistory record into an empty object
 my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
 );
 ok( blessed( $sh2 ) );
 $status = undef;

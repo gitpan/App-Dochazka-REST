@@ -63,7 +63,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
         dbh => $dbh,
-        acleid => $REST->eid_of_root,
         nick => 'mrprivhistory',
    );
 $status = $emp->insert;
@@ -76,7 +75,6 @@ my $ins_effective = $today_ts;
 my $ins_remark = 'TESTING';
 my $priv = App::Dochazka::REST::Model::Privhistory->spawn(
               dbh => $dbh,
-              acleid => $site->DOCHAZKA_EID_OF_ROOT,
               eid => $ins_eid,
               priv => $ins_priv,
               effective => $ins_effective,
@@ -100,7 +98,6 @@ is( $priv->remark, $ins_remark );
 # spawn a fresh object and try it again
 my $priv2 = App::Dochazka::REST::Model::Privhistory->spawn(
               dbh => $dbh,
-              acleid => $site->DOCHAZKA_EID_OF_ROOT,
 );
 $status = $priv2->load( $emp->eid );
 ok( $status->ok, "Load OK" );
@@ -127,7 +124,7 @@ ok( $status->ok, "Load OK" );
 is( noof( $dbh, "privhistory" ), 2 );
 
 # test get_privhistory
-$status = get_privhistory( $dbh, $REST->eid_of_root, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $dbh, $emp->eid, "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 my $ph = $status->payload;
 is( scalar @$ph, 1, "One record" );
@@ -136,7 +133,6 @@ is( scalar @$ph, 1, "One record" );
 # add another record within the range
 my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
               dbh => $dbh,
-              acleid => $REST->eid_of_root,
               eid => $ins_eid,
               priv => 'passerby',
               effective => "$today 02:00",
@@ -149,7 +145,7 @@ ok( $status->ok, "Post-insert status ok" );
 ok( $priv3->phid > 0, "INSERT assigned an phid" );
 
 # test get_privhistory again -- do we get two records?
-$status = get_privhistory( $dbh, $REST->eid_of_root, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $dbh, $emp->eid, "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 $ph = $status->payload;
 is( scalar @$ph, 2, "Two records" );

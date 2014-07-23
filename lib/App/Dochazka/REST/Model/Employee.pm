@@ -36,10 +36,15 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid );
+use Data::Structure::Util qw( unbless );
 use DBI qw(:sql_types);
+use Scalar::Util qw( blessed );
+use Storable qw( dclone );
+use Try::Tiny;
+
 
 
 
@@ -53,11 +58,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 
@@ -209,13 +214,9 @@ our @EXPORT_OK = qw( eid_by_nick );
 =head2 spawn
 
 Employee constructor. Does not interact with the database directly, but stores
-database handle for later use. Takes PARAMHASH with required parameters: 'dbh'
-(database handle) and 'acleid' (EID of he employee initiating the request - for
-ACL lookup only;  _not_ the EID of an employee to look up). All subsequent
-operations will be carried out with the privileges of that employee, so be sure
-to destroy the object when finished with it. Optional parameter: PARAMHASH
-containing definitions of any of the attributes listed in the 'reset'
-method.
+database handle for later use. Takes PARAMHASH with required parameter 'dbh'
+(database handle). Optional parameter: PARAMHASH containing definitions of
+any of the attributes listed in the 'reset' method.
 
 =cut
 
@@ -447,17 +448,6 @@ sub _load {
     $self->reset; # reset object to primal state
     my ( $spec ) = keys %ARGS;
 
-    # check ACL
-    $self->{aclpriv} = priv_by_eid( $dbh, $self->{acleid} ) if not defined( $self->{aclpriv} );
-    ACL: {
-        last ACL if $self->{aclpriv} eq 'admin';
-        last ACL if $self->{acleid} == $self->{eid} and ( 
-                                $self->{aclpriv} eq 'inactive' or
-                                $self->{aclpriv} eq 'active'
-                                                        );
-        return $CELL->status_err('DOCHAZKA_INSUFFICIENT_PRIV');
-    }
-
     if ( $spec eq 'nick' ) {
         $sql = $site->SQL_EMPLOYEE_SELECT_BY_NICK;
     } else {
@@ -488,7 +478,6 @@ The following functions are not object methods.
 
 =head2 eid_by_nick
 
-** NO ACL CHECK **
 Given a database handle and a nick, attempt ot retrieve the
 EID corresponding to the nick. Returns EID or undef on failure.
 
@@ -500,7 +489,6 @@ sub eid_by_nick {
         if ! defined($dbh) or ! defined( $nick );
     my $emp = __PACKAGE__->spawn(
         dbh => $dbh,
-        acleid => $site->DOCHAZKA_EID_OF_ROOT,
     );
     my $status = $emp->load_by_nick( $nick );
     return $emp->{eid} if $status->ok;
@@ -508,6 +496,84 @@ sub eid_by_nick {
 }
 
 
+=head2 select_multiple_by_nick
+
+Class method. Select multiple employees by nick. Returns a status object.
+If records are found, they will be in the payload (reference to an array of
+expurgated employee objects).
+
+=cut
+
+sub select_multiple_by_nick {
+    my ( $class, $dbh, $sk ) = @_;        # sk means "search key"
+    croak( "Bad database handle" ) unless $dbh->ping;
+    $sk = '%' if not $sk;          # select all if no search key given
+    my $status;
+    
+    $log->info( "Entering select_multiple_by_nick" );
+    my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
+    $log->info( "Preparing SQL statement ->$sql<-" );
+    my $sth = $dbh->prepare( $sql );
+    $log->info( "SQL statement prepared" );
+    $dbh->{RaiseError} = 1;
+    try {
+        local $SIG{__WARN__} = sub {
+                die @_;
+            };
+        $sth->execute( $sk );
+        $log->info( "SQL statement executed with search key ->$sk<-" );
+        my $result = []; 
+        my $counter = 0;
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) { 
+            $counter += 1;
+            my $emp = __PACKAGE__->spawn(
+                dbh => $dbh,
+            );  
+            $emp->reset( %$tmpres );
+            push @$result, $emp->expurgate;
+            $log->info( Dumper( $result ) );
+        }   
+        $log->info( "$counter records fetched" );
+        $log->info( Dumper( $result ) );
+        if ( $counter > 0 ) { 
+            $status = $CELL->status_ok( 'DISPATCH_EMPLOYEES_FOUND',
+                args => [ $counter ], payload => $result, count => $counter );
+        } else {
+            $status = $CELL->status_warn( 'DISPATCH_EMPLOYEES_FOUND',
+                args => [ $counter ], payload => $result, count => $counter );
+        }   
+    } catch {
+        $status => $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef );  
+    };  
+    $dbh->{RaiseError} = 0;
+
+    $log->info( Dumper( $status ) );
+    return $status;
+}
+
+
+=head2 expurgate
+
+1. make deep copy of the object, 2. unbless it, 3. return it
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_; 
+    return unless blessed( $self );
+    $log->info( "Entering Employee Expurgate" );
+    $log->info( Dumper( $self ) );
+
+    my $udc;
+    try {
+        $udc = unbless( dclone( $self ) );
+    } catch {
+        $log->err( "AAAAAAAAHHHHHHH: $_" );
+    }
+    $log->info( Dumper( $udc ) );
+
+    return $udc;
+}
 
 
 =head1 AUTHOR

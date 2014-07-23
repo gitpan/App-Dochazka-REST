@@ -46,8 +46,6 @@ use Test::More tests => 14;
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
         dbh => 'TEST',
-        acleid => 'TEST',
-        aclpriv => 'admin',
         nick => 'missreset',
         fullname => 'Miss Reset Machine',
         email => 'parboiled@reset-pieces.com',

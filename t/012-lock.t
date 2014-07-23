@@ -69,7 +69,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # insert Mr. Sched
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     nick => 'mrsched',
 );
 $status = $emp->insert;
@@ -80,7 +79,6 @@ is( noof( $dbh, 'employees'), 2 );
 # load 'WORK'
 my $work = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 $status = $work->load_by_code( 'work' );
 ok( $status->ok );
@@ -89,7 +87,6 @@ ok( $work->aid > 0 );
 # spawn and insert a work interval
 my $int = App::Dochazka::REST::Model::Interval->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     eid => $emp->eid,
     aid => $work->aid,
     intvl => "[$today 08:00, $today 12:00)",
@@ -105,7 +102,6 @@ ok( $status->ok );
 # spawn a lock object
 my $lock = App::Dochazka::REST::Model::Lock->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     eid => $emp->eid,
     intvl => "[$today 00:00, $today 24:00)",
     remark => 'TESTING',

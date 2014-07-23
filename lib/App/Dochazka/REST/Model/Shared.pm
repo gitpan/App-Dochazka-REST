@@ -55,11 +55,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 
@@ -118,11 +118,6 @@ sub cud {
     my $status;
     return $CELL->status_err('DOCHAZKA_DB_NOT_ALIVE', args => [ 'cud' ] ) unless $dbh->ping;
 
-    # check ACL: for now, we allow admins only 
-    $blessed->{aclpriv} = priv_by_eid( $dbh, $blessed->{acleid} ) if not defined( $blessed->{aclpriv} );
-    $log->debug( "Privilege level of EID " . $blessed->{acleid} . " is " . $blessed->{aclpriv} );
-    return $CELL->status_err('DOCHAZKA_INSUFFICIENT_PRIV') unless $blessed->{aclpriv} eq 'admin';
-    
     # DBI incantations
     $dbh->{AutoCommit} = 0;
     $dbh->{RaiseError} = 1;
@@ -256,7 +251,7 @@ sub _st_by_eid {
 
 =head2 make_spawn
 
-Returns a ready-made 'spawn' method. The 'dbh' and 'acleid' attributes are
+Returns a ready-made 'spawn' method. The 'dbh' attribute is
 required, but can be set to the string "TEST" for testing.
 
 =cut
@@ -268,12 +263,10 @@ sub make_spawn {
         croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
         croak "Database handle is undefined" unless defined( $ARGS{dbh} );
-        croak "Missing ACL EID in spawn; cannot check ACLs" unless $ARGS{acleid};
 
         # load required attributes
         my $self = { 
                        dbh     => $ARGS{dbh}, 
-                       acleid  => $ARGS{acleid}, 
                    };
 
         # bless, reset, return
@@ -286,8 +279,8 @@ sub make_spawn {
 
 =head2 make_reset
 
-Given a list of attributes, returns a ready-made 'reset' method. The 'dbh' and
-'acleid' attributes are required, but need not be included on existing objects
+Given a list of attributes, returns a ready-made 'reset' method. The 'dbh'
+attribute is required, but need not be included on existing objects
 that already have them.
 
 =cut
@@ -300,12 +293,6 @@ sub make_reset {
         croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
         croak "Database handle is undefined" unless defined( $self->{dbh} );
-        croak "Missing ACL EID in spawn; cannot check ACLs" unless $self->{acleid};
-
-        # get aclpriv from acleid
-        #if ( $self->{acleid} ne 'TEST' ) {
-        #    $self->{aclpriv} = priv_by_eid( $self->{dbh}, $self->{acleid} );
-        #}
 
         # re-initialize object attributes
         map { $self->{$_} = undef; } @attr;

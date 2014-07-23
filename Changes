@@ -546,3 +546,9 @@ Revision history for Dochazka-REST
 - t/: rename 301-dispatch.t to 301-resource.t and split off 330-dispatch.t
   from it, test uri_too_long in 301-resource.t
 
+0.090  2014-07-23 17:23 CEST
+- Employee.pm: add 'expurgate' and 'select_multiple_by_nick' methods
+- Dispatch: add '/lookup/employee/nick' request (doesn't quite work yet)
+- remove all mentions of 'acleid' and 'aclpriv' from data model;
+  authorization will take place at the web resource level
+

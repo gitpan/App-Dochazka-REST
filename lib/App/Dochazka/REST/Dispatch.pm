@@ -40,6 +40,8 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
+use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST::Model::Employee;
 use Scalar::Util qw( blessed );
 
 
@@ -53,11 +55,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 
@@ -148,6 +150,32 @@ Returns value of the given site param in the payload.
         $status = _site( $path );
     }
 
+
+=head2 C<< /lookup/... >>
+
+Look up various objects in the database (needs: class)
+
+=head3 C<< /lookup/employee/... >>
+
+Look up employees in the database (needs: search_key_type)
+
+=head4 C<< /lookup/employee/nick/[SEARCH_KEY] >>
+
+Look up employees by nick
+
+=cut
+
+    # 5. "/lookup"
+    elsif ( $path =~ s/^\/lookup//i ) {
+
+        if ( $path =~ s/^\/employee//i ) {
+
+            if ( $path =~ s/^\/nick//i ) {
+                $status = _emp_by_nick( $path );
+            }
+        }
+    }
+
     # 999. anything else
     #else {
     #    $status = { unrecognized => $path };
@@ -210,10 +238,31 @@ sub _site {
                   args => [ $param ] 
               );
     } else {
-        $status = $CELL->status_err( 'DISPATCH_SITE_MISSING' );
+        $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
+            args => [ "site param" ] );
     }
     $status->{'extraneous_url_part'} = $path if $path;
     return $status;
 }
     
+
+sub _emp_by_nick {
+    my ( $path ) = @_;     # sk means Search Key
+    my ( $sk, $status );
+
+    $log->info( "Entering _emp_by_nick with path ->$path<-" );
+    # correct value for $path looks like '/[SEARCH_KEY]'
+    if ( $path =~ s/^\/([^\/]+)// ) {
+        $sk = $1;
+        $log->info( "Search key is ->$sk<-" );
+        $status = App::Dochazka::REST::Model::Employee->select_multiple_by_nick( 
+            $REST->{dbh}, $sk );
+    } else {
+        $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
+            args => [ "search key" ] );
+    }
+    $status->{'extraneous_url_part'} = $path if $path;
+    return $status;
+}
+
 1;

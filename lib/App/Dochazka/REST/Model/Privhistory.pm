@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 
@@ -365,7 +365,7 @@ sub delete {
 
 =head2 get_privhistory
 
-Given a database handle, an ACLEID, an EID, and an optional tsrange, return the
+Given a database handle, an EID, and an optional tsrange, return the
 history of privilege level changes for that employee over the given
 tsrange, or the entire history if no tsrange is supplied. Returns a
 status object where the payload is a reference to an array of C<privhistory>
@@ -375,7 +375,7 @@ a DBI error, the payload will be undefined.
 =cut
 
 sub get_privhistory {
-    my ( $dbh, $acleid, $eid, $tsr ) = @_;
+    my ( $dbh, $eid, $tsr ) = @_;
     $tsr = '[,)' if not $tsr;
     my $status;
     my $result = [];
@@ -389,7 +389,6 @@ sub get_privhistory {
             $counter += 1;
             my $ph = __PACKAGE__->spawn(
                 dbh => $dbh,
-                acleid => $acleid,
             );
             $ph->reset( %$tmpres );
             push @$result, $ph;

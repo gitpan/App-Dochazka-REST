@@ -66,7 +66,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn interval object
 my $int = App::Dochazka::REST::Model::Interval->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 ok( blessed( $int ) );
 
@@ -75,7 +74,6 @@ ok( blessed( $int ) );
 # insert Mr. Sched
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
     nick => 'mrsched',
 );
 $status = $emp->insert;
@@ -86,7 +84,6 @@ is( noof( $dbh, 'employees'), 2 );
 # load 'WORK'
 my $work = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 $status = $work->load_by_code( 'work' );
 ok( $status->ok );

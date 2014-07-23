@@ -66,7 +66,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn a schedintvls object
 my $sto = App::Dochazka::REST::Model::Schedintvls->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 ok( blessed $sto );
 ok( $sto->scratch_sid > 0 );

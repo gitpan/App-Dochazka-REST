@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.089
+Version 0.090
 
 =cut
 
-our $VERSION = '0.089';
+our $VERSION = '0.090';
 
 
 
@@ -327,17 +327,6 @@ sub _load {
     $self->reset; # reset object to primal state
     my ( $spec ) = keys %ARGS;
 
-    # check ACL
-    $self->{aclpriv} = priv_by_eid( $dbh, $self->{acleid} ) if not defined( $self->{aclpriv} );
-    ACL: {
-        last ACL if $self->{aclpriv} eq 'admin';
-        last ACL if $self->{acleid} == $self->{eid} and ( 
-                                $self->{aclpriv} eq 'inactive' or
-                                $self->{aclpriv} eq 'active'
-                                                        );
-        return $CELL->status_err('DOCHAZKA_INSUFFICIENT_PRIV');
-    }
-
     if ( $spec eq 'code' ) {
         $sql = $site->SQL_ACTIVITY_SELECT_BY_CODE;
     } else {
@@ -368,7 +357,6 @@ The following functions are not object methods.
 
 =head2 aid_by_code
 
-** NO ACL CHECK **
 Given a database handle and a code, attempt ot retrieve the
 AID corresponding to the code. Returns AID or undef on failure.
 
@@ -380,7 +368,6 @@ sub aid_by_code {
         if ! defined($dbh) or ! defined( $code );
     my $act = __PACKAGE__->spawn(
         dbh => $dbh,
-        acleid => $site->DOCHAZKA_EID_OF_ROOT,
     );
     my $status = $act->load_by_code( $code );
     return $act->{aid} if $status->ok;

@@ -63,7 +63,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn activity object
 my $act = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 
 # test existence of initial set of activities
@@ -83,7 +82,6 @@ foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
 # load the work activity
 my $work = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 $status = $work->load_by_code( 'wOrK' );
 ok( $status->ok );
@@ -97,7 +95,6 @@ is( $work_aid, $work->aid );
 # insert a bogus activity
 my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $site->DOCHAZKA_EID_OF_ROOT,
     code => 'boguS',
     long_desc => 'An activity',
     remark => 'ACTIVITY',
@@ -130,7 +127,6 @@ is( $bogus_act->remark, 'BOGUS ACTIVITY' );
 # load it and compare it
 my $ba2 = App::Dochazka::REST::Model::Activity->spawn(
     dbh => $dbh,
-    acleid => $REST->eid_of_root,
 );
 ok( blessed( $ba2 ) );
 $status = $ba2->load_by_code( $bogus_act->code );
