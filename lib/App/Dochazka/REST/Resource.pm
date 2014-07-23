@@ -59,11 +59,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.088
+Version 0.089
 
 =cut
 
-our $VERSION = '0.088';
+our $VERSION = '0.089';
 
 
 
@@ -127,7 +127,7 @@ sub render_json { $JSON->encode( (shift)->context );  }
 
 =head2 render_html
 
-Whip out some HTML to educate the clueless (including ourselves).
+Whip out some HTML to educate passersby.
 
 =cut
 
@@ -184,9 +184,25 @@ sub allowed_methods { return [ 'GET' ]; }
 
 
 
+=head2 uri_too_long
+
+Is the URI too long?
+
+=cut
+
+sub uri_too_long {
+    my ( $self, $uri ) = @_;
+
+    return length $uri > $site->DOCHAZKA_URI_MAX_LENGTH
+        ? 1
+        : 0;
+}
+
+
 =head2 is_authorized
 
-It says "authorized", but it means authentication.
+Authenticate the originator of the request (using HTTP Basic
+Authentication) and determine whether the request is authorized.
 
 =cut
 

@@ -53,6 +53,10 @@ set(
     '</body></html>'
 );
 
+# DOCHAZKA_URI_MAX_LENGTH
+#    maximum length of a URI
+set( 'DOCHAZKA_URI_MAX_LENGTH', 1000 );
+
 # DOCHAZKA_APPNAME
 #    name of application for logging purposes
 set( 'DOCHAZKA_APPNAME', 'Dochazka-test' );

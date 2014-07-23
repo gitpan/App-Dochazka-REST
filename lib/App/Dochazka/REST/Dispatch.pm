@@ -53,11 +53,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.088
+Version 0.089
 
 =cut
 
-our $VERSION = '0.088';
+our $VERSION = '0.089';
 
 
 
@@ -119,7 +119,7 @@ installed at the site. For example:
 
     # 2. "/version"
     elsif ( $path =~ s/^\/version//i ) {
-        $status = _version( '', $path );
+        $status = _version( $path );
     }
 
 =head2 C<< http://dochazka.site/help >>
@@ -131,7 +131,7 @@ documentation can be accessed.
 
     # 3. "/help"
     elsif ( $path =~ s/^\/help//i ) {
-        $status = _help( '' );
+        $status = _help( $path );
     }
 
 =head2 C<< /site/[PARAM] >>
@@ -162,7 +162,7 @@ Returns value of the given site param in the payload.
 
 
 sub _version {
-    my ( $rest ) = @_;
+    my ( $path ) = @_;
     my $status = $CELL->status_ok( 
         'DISPATCH_VERSION', 
         args => [ $VERSION ],
@@ -170,13 +170,13 @@ sub _version {
             version => "$VERSION",
         },
     );
-    $status->{'extraneous_url_part'} = $rest if $rest;
+    $status->{'extraneous_url_part'} = $path if $path;
     return $status;
 }
 
 
 sub _help {
-    my ( $rest ) = @_;
+    my ( $path ) = @_;
     my $du = "https://metacpan.org/pod/App::Dochazka::REST::Dispatch";
     my $status = $CELL->status_ok( 
         'DISPATCH_HELP', 
@@ -185,7 +185,7 @@ sub _help {
             documentation_url => $du,
         },
     );
-    $status->{'extraneous_url_part'} = $rest if $rest;
+    $status->{'extraneous_url_part'} = $path if $path;
     return $status;
 }
 

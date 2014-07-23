@@ -504,7 +504,7 @@ Revision history for Dochazka-REST
 - Dispatch.pm: put path dispatch state machine into separate module
 
 0.084  2014-07-22 14:32 CEST
-- bin/dochazka-rest: reworked into standalone server startup script
+- bin/dochazka-rest: rework into standalone server startup script
 - t/301-psgi.t: start testing web server functionality
 - REST.pm: add POD re: starting server and authentication, include PSGI
   $app coderef in $REST singleton
@@ -536,4 +536,13 @@ Revision history for Dochazka-REST
 - bin/dochazka-rest: load the local sitedir
 - REST.pm: explain current installation/bootstrap process in detail in the
   "INSTALLATION" section
+
+0.089  2014-07-23 15:19 CEST
+- config/Dochazka_Config.pm: add DOCHAZKA_URI_MAX_LENGTH
+- REST.pm: work on "REST INTERFACE" POD
+- Dispatch.pm: fix methods so they all set "extraneous_url_part" if
+  appropriate
+- Resource.pm: add uri_too_long method
+- t/: rename 301-dispatch.t to 301-resource.t and split off 330-dispatch.t
+  from it, test uri_too_long in 301-resource.t
 

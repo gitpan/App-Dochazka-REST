@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 # ************************************************************************* 
 # Copyright (c) 2014, SUSE LLC
 # 
@@ -31,52 +30,48 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# App::Dochazka::REST server executable
+# tests for Resource.pm
 #
-# -------------------------------------------------------------------------
 
-use 5.014;
+#!perl
+use 5.012;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
-use App::CELL::Test::LogToFile;
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
 use App::Dochazka::REST qw( $REST );
-use Plack::Runner;
- 
-=head1 NAME
+use Data::Dumper;
+use HTTP::Request;
+use Plack::Test;
+use Scalar::Util qw( blessed );
+use Test::JSON;
+use Test::More tests => 5;
 
-dochazka-rest - App::Dochazka::REST server startup script
+# create request object with authorization header appended
+sub req {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    return $r;
+}
 
+# initialize App::Dochazka::REST instance
+my $status = $REST->init_no_db( site => '/etc/dochazka' );
+ok( $status->ok );
 
+# instantiate Plack::Test object
+my $test = Plack::Test->create( $REST->{'app'} );
+ok( blessed $test );
 
-=head1 VERSION
+# the very basic-est request
 
-Version 0.089
+my $res = $test->request( req GET => '/' );
+is_valid_json( $res->content );
+like( $res->content, qr/App::Dochazka::REST/ );
 
-=cut
+# a too-long request
 
-our $VERSION = '0.089';
-
-
-
-=head1 SYNOPSIS
-
-    $ dochazka-rest
-
-
-
-=head1 DESCRIPTION
-
-Run this script from the bash prompt to start the server.
-
-=cut
-
-print "App::Dochazka::REST ver. $VERSION\n";
-print "Initializing and connecting to database\n";
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-print $status->text unless $status->ok;
-print "Starting server\n";
-my $runner = Plack::Runner->new;
-$runner->parse_options(@ARGV);
-$runner->run( $REST->{'app'} );
+$res = $test->request( req GET => '/' x 1001 );
+is( $res->content, 'Request-URI Too Large' );
 

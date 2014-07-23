@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.088
+Version 0.089
 
 =cut
 
-our $VERSION = '0.088';
+our $VERSION = '0.089';
 
 
 =head2 Development status
@@ -112,22 +112,36 @@ Stand-alone report generators and other utilities that may or may not ever
 be implemented can also be thought of as clients.
 
 
-=head2 REST interface
 
-Dochazka REST implements a I<REST> interface. In practice, a client will
-send HTTP(S) requests (usually C<GET> and C<POST>) to a well-known hostname
-and port where a Dochazka REST instance is listening.
-C<App::Dochazka::REST> will process the incoming HTTP requests and send
-back HTTP responses. 
+=head1 REST INTERFACE
+
+L<App::Dochazka::REST> presents a I<REST> interface to potential clients.
+In practice, this means that communications between client and server use
+the HTTP(S) protocol. The idea is that the client will send HTTP(S)
+requests (usually C<GET> and C<POST>) to a well-known hostname and port
+where an L<App::Dochazka::REST> (server) instance is listening. The server
+processes incoming HTTP requests and sends back HTTP responses. 
 
 Simpler requests can be made using the GET method with the details of the
 request specified in the URL itself (e.g.,
-http://dochazka.example.com/employee/Dolejsi).  More complex requests need
-to be encoded in JSON and handed to the server by the POST method. All
-responses from the server are in JSON.
+L<http://dochazka.site/employee/Dolejsi>).  More complex requests need
+to be encoded in JSON and handed to the server by the POST method. If the
+server generates a response body, it will be in JSON unless the client
+specifically asks for HTML.
 
-Request syntax is defined and documented in
-L<App::Dochazka::REST::Dispatch>.
+
+=head2 How requests are handled
+
+When a request comes in, it is subjected to a number of tests according to
+the L<HTTP Activity
+Diagram|https://raw.githubusercontent.com/wiki/basho/webmachine/images/http-headers-status-v3.png>.
+
+
+=head2 Request syntax
+
+Request syntax is defined and documented in L<App::Dochazka::REST::Dispatch>.
+
+
 
 
 

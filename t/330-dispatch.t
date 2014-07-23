@@ -30,7 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# basic unit tests for PSGI
+# test path dispatch
 #
 
 #!perl
@@ -64,10 +64,8 @@ ok( $status->ok );
 my $test = Plack::Test->create( $REST->{'app'} );
 ok( blessed $test );
 
-# path dispatcher tests (numbers in comments correspond to numbers in
-# Dispatch.pm)
+# the very basic-est request
 
-# 1. /
 my $res = $test->request( req GET => '/' );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
