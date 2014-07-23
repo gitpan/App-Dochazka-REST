@@ -525,3 +525,10 @@ Revision history for Dochazka-REST
 0.086  2014-07-23 09:40 CEST
 - REST.pm, Dispatch.pm: document request syntax
 
+0.087  2014-07-23 11:16 CEST
+- Dochazka_Config.pm: improve default HTML (DOCHAZKA_REST_HTML)
+- t/301-dispatch.t: add unit tests
+- Dispatch.pm: remove SYNOPSIS so the meat of the POD starts higher up on
+  the page
+- obs.sh: add OBS CI script
+

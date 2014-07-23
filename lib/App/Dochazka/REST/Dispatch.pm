@@ -53,31 +53,20 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.086
+Version 0.087
 
 =cut
 
-our $VERSION = '0.086';
+our $VERSION = '0.087';
 
 
-
-
-
-=head1 SYNOPSIS
-
-In Resource.pm:
-
-    use App::Dochazka::REST::Dispatch;
-
-    $self->{'context'} = App::Dochazka::REST::Dispatch::get_response( $path );
-
-For documentation of request syntax, see L<"REQUEST SYNTAX">, below.
 
 
 
 =head1 DESCRIPTION
 
-Path dispatch state machine. 
+This module contains the state machine that converts incoming HTTP requests
+into JSON responses.
 
 =cut
 

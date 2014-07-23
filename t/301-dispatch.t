@@ -46,7 +46,7 @@ use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 14;
+use Test::More tests => 20;
 
 # create request object with authorization header appended
 sub req {
@@ -88,13 +88,23 @@ is_valid_json( $res->content );
 my $match_string = $site->DOCHAZKA_APPNAME;
 like( $res->content, qr/$match_string/ );
 
-# 4. /site
 $res = $test->request( req GET => '/site/DOCHAZKA_APPNAME' );
 is_valid_json( $res->content );
 like( $res->content, qr/$match_string/ );
 
-# 4. /site
 $res = $test->request( req GET => '/site/DOCHAZKA_appname' );
 is_valid_json( $res->content );
-unlike( $res->content, qr/$match_string/ );
+unlike( $res->content, qr/DISPATCH_SITE_UNDEFINED/ );
+
+$res = $test->request( req GET => '/site' );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_SITE_MISSING/ );
+
+$res = $test->request( req GET => '/site/' );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_SITE_MISSING/ );
+
+$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/foobar' );
+is_valid_json( $res->content );
+like( $res->content, qr/\/foobar/ );
 

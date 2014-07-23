@@ -43,9 +43,14 @@
 #    what we display when someone opens us in a browser
 set( 
     'DOCHAZKA_REST_HTML',
-    '<html><body><h1>App::Dochazka::REST</h1><p>For documentation, ' . 
-    'see <a href="https://metacpan.org/pod/App::Dochazka::REST">' . 
-    'https://metacpan.org/pod/App::Dochazka::REST</a></p></body></html>'
+    '<html><body><h1>App::Dochazka::REST</h1>' .
+    '<p>For general documentation, see <a href="https://metacpan.org/pod/App::Dochazka::REST">' . 
+    'https://metacpan.org/pod/App::Dochazka::REST</a></p>' . 
+    '<p>For request syntax, see <a href="https://metacpan.org/pod/App::Dochazka::REST::Dispatch">' . 
+    'https://metacpan.org/pod/App::Dochazka::REST::Dispatch</a></p>' . 
+    '<p>HINT: for best results use <b>curl</b>, ' .
+    'e.g. <code>curl http://demo:demo@dochazka-devel.suse.cz/</code></p>' . 
+    '</body></html>'
 );
 
 # DOCHAZKA_APPNAME
