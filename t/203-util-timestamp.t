@@ -43,12 +43,12 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use Test::More;
 
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-if ( $status->not_ok ) {
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
     plan tests => 1;

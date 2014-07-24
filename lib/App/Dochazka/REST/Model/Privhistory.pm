@@ -42,6 +42,7 @@ use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
 use Try::Tiny;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 =head1 NAME
@@ -53,11 +54,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -299,7 +300,7 @@ and bind parameters given in the arguments.
 
 sub _load {
     my ( $self, $sql, @bind_params ) = @_;
-    my $dbh = $self->{dbh};
+    my $dbh = $self->dbh;
     my $result = $dbh->selectrow_hashref( $sql, undef, @bind_params );
     if ( defined $result ) {
         map { $self->{$_} = $result->{$_}; } keys %$result;

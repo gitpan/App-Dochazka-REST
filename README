@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.090
+    Version 0.093
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -12,11 +12,11 @@ SYNOPSIS
     This is the top-level module of the Dochazka REST server.
 
         use App::CELL qw( $CELL $log $meta $site );
-        use App::Dochazka::REST qw( $REST );
+        use App::Dochazka::REST;
         use Carp;
 
-        my $status = $REST->init( sitedir => '/etc/dochazka' );
-        croak( $status->text ) unless $status->ok;
+        my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+        croak( $REST->{init_status}->text ) unless $REST->{init_status}->ok;
 
     Read on for documentation.
 
@@ -433,17 +433,7 @@ REPORTING
     Thus, in Dochazka a report generator is always implemented either a
     separate client or as part of a client. Never as part of the server.
 
-SITE CONFIGURATION PARAMETERS
-    Dochazka REST recognizes the following site configuration parameters:
-
-    ...
-
-EXPORTS
-    This module provides the following exports:
-
-    * `$REST' App::Dochazka::REST singleton object
-
-METHODS AND ROUTINES
+METHODS
   init
     Load site configuration, set up logging, and connect to the database.
 
@@ -464,12 +454,14 @@ METHODS AND ROUTINES
     Connect to a pristine database. This function should be used only for
     newly created databases. Takes a PARAMHASH with 'dbname', 'dbuser', and
     'dbpass'. For username and password, DBINIT_CONNECT_USER and
-    DBINIT_CONNECT_AUTH are used.
+    DBINIT_CONNECT_AUTH are used. Returns status object which, on success,
+    will contain the database handle in the payload.
 
   connect_db
     Connect to a pre-initialized database and initialize site params. This
-    is the function that should be used in production. Takes database name.
-    For username and password, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS are used.
+    is the function that should be used in production. Database name,
+    username and password are taken from DOCHAZKA_DBNAME, DOCHAZKA_DBUSER
+    and DOCHAZKA_DBPASS, respectively.
 
   reset_db
     Drop and re-create a Dochazka database. Takes database name. Do not call
@@ -477,7 +469,8 @@ METHODS AND ROUTINES
     when calling this function.
 
   create_tables
-    Execute all the SQL statements contained in DBINIT_CREATE param
+    Takes a database handle, on which it executes all the SQL statements
+    contained in DBINIT_CREATE param.
 
   eid_of_root
     Instance method. Returns EID of the 'root' employee.

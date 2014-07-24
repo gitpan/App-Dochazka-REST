@@ -39,17 +39,18 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee qw( eid_by_nick );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
 use Test::More;
 
-my $status = $REST->init( sitedir => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 55;
+    plan tests => 58;
 }
 
 # test database handle
@@ -58,9 +59,7 @@ my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
 # spawn an empty employee object
-my $emp = App::Dochazka::REST::Model::Employee->spawn( 
-    dbh => $dbh,
-);
+my $emp = App::Dochazka::REST::Model::Employee->spawn;
 ok( blessed($emp), "object is blessed" );
 is( $emp->{dbh}, $dbh, "database handle is in the object" );
 
@@ -88,7 +87,6 @@ is( $emp->priv, 'admin', "root is an admin another way" );
 
 # spawn an employee object
 $emp = App::Dochazka::REST::Model::Employee->spawn( 
-    dbh => $dbh,
     nick => 'mrfu',
     fullname => 'Mr. Fu',
     email => 'mrfu@example.com',
@@ -104,9 +102,7 @@ ok( $status->ok, "Mr. Fu inserted" );
 my $eid_of_mrfu = $emp->{eid};
 
 # spawn another object
-my $emp2 = App::Dochazka::REST::Model::Employee->spawn( 
-    dbh => $dbh,
-);
+my $emp2 = App::Dochazka::REST::Model::Employee->spawn;
 $status = $emp2->load_by_eid( $eid_of_mrfu );
 ok( $status->ok, "load_by_eid returned OK status" );
 is( $emp2->{eid}, $eid_of_mrfu, "EID matches that of Mr. Fu" );
@@ -114,7 +110,6 @@ is( $emp2->{nick}, 'mrfu', "Nick should be mrfu" );
 
 # spawn Mrs. Fu
 $emp = App::Dochazka::REST::Model::Employee->spawn( 
-    dbh => $dbh,
     nick => 'mrsfu',
     email => 'consort@futown.orient.cn',
     fullname => 'Mrs. Fu',
@@ -174,7 +169,12 @@ is( noof( $dbh, 'employees' ), 3 );
 # Expurgate Mr. Fu
 $status = $emp->load_by_nick( "mrfu" );
 ok( $status->ok );
-diag( $emp->expurgate );
+my $fu_eid = $emp->eid;
+my $fu_nick = $emp->nick;
+my $expurgated_fu = $emp->expurgate;
+ok( ! blessed $expurgated_fu );
+is( $expurgated_fu->{eid}, $fu_eid );
+is( $expurgated_fu->{nick}, $fu_nick );
 
 # delete Mr. and Mrs. Fu
 $status = $emp->load_by_nick( "mrsfu" );

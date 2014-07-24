@@ -45,6 +45,7 @@ use Scalar::Util qw( blessed );
 use Storable qw( dclone );
 use Try::Tiny;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -58,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -304,10 +305,10 @@ sub priv {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return priv_by_eid( $self->{dbh}, $self->{eid} );
+        return priv_by_eid( $self->dbh, $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return priv_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
+    return priv_by_eid( $self->dbh, $self->{eid}, $timestamp );
 }
 
 
@@ -323,10 +324,10 @@ sub schedule {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return schedule_by_eid( $self->{dbh}, $self->{eid} );
+        return schedule_by_eid( $self->dbh, $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return schedule_by_eid( $self->{dbh}, $self->{eid}, $timestamp );
+    return schedule_by_eid( $self->dbh, $self->{eid}, $timestamp );
 }
 
 
@@ -443,7 +444,7 @@ following PARAMHASHes:
 sub _load {
     my ( $self, %ARGS ) = @_;
     my $sql;
-    my $dbh = $self->{dbh};
+    my $dbh = $self->dbh;
     $dbh->ping or die "No dbh";
     $self->reset; # reset object to primal state
     my ( $spec ) = keys %ARGS;
@@ -536,10 +537,10 @@ sub select_multiple_by_nick {
         $log->info( "$counter records fetched" );
         $log->info( Dumper( $result ) );
         if ( $counter > 0 ) { 
-            $status = $CELL->status_ok( 'DISPATCH_EMPLOYEES_FOUND',
+            $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND',
                 args => [ $counter ], payload => $result, count => $counter );
         } else {
-            $status = $CELL->status_warn( 'DISPATCH_EMPLOYEES_FOUND',
+            $status = $CELL->status_warn( 'DISPATCH_RECORDS_FOUND',
                 args => [ $counter ], payload => $result, count => $counter );
         }   
     } catch {
@@ -561,17 +562,17 @@ sub select_multiple_by_nick {
 sub expurgate {
     my ( $self ) = @_; 
     return unless blessed( $self );
-    $log->info( "Entering Employee Expurgate" );
-    $log->info( Dumper( $self ) );
+    my $dbh = $self->{'dbh'};
+    delete $self->{'dbh'};
 
     my $udc;
     try {
         $udc = unbless( dclone( $self ) );
     } catch {
         $log->err( "AAAAAAAAHHHHHHH: $_" );
-    }
-    $log->info( Dumper( $udc ) );
+    };
 
+    $self->{'dbh'} = $dbh;
     return $udc;
 }
 

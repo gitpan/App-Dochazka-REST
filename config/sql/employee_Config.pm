@@ -64,7 +64,7 @@ set( 'SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP', q/
 set( 'SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK', q/
       SELECT eid, fullname, nick, email, passhash, salt, remark,
           current_priv(eid) AS priv, current_schedule(eid) AS schedule
-      FROM employees WHERE nick=?/ );
+      FROM employees WHERE nick LIKE ?/ );
 
 #
 set( 'SQL_EMPLOYEE_CURRENT_PRIV', q/

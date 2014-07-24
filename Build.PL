@@ -1,4 +1,4 @@
-use 5.006;
+use 5.012000;
 use strict;
 use warnings FATAL => 'all';
 use Module::Build;
@@ -26,6 +26,7 @@ my $builder = Module::Build->new(
         'Test::JSON'  => 0,
     },
     requires => {
+        'perl'          => 5.012,
         'App::CELL'     => 0.194,
         'DBD::Pg'       => 0,
         'DBI'           => 0,

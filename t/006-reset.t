@@ -39,13 +39,22 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
+use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Shared qw( noof );
-use Test::More tests => 14;
+use Test::More;
+
+# plan tests
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+} else {
+    plan tests => 14;
+}
 
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
-        dbh => 'TEST',
         nick => 'missreset',
         fullname => 'Miss Reset Machine',
         email => 'parboiled@reset-pieces.com',

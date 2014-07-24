@@ -41,6 +41,7 @@ use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 =head1 NAME
@@ -52,11 +53,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -224,7 +225,7 @@ Returns a status object.
 
 sub load {
     my ( $self, $eid, $ts ) = @_;
-    my $dbh = $self->{dbh};
+    my $dbh = $self->dbh;
     my @attrs = ( 'shid', 'eid', 'sid', 'effective', 'remark' );
     my ( $sql, $result );
     if ( $ts ) {

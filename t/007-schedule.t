@@ -42,7 +42,7 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedule qw( get_json );
 use App::Dochazka::REST::Model::Schedhistory;
@@ -54,8 +54,8 @@ use Test::JSON;
 use Test::More; 
 
 # initialize (load configuration and connect to database)
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-if ( $status->not_ok ) {
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
     plan tests => 84;
@@ -74,7 +74,7 @@ my $emp = App::Dochazka::REST::Model::Employee->spawn(
     nick => 'mrsched',
     remark => 'SCHEDULE TESTING OBJECT',
 );
-$status = $emp->insert;
+my $status = $emp->insert;
 ok( $status->ok, "Schedule testing object inserted" );
 ok( $emp->eid > 0, "Schedule testing object has an EID" );
 

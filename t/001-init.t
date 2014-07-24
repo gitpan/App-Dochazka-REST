@@ -38,58 +38,62 @@ use Test::More;
 
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $log $meta $site );
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use Carp;
 
 # initialize but do not connect to database
-my $status = $REST->init_no_db( sitedir => '/etc/dochazka' );
+my $status = App::Dochazka::REST->init_no_db( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "Not configured. Please run the test suite manually after initial site configuration";
 } else {
-    plan tests => 6;
+    plan tests => 7;
 }
 
 # connect to postgres database
-$status = $REST->connect_db_pristine( 
-    dbname => 'postgres',
-    dbuser => $site->DBINIT_CONNECT_USER,
-    dbpass => $site->DBINIT_CONNECT_AUTH,
-);
+#$status = App::Dochazka::REST->connect_db_pristine( 
+#    dbname => 'postgres',
+#    dbuser => $site->DBINIT_CONNECT_USER,
+#    dbpass => $site->DBINIT_CONNECT_AUTH,
+#);
 # die if this doesn't succeed -- no point in continuing
-croak( $status->code . " " . $status->text ) unless $status->ok;
+#croak( $status->code . " " . $status->text ) unless $status->ok;
 
 # drop dochazka database if it exists, re-create it
-$status = $REST->reset_db( $site->DOCHAZKA_DBNAME );
+#diag( "reset_db" );
+$status = App::Dochazka::REST->reset_db( $site->DOCHAZKA_DBNAME );
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Database dropped and re-created" );
 
 # connect to pristine dochazka database
-$status = $REST->connect_db_pristine( 
+#diag( "connect_db_pristine" );
+$status = App::Dochazka::REST->connect_db_pristine( 
     dbname => $site->DOCHAZKA_DBNAME,
     dbuser => $site->DOCHAZKA_DBUSER,
     dbpass => $site->DOCHAZKA_DBPASS,
 );
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Now connected to dochazka testing database for initialization" );
+my $dbh = $status->payload;
+ok( $dbh->ping );
 
 # create tables, triggers, stored procedures, etc.
-$status = $REST->create_tables();
+#diag( "create_tables" );
+$status = App::Dochazka::REST->create_tables( $dbh );
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Tables created OK" );
 
 # disconnect from db
-$REST->{dbh}->disconnect or die $REST->{dbh}->errstr;
+$dbh->disconnect or die $dbh->errstr;
 
 # reconnect to initialized db (as in production)
-$status = $REST->connect_db( $site->DOCHAZKA_DBNAME );
+#diag( "init" );
+my $REST = App::Dochazka::REST->init;
 diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
 ok( $status->ok, "Now connected to dochazka testing database for 'production'" );
+ok( $REST->dbh->ping );
 
 # check that 'connect_db' initialized DOCHAZKA_EID_OF_ROOT parameter
 my $eid_of_root = $site->DOCHAZKA_EID_OF_ROOT;
-diag( "eid_of_root == $eid_of_root" );
+#diag( "eid_of_root == $eid_of_root" );
 ok( $eid_of_root > 0, "EID of root is $eid_of_root" );
-
-# REST.pm has an 'eid_of_root' method -- test it
-is( $REST->eid_of_root, $eid_of_root );
 

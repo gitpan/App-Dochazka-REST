@@ -42,7 +42,7 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
@@ -51,14 +51,15 @@ use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
 use Test::More;
 
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-if ( $status->not_ok ) {
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
     plan tests => 31;
 }
 
 my $dbh = $REST->{dbh};
+my $status;
 
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );

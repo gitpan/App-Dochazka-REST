@@ -518,7 +518,7 @@ Revision history for Dochazka-REST
 0.085  2014-07-23 09:12 CEST
 - t/000-depends.t: fix bug (wrong number of tests)
 - dispatch_Message_en.conf: new file for path dispatch messages
-- Dispatch.pm: work on 'get_response'
+- Dispatch.pm: work on '_get_response'
 - Resource.pm: use 'expurgate' method (new in App::CELL::Status 0.194)
 - t/301-dispatch.t: rename from 301-psgi.t and add unit tests
 
@@ -551,4 +551,18 @@ Revision history for Dochazka-REST
 - Dispatch: add '/lookup/employee/nick' request (doesn't quite work yet)
 - remove all mentions of 'acleid' and 'aclpriv' from data model;
   authorization will take place at the web resource level
+
+0.091  2014-07-23 23:08 CEST
+- Employee.pm: finally find and fix problem with 'expurgate'
+- t/004-employee.t: add tests for expurgate method
+- REST.pm: get rid of $REST singleton: 'init' now acts as a constructor
+  returning an object
+- lots of modifications to all files to make them work without $REST singleton
+
+0.092  2014-07-24 08:12 CEST
+- Dispatch: deprecate '_get_response' in favor of 'is_auth' which will be
+  called from Response.pm->is_authorized
+
+0.093  2014-07-24 08:18 CEST
+- Build.PL: require perl 5.012 (RT#97442 -- thanks, Slaven!)
 

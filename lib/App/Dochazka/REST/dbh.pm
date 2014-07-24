@@ -30,30 +30,71 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 
-# -----------------------------------
-# Dochazka-REST
-# -----------------------------------
-# dispatch_Config.pm
-#
-# configuration parameters related to path dispatch
-# -----------------------------------
+# ------------------------
+# Database handle module
+# ------------------------
 
-# /version 
-DISPATCH_VERSION
-This is App::Dochazka::REST version %s
+package App::Dochazka::REST::dbh;
 
-DISPATCH_HELP
-For App::Dochazka::REST documentation, visit %s
+use strict;
+use warnings;
 
-DISPATCH_SITE_OK
-Value of site param %s is in payload
 
-DISPATCH_SITE_NOT_DEFINED
-Site param %s is not defined
 
-DISPATCH_MISSING_PARAMETER
-Request seems to be missing a parameter (%s)
 
-DISPATCH_RECORDS_FOUND
-Request retrieved %s record(s)
+=head1 NAME
 
+App::Dochazka::REST::dbh - database handle module (parent of data model classes)
+
+
+
+
+
+=head1 VERSION
+
+Version 0.093
+
+=cut
+
+our $VERSION = '0.093';
+
+
+
+
+
+=head1 DESCRIPTION
+
+This module is the parent of all the data model classes. Its sole purpose is to
+transparently provide the data model classes with a database handle.
+
+=cut
+
+
+
+our $dbh;
+
+
+=head1 METHODS
+
+=head2 init
+
+Something like a constructor.
+
+=cut
+
+sub init {
+    my ( $class, $recvd_dbh ) = @_;
+    $dbh = $recvd_dbh;
+    return;
+}
+
+
+=head2 dbh
+
+Something like an instance method, to be accessed via inheritance.
+
+=cut
+
+sub dbh { $dbh; }
+
+1;

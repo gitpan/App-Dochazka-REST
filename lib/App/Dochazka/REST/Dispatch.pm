@@ -40,10 +40,10 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST qw( $REST );
 use App::Dochazka::REST::Model::Employee;
 use Scalar::Util qw( blessed );
 
+use parent 'App::Dochazka::REST::dbh';
 
 =head1 NAME
 
@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -67,16 +67,33 @@ our $VERSION = '0.090';
 
 =head1 DESCRIPTION
 
-This module contains the state machine that converts incoming HTTP requests
-into JSON responses.
+This module contains a single function, L<is_auth>, that processes the "path"
+from the HTTP request. 
 
 =cut
 
 
+=head2 is_auth
 
+Takes three parameters: (1) the EID of the employee making the request, (2)
+the current privilege level of that EID, and (3) the path string. It returns a
+status object, the level of which can be either 'OK' (authorized) or 'NOT_OK'.
+If the request is authorized, the payload will contain a reference to a hash
+that will look like this:
 
-sub _get_response {
-    my ( $path ) = @_;
+    {
+        rout => CODEREF,
+        args => [ ... ],
+    }
+
+where 'rout' is a reference to the subroutine to be run to obtain the JSON
+string for the HTTP response, and 'args' is a list of arguments to be provided
+to that function.
+
+=cut
+
+sub is_auth {
+    my ( $eid, $priv, $path ) = @_;
 
     # ========================================================================
     # big bad state machine
@@ -107,7 +124,12 @@ L<"http://dochazka.site/version">.
 
     # 1. "" or "/"
     if ( $path eq '' or $path eq '/' ) {
-        $status = _version( '' );
+        $status = $CELL->status_ok( 'AUTH_OK', 
+            payload => {
+                rout => \&_version,
+                args => [ '' ]
+            }
+        );
     }
 
 =head2 C<< http://dochazka.site/version >>
@@ -256,7 +278,7 @@ sub _emp_by_nick {
         $sk = $1;
         $log->info( "Search key is ->$sk<-" );
         $status = App::Dochazka::REST::Model::Employee->select_multiple_by_nick( 
-            $REST->{dbh}, $sk );
+            SUPER->dbh, $sk );
     } else {
         $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
             args => [ "search key" ] );
@@ -264,5 +286,58 @@ sub _emp_by_nick {
     $status->{'extraneous_url_part'} = $path if $path;
     return $status;
 }
+
+#-----------------------------------
+# FIXME: this function is deprecated
+#-----------------------------------
+sub _get_response {
+    my ( $path ) = @_;
+
+    my $status; # allocate memory for response
+    my $extra;
+
+    # 1. "" or "/"
+    if ( $path eq '' or $path eq '/' ) {
+        $status = _version( '' );
+    }
+
+    # 2. "/version"
+    elsif ( $path =~ s/^\/version//i ) {
+        $status = _version( $path );
+    }
+
+    # 3. "/help"
+    elsif ( $path =~ s/^\/help//i ) {
+        $status = _help( $path );
+    }
+
+    # 4. "/site"
+    elsif ( $path =~ s/^\/site//i ) {
+        $status = _site( $path );
+    }
+
+    # 5. "/lookup"
+    elsif ( $path =~ s/^\/lookup//i ) {
+
+        if ( $path =~ s/^\/employee//i ) {
+
+            if ( $path =~ s/^\/nick//i ) {
+                $status = _emp_by_nick( $path );
+            }
+        }
+    }
+
+    # 999. anything else
+    #else {
+    #    $status = { unrecognized => $path };
+    #}
+
+    # if nothing matched, bail out
+    return unless blessed $status;
+
+    # sanitize the status object
+    return $status->expurgate;
+}
+
 
 1;

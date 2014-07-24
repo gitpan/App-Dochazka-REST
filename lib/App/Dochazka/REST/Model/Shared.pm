@@ -42,6 +42,7 @@ use Data::Dumper;
 use DBI;
 use Try::Tiny;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -55,11 +56,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -114,7 +115,7 @@ received from the database. Returns a status object. Call example:
 
 sub cud {
     my ( $blessed, $sql, @attr ) = @_;
-    my $dbh = $blessed->{dbh};
+    my $dbh = $blessed->dbh;
     my $status;
     return $CELL->status_err('DOCHAZKA_DB_NOT_ALIVE', args => [ 'cud' ] ) unless $dbh->ping;
 
@@ -251,8 +252,7 @@ sub _st_by_eid {
 
 =head2 make_spawn
 
-Returns a ready-made 'spawn' method. The 'dbh' attribute is
-required, but can be set to the string "TEST" for testing.
+Returns a ready-made 'spawn' method. 
 
 =cut
 
@@ -262,11 +262,10 @@ sub make_spawn {
         my ( $class, @ARGS ) = @_;
         croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
-        croak "Database handle is undefined" unless defined( $ARGS{dbh} );
 
         # load required attributes
         my $self = { 
-                       dbh     => $ARGS{dbh}, 
+                       dbh     => $class->SUPER::dbh,
                    };
 
         # bless, reset, return

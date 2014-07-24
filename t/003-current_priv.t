@@ -43,9 +43,20 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use Test::More;
 
+
+# plan our tests
+
+# initialize and connect to database
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+} else {
+    plan tests => 17;
+}
 
 # define helper functions
 
@@ -62,16 +73,6 @@ sub test_sql_fail {
     like( $REST->{dbh}->errstr, $expected_err, "DBI errstr is as expected" );
 }
 
-
-# plan our tests
-
-# initialize and connect to database
-my $status = $REST->init( sitedir => '/etc/dochazka' );
-if ( $status->not_ok ) {
-    plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 17;
-}
 
 # get database handle and ping the database just to be sure
 my $dbh = $REST->{dbh};

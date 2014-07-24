@@ -41,6 +41,8 @@ use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
 
+use parent 'App::Dochazka::REST::dbh';
+
 
 
 =head1 NAME
@@ -52,11 +54,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -229,7 +231,7 @@ object, rewriting whatever was there before.  Returns a status object.
 
 sub load_by_iid {
     my ( $self, $iid ) = @_;
-    my $dbh = $self->{dbh};
+    my $dbh = $self->dbh;
     my @attrs = ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' );
     my $sql = $site->SQL_INTERVAL_SELECT_BY_IID;
     my ( $result ) = $dbh->selectrow_hashref( $sql, undef, $iid );

@@ -45,6 +45,7 @@ use File::ShareDir;
 use Try::Tiny;
 use Web::Machine;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -57,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 =head2 Development status
@@ -77,11 +78,11 @@ anything useful.
 This is the top-level module of the Dochazka REST server.
 
     use App::CELL qw( $CELL $log $meta $site );
-    use App::Dochazka::REST qw( $REST );
+    use App::Dochazka::REST;
     use Carp;
 
-    my $status = $REST->init( sitedir => '/etc/dochazka' );
-    croak( $status->text ) unless $status->ok;
+    my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+    croak( $REST->{init_status}->text ) unless $REST->{init_status}->ok;
 
 Read on for documentation.
 
@@ -589,40 +590,13 @@ and reporting scenarios.
 Thus, in Dochazka a report generator is always implemented either a
 separate client or as part of a client. Never as part of the server.
 
-
-
-=head1 SITE CONFIGURATION PARAMETERS
-
-Dochazka REST recognizes the following site configuration parameters:
-
-...
-
-
-=head1 EXPORTS
-
-This module provides the following exports:
-
-=over 
-
-=item * C<$REST>
-App::Dochazka::REST singleton object
-
-=back
-
-=cut 
-
-use Exporter qw( import );
-our @EXPORT_OK = qw( $REST $app );
-
-our $REST = bless { 
-        app      => Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app,
-        dbh      => '',
-    }, __PACKAGE__;
+=cut
 
 
 
 
-=head1 METHODS AND ROUTINES
+
+=head1 METHODS
 
 
 
@@ -633,14 +607,17 @@ Load site configuration, set up logging, and connect to the database.
 =cut
 
 sub init {
-    my ( $self, @ARGS ) = @_;
+    my ( $class, @ARGS ) = @_;
     croak( "Unbalanced PARAMHASH" ) if @ARGS % 2;
     my %ARGS = @ARGS;
     my $status;
-    $status = $self->init_no_db( %ARGS );
-    return $status unless $status->ok;
-    $status = $self->connect_db( $site->DOCHAZKA_DBNAME );
-    return $status;
+    $status = $class->init_no_db( %ARGS );
+    $status = $class->connect_db unless $status->not_ok;
+    return bless { 
+        app         => Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app,
+        dbh         => $class->SUPER::dbh,
+        init_status => $status,
+    }, __PACKAGE__;
 }
 
 
@@ -706,12 +683,13 @@ sub _load_config {
 Connect to a pristine database. This function should be used only for newly
 created databases. Takes a PARAMHASH with 'dbname', 'dbuser', and 'dbpass'.
 For username and password, DBINIT_CONNECT_USER and DBINIT_CONNECT_AUTH are
-used.
+used. Returns status object which, on success, will contain the database
+handle in the payload.
 
 =cut
 
 sub connect_db_pristine {
-    my ( $self, @ARGS ) = @_;
+    my ( $class, @ARGS ) = @_;
     $log->info( "Received " . scalar @ARGS . " arguments" );
     return $CELL->status_err( 'DOCHAZKA_BAD_PARAMHASH', args => [ 'connect_db_pristine' ] )
         if @ARGS % 2;
@@ -724,7 +702,8 @@ sub connect_db_pristine {
     $log->debug( "Opening database connection to data_source " .
         "->$data_source<- username ->" . $ARGS{dbuser} . "<-" 
     );
-    $REST->{dbh} = DBI->connect(
+    my $dbh;
+    $dbh = DBI->connect(
         $data_source, 
         $ARGS{dbuser},
         $ARGS{dbpass},
@@ -733,10 +712,11 @@ sub connect_db_pristine {
             RaiseError => 0,
             AutoCommit => 1,
         },
-    ) or return $CELL->status_err( $DBI::errstr );
-    $log->notice( "Connected to " . $REST->{dbh}->{Name} . 
-                  " as username " . $REST->{dbh}->{Username} );
-    return $CELL->status_ok;
+    ) or return $CELL->status_err( $dbh->errstr );
+    $class->SUPER::init( $dbh );
+    $log->notice( "Connected to " . $dbh->{Name} . 
+                  " as username " . $dbh->{Username} );
+    return $CELL->status_ok( 'OK', payload => $dbh );
 }
 
 
@@ -744,22 +724,21 @@ sub connect_db_pristine {
 =head2 connect_db
 
 Connect to a pre-initialized database and initialize site params. This is
-the function that should be used in production. Takes database name. For
-username and password, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS are
-used.
+the function that should be used in production. Database name, username and
+password are taken from DOCHAZKA_DBNAME, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS,
+respectively.
 
 =cut
 
 sub connect_db {
-    my @ARGS = @_;
-    my $dbname = $ARGS[1];
-    my $data_source = "Dbi:Pg:dbname=$dbname";
-    $log->info( "dbname is $dbname" );
+    my ( $self ) = @_;
+    my $data_source = "Dbi:Pg:dbname=" . $site->DOCHAZKA_DBNAME;
+    $log->info( "dbname is " . $site->DOCHAZKA_DBNAME );
     $log->info( "connect user is " . $site->DOCHAZKA_DBUSER );
     $log->debug( "Opening database connection to data_source " .
         "->$data_source<- username ->" .  $site->DOCHAZKA_DBPASS . "<-" 
     );
-    $REST->{dbh} = DBI->connect(
+    my $dbh = DBI->connect(
         $data_source, 
         $site->DOCHAZKA_DBUSER, 
         $site->DOCHAZKA_DBPASS, 
@@ -769,18 +748,19 @@ sub connect_db {
             AutoCommit => 1,
         },
     ) or return $CELL->status_err( $DBI::errstr );
+    __PACKAGE__->SUPER::init( $dbh );
 
     # initialize site params:
 
     # 1. get EID of root employee
-    my ( $eid_of_root ) = $REST->{dbh}->selectrow_array( 
+    my ( $eid_of_root ) = $dbh->selectrow_array( 
                             $site->DBINIT_SELECT_EID_OF_ROOT, 
                             undef 
                                                        );
     $site->set( 'DOCHAZKA_EID_OF_ROOT', $eid_of_root );
 
-    $log->notice( "Connected to " . $REST->{dbh}->{Name} . 
-                  " as username " . $REST->{dbh}->{Username} );
+    $log->notice( "Connected to " . $dbh->{Name} . 
+                  " as username " . $dbh->{Username} );
     return $CELL->status_ok;
 }
     
@@ -798,37 +778,34 @@ sub reset_db {
     my ( $self, $dbname ) = @_;
 
     my $status;
-    if ( $REST->{dbh} and $REST->{dbh}->ping ) {
-        $log->warn( "reset_db: already connected to DB; disconnecting first" );
-        $REST->{dbh}->disconnect;
-    }
 
     # connect to 'postgres' database
-    $status = $self->connect_db_pristine( 
+    $status = __PACKAGE__->connect_db_pristine( 
         dbname => 'postgres',
         dbuser => $site->DBINIT_CONNECT_USER,
         dbpass => $site->DBINIT_CONNECT_AUTH,
     );
     return $status unless $status->ok;
+    my $dbh = $status->payload;
 
-    $REST->{dbh}->{AutoCommit} = 1;
-    $REST->{dbh}->{RaiseError} = 1;
+    $dbh->{AutoCommit} = 1;
+    $dbh->{RaiseError} = 1;
 
     # drop user dochazka if it exists, otherwise ignore the error
     try {
-        $REST->{dbh}->do( 'DROP DATABASE IF EXISTS "' . $dbname . '"' );    
-        $REST->{dbh}->do( 'DROP USER dochazka' );
+        $dbh->do( 'DROP DATABASE IF EXISTS "' . $dbname . '"' );    
+        $dbh->do( 'DROP USER dochazka' );
     };
 
     try {
-        $REST->{dbh}->do( 'CREATE USER dochazka' );
-        $REST->{dbh}->do( 'ALTER ROLE dochazka WITH PASSWORD \'dochazka\'' );
-        $REST->{dbh}->do( 'CREATE DATABASE "' . $dbname . '"' );    
-        $REST->{dbh}->do( 'GRANT ALL PRIVILEGES ON DATABASE "'.  $dbname . '" TO dochazka' );
+        $dbh->do( 'CREATE USER dochazka' );
+        $dbh->do( 'ALTER ROLE dochazka WITH PASSWORD \'dochazka\'' );
+        $dbh->do( 'CREATE DATABASE "' . $dbname . '"' );    
+        $dbh->do( 'GRANT ALL PRIVILEGES ON DATABASE "'.  $dbname . '" TO dochazka' );
     } catch {
         $status = $CELL->status_err( $DBI::errstr );
     };
-    $REST->{dbh}->disconnect;
+    $dbh->disconnect;
 
     # connect to dochazka database as superuser
     $status = $self->connect_db_pristine( 
@@ -837,13 +814,14 @@ sub reset_db {
         dbpass => $site->DBINIT_CONNECT_AUTH,
     );  
     return $status unless $status->ok;
+    $dbh = $status->payload;
 
     try {
-        $REST->{dbh}->do( 'CREATE EXTENSION IF NOT EXISTS btree_gist' );
+        $dbh->do( 'CREATE EXTENSION IF NOT EXISTS btree_gist' );
     } catch {
-        $status = $CELL->status_err( $DBI::errstr );
+        $status = $CELL->status_err( $dbh->errstr );
     };
-    $REST->{dbh}->disconnect;
+    $dbh->disconnect;
 
     $log->notice( 'Database ' . $dbname . ' dropped and re-created' ) if $status->ok;
     return $status;
@@ -852,12 +830,14 @@ sub reset_db {
 
 =head2 create_tables
 
-Execute all the SQL statements contained in DBINIT_CREATE param
+Takes a database handle, on which it executes all the SQL statements contained
+in DBINIT_CREATE param.
 
 =cut
 
 sub create_tables {
-    my $dbh = $REST->{dbh};
+    my ( $self, $dbh ) = @_;
+    croak "Bad database handle" unless $dbh->ping;
     my ( $status, $eid_of_root, $counter );
 
     $dbh->{AutoCommit} = 0;

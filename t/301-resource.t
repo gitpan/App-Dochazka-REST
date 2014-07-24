@@ -40,7 +40,7 @@ use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use Data::Dumper;
 use HTTP::Request;
 use Plack::Test;
@@ -56,12 +56,12 @@ sub req {
     return $r;
 }
 
-# initialize App::Dochazka::REST instance
-my $status = $REST->init_no_db( site => '/etc/dochazka' );
+# initialize 
+my $status = App::Dochazka::REST->init_no_db( site => '/etc/dochazka' );
 ok( $status->ok );
 
 # instantiate Plack::Test object
-my $test = Plack::Test->create( $REST->{'app'} );
+my $test = Plack::Test->create( Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app );
 ok( blessed $test );
 
 # the very basic-est request

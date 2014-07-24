@@ -41,6 +41,7 @@ use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid );
 use DBI;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -53,11 +54,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -322,7 +323,7 @@ following PARAMHASHes:
 sub _load {
     my ( $self, %ARGS ) = @_;
     my $sql;
-    my $dbh = $self->{dbh};
+    my $dbh = $self->dbh;
     $dbh->ping or die "No dbh";
     $self->reset; # reset object to primal state
     my ( $spec ) = keys %ARGS;

@@ -42,6 +42,8 @@ use App::Dochazka::REST::Model::Shared qw( cud );
 use DBI;
 use Try::Tiny;
 
+use parent 'App::Dochazka::REST::dbh';
+
 
 
 =head1 NAME
@@ -53,11 +55,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.090
+Version 0.093
 
 =cut
 
-our $VERSION = '0.090';
+our $VERSION = '0.093';
 
 
 
@@ -328,11 +330,11 @@ sub insert {
 
     # if the exact same schedule is already in the database, we
     # don't insert it again
-    $self->{sid} = $self->{dbh}->selectrow_array( $site->SQL_SCHEDULES_SELECT_SID, 
+    $self->{sid} = $self->dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SID, 
                    undef, $self->{schedule} );    
     return $CELL->status_ok( "This schedule has SID " . $self->{sid} ) 
         if defined $self->{sid};
-    return $CELL->status_err( $self->{dbh}->errstr ) if $self->{dbh}->err;
+    return $CELL->status_err( $self->dbh->errstr ) if $self->dbh->err;
 
     # no exact match found, insert a new record
     my $status = cud(
@@ -384,9 +386,9 @@ sub load_by_sid {
     my ( $self, $sid ) = @_;
     my $status;
 
-    $self->{dbh}->{RaiseError} = 1;
+    $self->dbh->{RaiseError} = 1;
     try {
-        my $results = $self->{dbh}->selectrow_hashref( 
+        my $results = $self->dbh->selectrow_hashref( 
             $site->SQL_SCHEDULE_SELECT,
             undef,
             $sid 
@@ -398,9 +400,9 @@ sub load_by_sid {
             $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_FETCHED', 0 );
         }
     } catch {
-        $status = $CELL->status_err( $self->{dbh}->errstr );
+        $status = $CELL->status_err( $self->dbh->errstr );
     };
-    $self->{dbh}->{RaiseError} = 0;
+    $self->dbh->{RaiseError} = 0;
 
     return $status;
 }
