@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL::Test::LogToFile;
 use App::Dochazka::REST;
+use Plack::Builder;
 use Plack::Runner;
  
 =head1 NAME
@@ -51,11 +52,11 @@ dochazka-rest - App::Dochazka::REST server startup script
 
 =head1 VERSION
 
-Version 0.096
+Version 0.097
 
 =cut
 
-our $VERSION = '0.096';
+our $VERSION = '0.097';
 
 
 
@@ -77,7 +78,15 @@ my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
 print $status->text unless $status->ok;
 print "Starting server\n";
+
+my $app = $REST->{'app'};
+
 my $runner = Plack::Runner->new;
 $runner->parse_options(@ARGV);
-$runner->run( $REST->{'app'} );
+$runner->run( 
+    builder {
+        enable "StackTrace", force => 1;
+        $app 
+    }
+);
 

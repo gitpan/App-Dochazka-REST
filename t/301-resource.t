@@ -54,6 +54,7 @@ sub req {
     my @args = @_;
     my $r = HTTP::Request->new( @args );
     $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'application/json' );
     return $r;
 }
 

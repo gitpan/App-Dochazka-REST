@@ -585,3 +585,9 @@ Revision history for Dochazka-REST
 - Resource.pm: use $CELL->msg in render_html
 - t/: update tests to current state
 
+0.097  2014-07-24 15:37 CEST
+- bin/dochazka-rest: force Plack::Middleware::StackTrace to be used on
+  _all_ errors
+- Resource.pm: make the server display HTML by default, with the
+  JSON response embedded in the HTML
+

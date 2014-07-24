@@ -61,11 +61,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.096
+Version 0.097
 
 =cut
 
-our $VERSION = '0.096';
+our $VERSION = '0.097';
 
 
 
@@ -95,7 +95,7 @@ L<Web::Machine::Resource>.
 =cut
 
 # a package variable to streamline calls to the JSON module
-my $JSON = JSON->new->pretty;
+my $JSON = JSON->new->allow_nonref->pretty;
 
 
 
@@ -111,19 +111,9 @@ body. It says: "generate responses in JSON using the 'render' method".
 =cut
  
 sub content_types_provided { [
-    { 'application/json' => 'render_json' },
     { 'text/html' => 'render_html' },
+    { 'application/json' => 'render_json' },
 ] }
-
-
-
-=head2 render_json
-
-Encode the context as a JSON string.
-
-=cut
-
-sub render_json { $JSON->encode( (shift)->context );  }
 
 
 
@@ -134,10 +124,15 @@ Whip out some HTML to educate passersby.
 =cut
 
 sub render_html { 
-    $log->info( "Entering render_html" );
+    my ( $self ) = @_;
     my $server_status = App::Dochazka::REST::dbh->status;
-    $log->info( "Server status is $server_status");
-    my $msgobj = $CELL->msg( 'DOCHAZKA_REST_HTML', $VERSION, $server_status );
+    my $msgobj = $CELL->msg( 
+        'DOCHAZKA_REST_HTML', 
+        $VERSION, 
+        $self->context->{'path'},
+        $JSON->encode( $self->context->{'response'} ), 
+        $server_status 
+    );
     $msgobj
         ? $msgobj->text
         : '<html><body><h1>Internal Error</h1><p>See Resource.pm->render_html</p></body></html>';
@@ -145,10 +140,20 @@ sub render_html {
 
 
 
+=head2 render_json
+
+Encode the context as a JSON string.
+
+=cut
+
+sub render_json { $JSON->encode( (shift)->context->{'response'} );  }
+
+
+
 =head2 context
 
-This method is used to store the request "context", i.e. the part of the URL
-after the hostname.
+This method is where we store data that needs to be shared among
+various "users" of the given object (i.e. among routines in this module).
 
 =cut
 
@@ -215,6 +220,10 @@ Authentication) and determine whether the request is authorized.
 sub is_authorized {
     my ( $self, $auth_header ) = @_;
 
+    # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
+    # In order to process them, they must first be "decoded" into Perl characters.
+    $self->context( { path => decode_utf8( $self->request->path_info ) } );
+
     if ( $auth_header ) {
         return 1 if $auth_header->username eq 'demo'
                  && $auth_header->password eq 'demo';
@@ -237,15 +246,16 @@ responses will be to various requests.
 sub resource_exists {
     my ( $self ) = @_;
 
-    # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
-    # In order to process them, they must first be "decoded" into Perl characters.
-    my $path = decode_utf8( $self->request->path_info );
-
     # Since the path dispatching state machine is complex, it resides in 
     # a separate module. The C<_get_response> routine in that module
     # returns the data structure that will be encoded as JSON and sent to
     # the client.
-    $self->context( App::Dochazka::REST::Dispatch::_get_response( $path ) );
+    my $response = App::Dochazka::REST::Dispatch::_get_response( 
+        $self->context->{'path'}
+    );
+    my $context = $self->context;
+    $context->{'response'} = $response;
+    $self->context( $context );
 
 }
 

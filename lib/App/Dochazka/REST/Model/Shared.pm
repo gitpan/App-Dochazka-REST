@@ -56,11 +56,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.096
+Version 0.097
 
 =cut
 
-our $VERSION = '0.096';
+our $VERSION = '0.097';
 
 
 
