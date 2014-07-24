@@ -40,7 +40,7 @@ use strict;
 use warnings;
 
 use App::CELL::Test::LogToFile;
-use App::Dochazka::REST qw( $REST );
+use App::Dochazka::REST;
 use Plack::Runner;
  
 =head1 NAME
@@ -51,11 +51,11 @@ dochazka-rest - App::Dochazka::REST server startup script
 
 =head1 VERSION
 
-Version 0.093
+Version 0.095
 
 =cut
 
-our $VERSION = '0.093';
+our $VERSION = '0.095';
 
 
 
@@ -73,7 +73,8 @@ Run this script from the bash prompt to start the server.
 
 print "App::Dochazka::REST ver. $VERSION\n";
 print "Initializing and connecting to database\n";
-my $status = $REST->init( sitedir => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
 print $status->text unless $status->ok;
 print "Starting server\n";
 my $runner = Plack::Runner->new;

@@ -41,9 +41,12 @@ use strict;
 use warnings;
 
 use App::CELL qw( $log $site );
+use App::CELL::Message;
+use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
-use JSON;
+use Data::Dumper;
 use Encode qw( decode_utf8 );
+use JSON;
 use Web::Machine::Util qw( create_header );
 
 # methods/attributes not defined in this module will be inherited from:
@@ -59,11 +62,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.093
+Version 0.095
 
 =cut
 
-our $VERSION = '0.093';
+our $VERSION = '0.095';
 
 
 
@@ -132,8 +135,16 @@ Whip out some HTML to educate passersby.
 =cut
 
 sub render_html { 
-    my $html = $site->DOCHAZKA_REST_HTML;
-    $log->info( $html );
+    $log->info( "Entering render_html" );
+    my $server_status = App::Dochazka::REST::dbh->status;
+    $log->info( "Server status is $server_status");
+    my $status = App::CELL::Message->new( code => 'DOCHAZKA_REST_HTML', 
+        args => [ $VERSION, $server_status ] );
+    $log->info( "Status OK" ) if $status->ok;
+    $log->info( "Status NOT_OK" ) if $status->not_ok;
+    my $html = $status->ok
+        ? $status->payload->text
+        : '<html><body><h1>Internal Error</h1><p>See Resource.pm->render_html</p></body></html>';
     $html;
 }
 

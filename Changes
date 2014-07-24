@@ -566,3 +566,14 @@ Revision history for Dochazka-REST
 0.093  2014-07-24 08:18 CEST
 - Build.PL: require perl 5.012 (RT#97442 -- thanks, Slaven!)
 
+0.094  2014-07-24 10:52 CEST
+- bin/: eliminate $REST singleton
+- /version now reports whether server is UP or DOWN
+
+0.095  2014-07-24 11:58 CEST
+- config/: DOCHAZKA_REST_HTML is now a message, no longer a site param,
+  and it also newly reports the version number and server status
+- dbh.pm: add 'status' routine that reports database server status
+- Dispatch.pm: use the new dbh.pm->status routine in '_version'
+- Resource.pm: use the new dbh.pm->status routine in 'render_html'
+

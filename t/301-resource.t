@@ -41,18 +41,28 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
+use App::Dochazka::REST::Resource;
 use Data::Dumper;
 use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 # create request object with authorization header appended
 sub req {
     my @args = @_;
     my $r = HTTP::Request->new( @args );
     $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    return $r;
+}
+
+# create request object for HTML with authorization header appended
+sub req_html {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'text/html' );
     return $r;
 }
 
@@ -67,6 +77,7 @@ ok( blessed $test );
 # the very basic-est request
 
 my $res = $test->request( req GET => '/' );
+#diag( $res->content );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
@@ -75,3 +86,7 @@ like( $res->content, qr/App::Dochazka::REST/ );
 $res = $test->request( req GET => '/' x 1001 );
 is( $res->content, 'Request-URI Too Large' );
 
+# request for HTML
+$res = $test->request( req_html GET => '/' );
+#diag( $res->content );
+like( $res->content, qr/<html>/ );

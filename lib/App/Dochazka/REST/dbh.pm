@@ -52,11 +52,11 @@ App::Dochazka::REST::dbh - database handle module (parent of data model classes)
 
 =head1 VERSION
 
-Version 0.093
+Version 0.095
 
 =cut
 
-our $VERSION = '0.093';
+our $VERSION = '0.095';
 
 
 
@@ -97,4 +97,16 @@ Something like an instance method, to be accessed via inheritance.
 
 sub dbh { $dbh; }
 
+
+=head2 status
+
+Report whether the database server is up or down.
+
+=cut
+
+sub status {
+    return $dbh->ping ? "UP" : "DOWN" if defined $dbh;
+    return "DOWN";
+}
+   
 1;

@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.093
+Version 0.095
 
 =cut
 
-our $VERSION = '0.093';
+our $VERSION = '0.095';
 
 
 
@@ -115,7 +115,7 @@ otherwise noted.
 =head2 C<< http://dochazka.site/ >>
 
 (If this URL is opened in a browser, a HTML page will be displayed. The HTML
-source code is defined in C<< $site->DOCHAZKA_REST_HTML >>.)
+source code is defined in C<< $mesg->DOCHAZKA_REST_HTML >>.)
 
 This is considered an empty request. The response will be the same as for 
 L<"http://dochazka.site/version">.
@@ -213,9 +213,10 @@ Look up employees by nick
 
 sub _version {
     my ( $path ) = @_;
+    my $server_status = __PACKAGE__->SUPER::status;
     my $status = $CELL->status_ok( 
         'DISPATCH_VERSION', 
-        args => [ $VERSION ],
+        args => [ $VERSION, $server_status ],
         payload => { 
             version => "$VERSION",
         },

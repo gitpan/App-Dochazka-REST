@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.093
+Version 0.095
 
 =cut
 
-our $VERSION = '0.093';
+our $VERSION = '0.095';
 
 
 =head2 Development status
@@ -414,11 +414,13 @@ It entails the following steps:
 =over
 
 =item * B<Server preparation>
+
 Dochazka REST needs hardware (either physical or virtualized) to run on. 
 The hardware will need to have a network connection, etc. Obviously, this
 step is entirely beyond the scope of this document.
 
 =item * B<Software installation>
+
 Once the hardware is ready, the Dochazka REST software and all its
 dependencies are installed on it.  This could be accomplished by
 downloading and unpacking the tarball (or running C<git clone>) and
@@ -427,16 +429,17 @@ installing a packaged version of Dochazka REST if one is available
 (see
 L<https://build.opensuse.org/package/show/home:smithfarm/perl-App-Dochazka-REST>).
 
-=item * B<PostgreSQL setup> -- 
+=item * B<PostgreSQL setup>
+
 One of Dochazka REST's principal dependencies is PostgreSQL server (version
 9.2 or higher). This needs to be installed (should happen automatically
 when using the packaged version of L<App::Dochazka::REST>). Steps to enable
 it:
 
-    # chkconfig postgresql on
-    #  systemctl start postgresql.service
-    # su - postgres
-    $ psql postgres
+    bash# chkconfig postgresql on
+    bash#  systemctl start postgresql.service
+    bash# su - postgres
+    bash$ psql postgres
     postgres-# ALTER ROLE postgres WITH PASSWORD 'mypass';
     ALTER ROLE
 
@@ -449,16 +452,21 @@ for C<local> so it looks like this:
 
 Then, as root, we restart the postgresql service:
 
-    # systemctl restart postgresql.service
+    bash# systemctl restart postgresql.service
 
-=item * B<Site configuration> -- 
+=item * B<Site configuration>
+
 Before the Dochazka REST database can be initialized, we will need to
 tell L<App::Dochazka::REST> about the PostgreSQL superuser password
-that we set in the previous step. First, create a sitedir:
+that we set in the previous step. This is done via a site parameter. 
+There may be other site params we will want to set, but the following
+is sufficient to run the test suite. 
 
-    # mkdir /etc/dochazka
+First, create a sitedir:
 
-And a file therein:
+    bash# mkdir /etc/dochazka
+
+and, second, a file therein:
 
     # cat << EOF > /etc/dochazka/Dochazka_SiteConfig.pm
     set( 'DBINIT_CONNECT_AUTH', 'mypass' );
@@ -471,40 +479,43 @@ to the database using the default user C<dochazka> and password
 C<dochazka>. These are taken from the site parameters C<DOCHAZKA_DBUSER>
 and C<DOCHAZKA_DBPASS>.)
 
-=item * B<Syslog setup> -- 
+=item * B<Syslog setup>
+
 It is much easier to administer a Dochazka instance if C<syslog> is running
 and configured properly to place Dochazka's log messages into a separate
 file in a known location. In the future, L<App::Dochazka::REST> might
 provide a C<syslog_test> script to help the administrator complete this
 step.
 
-=item * Database initialization -- 
+=item * B<Database initialization>
+
 In the future, there might be a nifty C<dochazka-dbinit> script to make
 this process less painful, but for now the easiest way to initialize the
 database is to clone the git repo from SourceForge and run the test suite:
 
-    # cd ~/src
-    # git clone git://git.code.sf.net/p/dochazka/code dochazka
+    bash# cd ~/src
+    bash# git clone git://git.code.sf.net/p/dochazka/code dochazka
     ...
-    # cd dochazka
-    # perl Build.PL
-    # ./Build test
+    bash# cd dochazka
+    bash# perl Build.PL
+    bash# ./Build test
 
 Assuming the previous steps were completed correctly, all the tests should
 complete without errors.
 
-=item * Service start -- 
+=item * B<Start the server>
 The last step is to start the Dochazka REST service. Maybe, in the future,
 this will be possible using a command like C<systemctl start dochazka.service>.
 Right now, though, an executable is run, as root, manually from the bash prompt:
 
-    # dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
+    bash# dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
 
 or, as any user:
 
-    $ dochazka-rest
+    bash$ dochazka-rest
 
-=item * Take it for a spin
+=item * B<Take it for a spin>
+
 Point your browser to the hostname you entered in the previous step, or to
 L<http://0:5000/> if you didn't enter a hostname.
 
