@@ -61,11 +61,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.097
+Version 0.098
 
 =cut
 
-our $VERSION = '0.097';
+our $VERSION = '0.098';
 
 
 
@@ -126,6 +126,9 @@ Whip out some HTML to educate passersby.
 sub render_html { 
     my ( $self ) = @_;
     my $server_status = App::Dochazka::REST::dbh->status;
+    $log->info( 'render_html \$self->context' );
+    $log->info( Dumper( $self->context ) );
+
     my $msgobj = $CELL->msg( 
         'DOCHAZKA_REST_HTML', 
         $VERSION, 
@@ -212,17 +215,13 @@ sub uri_too_long {
 
 =head2 is_authorized
 
-Authenticate the originator of the request (using HTTP Basic
-Authentication) and determine whether the request is authorized.
+Authenticate the originator of the request, using HTTP Basic
+Authentication.
 
 =cut
 
 sub is_authorized {
     my ( $self, $auth_header ) = @_;
-
-    # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
-    # In order to process them, they must first be "decoded" into Perl characters.
-    $self->context( { path => decode_utf8( $self->request->path_info ) } );
 
     if ( $auth_header ) {
         return 1 if $auth_header->username eq 'demo'
@@ -231,32 +230,45 @@ sub is_authorized {
     return create_header(
         'WWWAuthenticate' => [ 'Basic' => ( realm => 'User: demo, Password: demo' ) ]
     ); 
+
 }
 
 
+=head2 forbidden
 
-=head2 resource_exists
-
-Path dispatcher method. (The "path" is the part of the URL following the
-hostname.)  This is the meat of the REST server, where we determine what the
-responses will be to various requests. 
+Parse the path to determine what is being asked of us. At the same time,
+check if the user (employee) is authorized to do that.
 
 =cut
 
-sub resource_exists {
+sub forbidden {
     my ( $self ) = @_;
 
-    # Since the path dispatching state machine is complex, it resides in 
-    # a separate module. The C<_get_response> routine in that module
-    # returns the data structure that will be encoded as JSON and sent to
-    # the client.
-    my $response = App::Dochazka::REST::Dispatch::_get_response( 
-        $self->context->{'path'}
-    );
-    my $context = $self->context;
-    $context->{'response'} = $response;
-    $self->context( $context );
+    # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
+    # In order to process them, they must first be "decoded" into Perl characters.
+    my $path = decode_utf8( $self->request->path_info );
 
+    # Put the path into the context
+    $self->context( { path => $path } );
+   
+    # Determine authorization status (hardcoded for now)
+    my $status = App::Dochazka::REST::Dispatch::is_auth( 1, 'admin', $path );
+
+    if ( $status->ok ) { # authorized
+        my $rs = &{ $status->payload->{'rout'} }( @{ $status->payload->{'args'} } );
+        my $context = $self->context;
+        $context->{'response'} = $rs->expurgate;
+        $self->context( $context );
+        $log->info( "forbidden \$self->context" );
+        $log->info( Dumper( $self->context ) );
+        return 0;
+    }
+
+    # not authorized
+    $self->response->body([
+        '<html><body><h1>403 Forbidden</h1></body></html>'
+    ]);
+    return 1;
 }
 
 1;

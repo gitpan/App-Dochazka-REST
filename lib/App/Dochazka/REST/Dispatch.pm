@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::Model::Employee;
+use Data::Dumper;
 use Scalar::Util qw( blessed );
 
 use parent 'App::Dochazka::REST::dbh';
@@ -55,11 +56,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.097
+Version 0.098
 
 =cut
 
-our $VERSION = '0.097';
+our $VERSION = '0.098';
 
 
 
@@ -87,8 +88,9 @@ that will look like this:
     }
 
 where 'rout' is a reference to the subroutine to be run to obtain the JSON
-string for the HTTP response, and 'args' is a list of arguments to be provided
-to that function.
+string for the HTTP response and 'args' is a list of arguments to be provided
+to that function. Also, the extraneous URL part (if any) is appended to the
+status object as 'extra'.
 
 =cut
 
@@ -112,19 +114,24 @@ FQDN of your own Dochazka REST server. The full URL is shown only for the
 first couple entries. All responses are JSON-encoded status objects unless
 otherwise noted.
 
-=head2 C<< http://dochazka.site/ >>
+
+=over
+
+=item C<< http://dochazka.site/ >>
 
 (If this URL is opened in a browser, a HTML page will be displayed. The HTML
 source code is defined in C<< $mesg->DOCHAZKA_REST_HTML >>.)
 
-This is considered an empty request. The response will be the same as for 
-L<"http://dochazka.site/version">.
+The path in this case will be C<< / >> (empty path) and the response will
+be the same as for L<"/version">.
+
+For the sake of brevity, all the remaining paths will omit the 
+C<< http://dochazka.site/ >> part.
 
 =cut
 
-    # 1. "" or "/"
     if ( $path eq '' or $path eq '/' ) {
-        $status = $CELL->status_ok( 'AUTH_OK', 
+        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
             payload => {
                 rout => \&_version,
                 args => [ '' ]
@@ -132,82 +139,114 @@ L<"http://dochazka.site/version">.
         );
     }
 
-=head2 C<< http://dochazka.site/version >>
+
+=item C<< /version >>
 
 Returns version number of the L<App::Dochazka::REST> that is
-installed at the site. For example:
-
-    /VERSION example here
+installed at the site.
 
 =cut
 
-    # 2. "/version"
     elsif ( $path =~ s/^\/version//i ) {
-        $status = _version( $path );
+        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
+            payload => {
+                rout => \&_version,
+                args => [ $path ]
+            }
+        );
     }
 
-=head2 C<< http://dochazka.site/help >>
+
+=item C<< /help >>
 
 Returns a hopefully helpful status object containing a URL where this
 documentation can be accessed.
 
 =cut
 
-    # 3. "/help"
     elsif ( $path =~ s/^\/help//i ) {
-        $status = _help( $path );
+        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
+            payload => {
+                rout => \&_help,
+                args => [ $path ]
+            }
+        );
     }
 
-=head2 C<< /site/[PARAM] >>
 
-(For the sake of brevity, the C<< http://dochazka.site >> part will be
-omitted from here on.)
+=item C<< /site/[PARAM] >>
 
 Returns value of the given site param in the payload.
 
 =cut
 
-    # 4. "/site"
     elsif ( $path =~ s/^\/site//i ) {
-        $status = _site( $path );
+        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
+            payload => {
+                rout => \&_site,
+                args => [ $path ]
+            }
+        );
     }
 
 
-=head2 C<< /lookup/... >>
+# NOTE:
+# LOOKUP STARTS HERE
 
-Look up various objects in the database (needs: class)
-
-=head3 C<< /lookup/employee/... >>
-
-Look up employees in the database (needs: search_key_type)
-
-=head4 C<< /lookup/employee/nick/[SEARCH_KEY] >>
-
-Look up employees by nick
-
-=cut
-
-    # 5. "/lookup"
     elsif ( $path =~ s/^\/lookup//i ) {
+        $path =~ s/^.*(?=\/)//;
 
         if ( $path =~ s/^\/employee//i ) {
+            $path =~ s/^.*(?=\/)//;
 
+=item C<< /lookup/employees/nick/[SEARCH_KEY] >>
+
+(Lookup is always for multiple records. To look up a single record, use
+C</fetch>.) Look up employees by nick.
+
+=cut
             if ( $path =~ s/^\/nick//i ) {
-                $status = _emp_by_nick( $path );
+                $path =~ s/^.*(?=\/)//;
+                $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
+                    payload => {
+                        rout => \&_emp_by_nick,
+                        args => [ $path ]
+                    }
+                );
             }
         }
     }
 
-    # 999. anything else
-    #else {
-    #    $status = { unrecognized => $path };
-    #}
 
-    # if nothing matched, bail out
-    return unless blessed $status;
+=item C<< /forbidden >>
 
-    # sanitize the status object
-    return $status->expurgate;
+This request always returns 403 Forbidden
+
+=cut
+
+    elsif ( $path =~ s/^\/forbidden//i ) {
+        $status = $CELL->status_not_ok;
+    }
+
+
+   
+
+
+
+=back
+
+=cut
+
+    return $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
+        payload => {
+            rout => \&_unrecognized,
+            args => [ $path ]
+        }
+    ) if ! defined $status;
+
+    $log->info( "is_auth returning a status" );
+    #$log->info( Dumper( $status ) );
+    return $status;
 }
 
 
@@ -279,13 +318,37 @@ sub _emp_by_nick {
         $sk = $1;
         $log->info( "Search key is ->$sk<-" );
         $status = App::Dochazka::REST::Model::Employee->select_multiple_by_nick( 
-            SUPER->dbh, $sk );
+            __PACKAGE__->SUPER::dbh, $sk );
     } else {
         $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
             args => [ "search key" ] );
     }
     $status->{'extraneous_url_part'} = $path if $path;
     return $status;
+}
+
+
+sub _unrecognized {
+    my ( $path ) = @_;
+
+    return $CELL->status_err( 
+        'DISPATCH_UNRECOGNIZED', 
+        payload => { 
+            request => $path,
+        },
+    );
+}
+
+
+sub _forbidden {
+    my ( $path ) = @_;
+
+    return $CELL->status_err( 
+        'DISPATCH_FORBIDDEN', 
+        payload => { 
+            request => $path,
+        },
+    );
 }
 
 #-----------------------------------

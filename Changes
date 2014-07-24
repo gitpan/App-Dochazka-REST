@@ -591,3 +591,9 @@ Revision history for Dochazka-REST
 - Resource.pm: make the server display HTML by default, with the
   JSON response embedded in the HTML
 
+0.098  2014-07-24 17:49 CEST
+- Resource.pm, Dispatch.pm: finished converting to 'is_auth',
+  eliminated deprecated 'resource_exists' and '_get_response'
+  routines, added a 'forbidden' request that always triggers a
+  403
+
