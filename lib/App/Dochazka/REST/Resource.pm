@@ -40,8 +40,7 @@ package App::Dochazka::REST::Resource;
 use strict;
 use warnings;
 
-use App::CELL qw( $log $site );
-use App::CELL::Message;
+use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
 use Data::Dumper;
@@ -62,11 +61,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.095
+Version 0.096
 
 =cut
 
-our $VERSION = '0.095';
+our $VERSION = '0.096';
 
 
 
@@ -138,14 +137,10 @@ sub render_html {
     $log->info( "Entering render_html" );
     my $server_status = App::Dochazka::REST::dbh->status;
     $log->info( "Server status is $server_status");
-    my $status = App::CELL::Message->new( code => 'DOCHAZKA_REST_HTML', 
-        args => [ $VERSION, $server_status ] );
-    $log->info( "Status OK" ) if $status->ok;
-    $log->info( "Status NOT_OK" ) if $status->not_ok;
-    my $html = $status->ok
-        ? $status->payload->text
+    my $msgobj = $CELL->msg( 'DOCHAZKA_REST_HTML', $VERSION, $server_status );
+    $msgobj
+        ? $msgobj->text
         : '<html><body><h1>Internal Error</h1><p>See Resource.pm->render_html</p></body></html>';
-    $html;
 }
 
 

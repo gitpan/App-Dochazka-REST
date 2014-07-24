@@ -56,11 +56,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.095
+Version 0.096
 
 =cut
 
-our $VERSION = '0.095';
+our $VERSION = '0.096';
 
 
 
@@ -263,13 +263,8 @@ sub make_spawn {
         croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
 
-        # load required attributes
-        my $self = { 
-                       dbh     => $class->SUPER::dbh,
-                   };
-
         # bless, reset, return
-        bless $self, $class;
+        my $self = bless {}, $class;
         $self->reset( %ARGS ); # make sure we have all required attributes
         return $self;
     }
@@ -289,9 +284,8 @@ sub make_reset {
     return sub {
         # process arguments
         my ( $self, @ARGS ) = @_;
-        croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
+        croak "Odd number of arguments (" . scalar @ARGS . ") in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
-        croak "Database handle is undefined" unless defined( $self->{dbh} );
 
         # re-initialize object attributes
         map { $self->{$_} = undef; } @attr;

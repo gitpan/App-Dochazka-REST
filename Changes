@@ -577,3 +577,11 @@ Revision history for Dochazka-REST
 - Dispatch.pm: use the new dbh.pm->status routine in '_version'
 - Resource.pm: use the new dbh.pm->status routine in 'render_html'
 
+0.096  2014-07-24 14:19 CEST
+- Employee.pm: revamp load_by_nick and load_by_eid
+  so they now work as both instance and class methods
+- Schedintvls.pm: fix parentage and use dbh.pm->dbh method
+- Shared.pm: spawn no longer sticks dbh into objects
+- Resource.pm: use $CELL->msg in render_html
+- t/: update tests to current state
+

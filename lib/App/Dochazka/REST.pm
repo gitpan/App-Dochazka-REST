@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.095
+Version 0.096
 
 =cut
 
-our $VERSION = '0.095';
+our $VERSION = '0.096';
 
 
 =head2 Development status
@@ -504,6 +504,7 @@ Assuming the previous steps were completed correctly, all the tests should
 complete without errors.
 
 =item * B<Start the server>
+
 The last step is to start the Dochazka REST service. Maybe, in the future,
 this will be possible using a command like C<systemctl start dochazka.service>.
 Right now, though, an executable is run, as root, manually from the bash prompt:
@@ -524,14 +525,6 @@ L<http://0:5000/> if you didn't enter a hostname.
 The above procedure only includes the most basic steps. Sites with 
 reverse proxies, firewalls, load balancers, connection pools, etc. will
 need to set those up, as well.
-
-
-
-=head1 STARTING THE SERVER
-
-Once L<App::Dochazka::REST> is installed, the server is started like this:
-
-    $ dochazka-rest
 
 
 

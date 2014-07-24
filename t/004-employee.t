@@ -50,7 +50,7 @@ my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 58;
+    plan tests => 56;
 }
 
 # test database handle
@@ -61,7 +61,6 @@ is( $rc, 1, "PostgreSQL database is alive" );
 # spawn an empty employee object
 my $emp = App::Dochazka::REST::Model::Employee->spawn;
 ok( blessed($emp), "object is blessed" );
-is( $emp->{dbh}, $dbh, "database handle is in the object" );
 
 # attempt to load a non-existent nick into the object
 $status = $emp->load_by_nick( 'mrfu' ); 
@@ -78,7 +77,7 @@ is( $emp->eid, 1 );
 is( $emp->priv, 'admin' );
 is( $emp->schedule, '{}' );
 is( $emp->email, 'root@site.org' );
-is( $emp->fullname, 'El Rooto' );
+is( $emp->fullname, 'Root Immutable' );
 
 # get root's priv level and test priv accessor
 ok( exists( $emp->{priv} ) );
@@ -94,16 +93,17 @@ $emp = App::Dochazka::REST::Model::Employee->spawn(
 
 ok( ref($emp), "object is a reference" );
 ok( blessed($emp), "object is a blessed reference" );
-is( $emp->{dbh}, $dbh, "database handle is in the object" );
 
 # insert it
 $status = $emp->insert();
 ok( $status->ok, "Mr. Fu inserted" );
 my $eid_of_mrfu = $emp->{eid};
+#diag( "eid of mrfu is $eid_of_mrfu" );
 
 # spawn another object
 my $emp2 = App::Dochazka::REST::Model::Employee->spawn;
 $status = $emp2->load_by_eid( $eid_of_mrfu );
+#diag( Dumper( $status ) );
 ok( $status->ok, "load_by_eid returned OK status" );
 is( $emp2->{eid}, $eid_of_mrfu, "EID matches that of Mr. Fu" );
 is( $emp2->{nick}, 'mrfu', "Nick should be mrfu" );

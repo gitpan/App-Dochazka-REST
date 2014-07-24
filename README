@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.095
+    Version 0.096
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -372,10 +372,12 @@ INSTALLATION
         Assuming the previous steps were completed correctly, all the tests
         should complete without errors.
 
-    * Start the server The last step is to start the Dochazka REST service.
-    Maybe, in the future, this will be possible using a command like
-    `systemctl start dochazka.service'. Right now, though, an executable is
-    run, as root, manually from the bash prompt:
+    * Start the server
+        The last step is to start the Dochazka REST service. Maybe, in the
+        future, this will be possible using a command like `systemctl start
+        dochazka.service'. Right now, though, an executable is run, as root,
+        manually from the bash prompt:
+
             bash# dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
 
         or, as any user:
@@ -389,11 +391,6 @@ INSTALLATION
     The above procedure only includes the most basic steps. Sites with
     reverse proxies, firewalls, load balancers, connection pools, etc. will
     need to set those up, as well.
-
-STARTING THE SERVER
-    Once App::Dochazka::REST is installed, the server is started like this:
-
-        $ dochazka-rest
 
 AUTHENTICATION
     Since employees do not access the database directly, but only via the

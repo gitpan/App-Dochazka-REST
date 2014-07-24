@@ -272,8 +272,9 @@ set( 'DBINIT_CREATE', [
     q/-- insert root employee into employees table and grant admin
       -- privilege to the resulting EID
       WITH cte AS (
-        INSERT INTO employees (nick, fullname, remark) 
-        VALUES ('root', 'Root Immutable', 'IMMUTABLE') RETURNING eid
+        INSERT INTO employees (nick, fullname, email, remark) 
+        VALUES ('root', 'Root Immutable', 'root@site.org', 'IMMUTABLE') 
+        RETURNING eid
       ) 
       INSERT INTO privhistory (eid, priv, effective, remark)
       SELECT eid, 'admin', '1000-01-01', 'IMMUTABLE' FROM cte

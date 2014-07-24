@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.095
+Version 0.096
 
 =cut
 
-our $VERSION = '0.095';
+our $VERSION = '0.096';
 
 
 
@@ -239,6 +239,7 @@ BEGIN {
     no strict 'refs';
     *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
         'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark',
+        'priv', 'schedule'
     );
 }
 
@@ -400,33 +401,58 @@ sub delete {
 
 
 
-=head2 load_by_eid
-
-Instance method. Loads employee from database, by EID, into existing
-object, overwriting whatever was there before. The EID value given must be
-an exact match. Returns a status object.
-
-=cut
-
-sub load_by_eid {
-    my ( $self, $eid ) = @_;
-    return $self->_load( eid => $eid );
-}
-
-
-
 =head2 load_by_nick
 
-Instance method. Loads employee from database, by the nick provided in the
-argument list, into existing object, overwriting whatever might have been
-there before. The nick must be an exact match. Returns a status object.
+Attempts to loads employee from database, by the nick provided in the
+argument list, which must be an exact match. If the employee is found,
+it is loaded into a temporary hash. If called as a class method, an
+employee object is spawned from the values in the temporary hash. If
+called on an existing object, overwrites whatever might have been there
+before. 
+
+Returns a status object. On success, the object will be in the payload.
 
 =cut
 
 sub load_by_nick {
     my ( $self, $nick ) = @_;
-    return $self->_load( nick => $nick );
+    my $status = _load( nick => $nick );
+    return $status unless $status->ok;
+
+    # record was found and is in the payload
+    if ( ref $self ) { # class method
+        $self->reset( %{ $status->payload } );
+        $status->payload( $self );
+    } else {             # instance method
+        my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
+        $status->payload( $newobj);
+    }
+    return $status;
 }
+
+
+=head2 load_by_eid
+
+Analogous method to L<"load_by_nick">.
+
+=cut
+
+sub load_by_eid {
+    my ( $self, $eid ) = @_;
+    my $status = _load( eid => $eid );
+    return $status unless $status->ok;
+
+    # record was found and is in the payload
+    if ( ref $self ) { # class method
+        $self->reset( %{ $status->payload } );
+        $status->payload( $self );
+    } else {             # instance method
+        my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
+        $status->payload( $newobj);
+    }
+    return $status;
+}
+
 
 
 =head3 _load
@@ -436,39 +462,31 @@ whatever was there before. The search key (eid or nick) must be an exact
 match: this function returns only 1 or 0 records. Takes one of the two
 following PARAMHASHes:
 
-    dbh => $dbh, nick => $nick
-    dbh => $dbh, eid => $eid
+    nick => $nick
+    eid => $eid
+
+Returns a status object. On success, the populated hashref will be in
+the payload.
 
 =cut
 
 sub _load {
-    my ( $self, %ARGS ) = @_;
+    my ( %ARGS ) = @_;
     my $sql;
-    my $dbh = $self->dbh;
-    $dbh->ping or die "No dbh";
-    $self->reset; # reset object to primal state
+    my $dbh = __PACKAGE__->SUPER::dbh;
     my ( $spec ) = keys %ARGS;
 
-    if ( $spec eq 'nick' ) {
-        $sql = $site->SQL_EMPLOYEE_SELECT_BY_NICK;
-    } else {
-        $sql = $site->SQL_EMPLOYEE_SELECT_BY_EID;
-    }
+    $sql = ($spec eq 'nick')
+        ? $site->SQL_EMPLOYEE_SELECT_BY_NICK
+        : $site->SQL_EMPLOYEE_SELECT_BY_EID;
 
-    # SELECT statement incantations
     # N.B. - the select can only return a single record
     my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$spec} );
-    if ( defined( $newself ) ) {
-        foreach my $key ( keys %{ $newself } ) {
-            $self->{$key} = $newself->{$key};
-        }
-        return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
-    } elsif ( ! defined( $dbh->err ) ) {
-        # nothing found
-        return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
-    }
-    # DBI error
-    return $CELL->status_err( $dbh->errstr );
+    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] ) 
+        if $dbh->err;
+    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
+        payload => $newself ) if defined $newself;
+    return $CELL->status_warn( 'DISPATCH_RECORDS_FOUND', args => [ 0 ] );
 }
 
 

@@ -50,7 +50,7 @@ my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 27;
+    plan tests => 25;
 }
 
 my $dbh = $REST->{dbh};
@@ -100,22 +100,22 @@ SQL
 
 # we _can_ change fullname of root employee, though not recommended to do so
 #diag( 'change fullname of root employee' );
-my $rv = $dbh->do( <<SQL , undef, 'El Rooto', $eid_of_root ) or die( $dbh->errstr );
-UPDATE employees SET fullname=? WHERE eid=?
-SQL
-is( $rv, 1, "root employee's email changed" );
+#my $rv = $dbh->do( <<SQL , undef, 'El Rooto', $eid_of_root ) or die( $dbh->errstr );
+#UPDATE employees SET fullname=? WHERE eid=?
+#SQL
+#is( $rv, 1, "root employee's email changed" );
 
 # and we _can_ change the email of root employee -- a site might want to
 # send email to root
 #diag( 'change email of root employee' );
-$rv = $dbh->do( <<SQL , undef, 'root@site.org', $eid_of_root ) or die( $dbh->errstr );
-UPDATE employees SET email=? WHERE eid=?
-SQL
-is( $rv, 1, "root employee's email changed" );
+#$rv = $dbh->do( <<SQL , undef, 'root@site.org', $eid_of_root ) or die( $dbh->errstr );
+#UPDATE employees SET email=? WHERE eid=?
+#SQL
+#is( $rv, 1, "root employee's email changed" );
 
 # and we _can_, of course, change root's passhash and salt
 #diag( 'change root passhash' );
-$rv = $dbh->do( <<SQL , undef, '$1$iT4NN7aG$EPzMy7jnV3w.rFZ/HLSu21', 'O+i0Ssyc', $eid_of_root ) or die( $dbh->errstr );
+my $rv = $dbh->do( <<SQL , undef, '$1$iT4NN7aG$EPzMy7jnV3w.rFZ/HLSu21', 'O+i0Ssyc', $eid_of_root ) or die( $dbh->errstr );
 UPDATE employees SET passhash=?, salt=? WHERE eid=?
 SQL
 is( $rv, 1, "root employee's passhash and salt changed" );

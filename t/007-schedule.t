@@ -58,7 +58,7 @@ my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 84;
+    plan tests => 83;
 }
 
 # get database handle and ping DBD
@@ -89,7 +89,6 @@ my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
 );
 ok( ref($schedintvls), "object is a reference" );
 ok( blessed($schedintvls), "object is a blessed reference" );
-is( $schedintvls->{dbh}, $dbh, "database handle is in the object" );
 ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" ); 
 ok( $schedintvls->{scratch_sid} > 0, "Scratch SID is > 0" ); 
 
