@@ -79,7 +79,7 @@ like( $res->content, qr/App::Dochazka::REST/ );
 # 3. /help
 $res = $test->request( req GET => '/HELP' );
 is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_HELP/ );
+like( $res->content, qr/App::Dochazka::REST/ );
 
 # 4. /site
 $res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/' );
@@ -105,5 +105,5 @@ like( $res->content, qr/DISPATCH_MISSING_PARAMETER/ );
 
 $res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/foobar' );
 is_valid_json( $res->content );
-like( $res->content, qr/\/foobar/ );
+like( $res->content, qr/foobar/ );
 

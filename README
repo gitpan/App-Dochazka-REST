@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.098
+    Version 0.099
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -42,27 +42,52 @@ DESCRIPTION
     ever be implemented can also be thought of as clients.
 
 REST INTERFACE
-    App::Dochazka::REST presents a *REST* interface to potential clients. In
-    practice, this means that communications between client and server use
-    the HTTP(S) protocol. The idea is that the client will send HTTP(S)
-    requests (usually `GET' and `POST') to a well-known hostname and port
-    where an App::Dochazka::REST (server) instance is listening. The server
-    processes incoming HTTP requests and sends back HTTP responses.
+    App::Dochazka::REST attempts to present a *REST*ful interface to
+    potential clients. For a description of what this means in practice, see
+    ....
 
-    Simpler requests can be made using the GET method with the details of
-    the request specified in the URL itself (e.g.,
-    http://dochazka.site/employee/Dolejsi). More complex requests need to be
-    encoded in JSON and handed to the server by the POST method. If the
-    server generates a response body, it will be in JSON unless the client
-    specifically asks for HTML.
+    In the HTTP request, the client should provide an `Accept:' header
+    specifying either HTML (`text/html') or JSON (`application/json'). If
+    neither is specified, the response body will be in HTML.
 
-  How requests are handled
-    When a request comes in, it is subjected to a number of tests according
-    to the HTTP Activity Diagram.
+    The REST interface has the following resources. More information about
+    them can be found by accessing the URL http://dochazka.site/[RESOURCE]
+    (where `dochazka.site' is the FQDN of a Dochazka REST server):
 
-  Request syntax
-    Request syntax is defined and documented in
-    App::Dochazka::REST::Dispatch.
+    * employee
+    * privhistory
+    * schedhistory
+    * schedule
+    * activity
+    * interval
+    * lock
+
+  `employee'
+    The `employee' resource responds to the `GET' method.
+
+    `GET'
+    This section details `GET' requests on the `employee' resource:
+
+    * `/employee/eid/$EID'
+        Request for a single employee.
+
+    * `/employee/nick/$NICK'
+        If the search key, `$NICK', contains a `%' character, this is
+        considered a request that might return multiple employees -- e.g.,
+        `/employee/nick/r%' would return all employees with nicks starting
+        with the letter `r'. If no `%' is present in the search key, it is
+        considered a lookup request for a single employee whose nick matches
+        the search key.
+
+        CASE SENSITIVITY?
+
+    * `/employee/email/$EMAIL'
+        Look up an employee (or employees) by email address. Behavior is
+        analogous to employee/nick/$NICK.
+
+    * `/employee/fullname/$FULLNAME'
+        Look up an employee (or employees) by their full name. Behavior is
+        analogous to employee/nick/$NICK.
 
 DATA MODEL
     This section describes the `App::Dochazka::REST' data model.

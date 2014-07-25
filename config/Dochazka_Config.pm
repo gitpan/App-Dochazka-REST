@@ -39,6 +39,13 @@
 # -----------------------------------
 
 
+# DOCHAZKA_URI
+#    the bare URI where the server listens (no trailing '/')
+set( 'DOCHAZKA_URI', 'http://dochazka.site' );
+
+# DOCHAZKA_DOCUMENTATION_URI
+set( 'DOCHAZKA_DOCUMENTATION_URI', 'https://metacpan.org/pod/App::Dochazka::REST' );
+
 # DOCHAZKA_URI_MAX_LENGTH
 #    maximum length of a URI
 set( 'DOCHAZKA_URI_MAX_LENGTH', 1000 );

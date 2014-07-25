@@ -597,3 +597,13 @@ Revision history for Dochazka-REST
   routines, added a 'forbidden' request that always triggers a
   403
 
+0.099  2014-07-25 14:50 CEST
+- config/Dochazka_Config.pm: add DOCHAZKA_URI and DOCHAZKA_DOCUMENTATION_URI
+  site params
+- REST.pm: work on POD
+- Dispatch.pm: a flurry of modifications
+- Resource.pm: change $self->{'context'} into a hashref, implement a _push
+  method to make it easy to add to it
+- t/: disable all data model tests except 001-init.t, tests can be activated by
+  setting an environment variable
+

@@ -49,6 +49,8 @@ use Test::More;
 
 # plan our tests
 
+plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
+
 # initialize and connect to database
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};

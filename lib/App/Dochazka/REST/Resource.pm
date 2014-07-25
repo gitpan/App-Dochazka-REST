@@ -61,11 +61,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.098
+Version 0.099
 
 =cut
 
-our $VERSION = '0.098';
+our $VERSION = '0.099';
 
 
 
@@ -86,11 +86,14 @@ In PSGI file:
 
 =head1 DESCRIPTION
 
-This is where we provide our own versions of various methods
-used by our "web framework": L<Web::Machine>.
+This is where we override the default versions of various methods
+defined by our "highway to H.A.T.E.O.S.": L<Web::Machine>.
 
-Methods/attributes not defined in this module will be inherited from
-L<Web::Machine::Resource>.
+(Methods not defined in this module will be inherited from
+L<Web::Machine::Resource>.)
+
+Do note, however, that none of the routines in this module are called by
+L<App::Dochazka::REST>. 
 
 =cut
 
@@ -128,7 +131,7 @@ sub render_html {
     my $server_status = App::Dochazka::REST::dbh->status;
     $log->info( 'render_html \$self->context' );
     $log->info( Dumper( $self->context ) );
-
+    
     my $msgobj = $CELL->msg( 
         'DOCHAZKA_REST_HTML', 
         $VERSION, 
@@ -252,23 +255,33 @@ sub forbidden {
     $self->context( { path => $path } );
    
     # Determine authorization status (hardcoded for now)
-    my $status = App::Dochazka::REST::Dispatch::is_auth( 1, 'admin', $path );
+    my $status = App::Dochazka::REST::Dispatch::is_auth( eid => 1, priv => 'admin', path => $path );
 
-    if ( $status->ok ) { # authorized
+    if ( $status->ok ) { # not forbidden to do that
         my $rs = &{ $status->payload->{'rout'} }( @{ $status->payload->{'args'} } );
-        my $context = $self->context;
-        $context->{'response'} = $rs->expurgate;
-        $self->context( $context );
-        $log->info( "forbidden \$self->context" );
-        $log->info( Dumper( $self->context ) );
+        $self->_push( { 'response' => $rs->expurgate } );
         return 0;
     }
 
-    # not authorized
-    $self->response->body([
-        '<html><body><h1>403 Forbidden</h1></body></html>'
-    ]);
+    # forbidden to do that
     return 1;
+}
+
+
+=head2 _push
+
+Takes a hashref and "pushes" it onto C<< $self->{'context'} >>
+
+=cut
+
+sub _push {
+    my ( $self, $hr ) = @_;
+
+    my $context = $self->context;
+    foreach my $key ( keys %$hr ) {
+        $context->{$key} = $hr->{$key};
+    }
+    $self->context( $context );
 }
 
 1;

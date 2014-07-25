@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::Model::Employee;
+use Carp;
 use Data::Dumper;
 use Scalar::Util qw( blessed );
 
@@ -56,11 +57,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.098
+Version 0.099
 
 =cut
 
-our $VERSION = '0.098';
+our $VERSION = '0.099';
 
 
 
@@ -76,11 +77,16 @@ from the HTTP request.
 
 =head2 is_auth
 
-Takes three parameters: (1) the EID of the employee making the request, (2)
-the current privilege level of that EID, and (3) the path string. It returns a
-status object, the level of which can be either 'OK' (authorized) or 'NOT_OK'.
-If the request is authorized, the payload will contain a reference to a hash
-that will look like this:
+Takes a PARAMHASH with the following mandatory parameters: 
+
+    'eid'     the EID of the employee making the request
+    'priv'    current privilege level of that employee
+    'method'  the HTTP method being used to access the resource
+    'path'    the path string
+
+Returns a status object, the level of which can be either 'OK' (authorized) or
+'NOT_OK' (not authorized). If the status is 'OK', the payload will contain a
+reference to a hash that will look like this:
 
     {
         rout => CODEREF,
@@ -88,210 +94,128 @@ that will look like this:
     }
 
 where 'rout' is a reference to the subroutine to be run to obtain the JSON
-string for the HTTP response and 'args' is a list of arguments to be provided
-to that function. Also, the extraneous URL part (if any) is appended to the
-status object as 'extra'.
+string to be placed in the HTTP response, and 'args' is a list of arguments to
+be provided to that function. Also, the extraneous URL part (if any) is
+appended to the status object as 'extra'.
 
 =cut
 
 sub is_auth {
-    my ( $eid, $priv, $path ) = @_;
-
-    # ========================================================================
-    # big bad state machine
-    # ========================================================================
+    my ( @ARGS ) = @_;
+    croak "Odd number of arguments" if @ARGS % 2;
+    my %ARGS = @ARGS;
 
     my $status; # allocate memory for response
     my $extra;
 
+    # split the path into tokens
+    # FIXME: implement escaping of '/' characters so tokens can contain them
+    my $path = $ARGS{path};
+    $path =~ s/^\///;
+    my @tokens = split( /\//, $path );
 
 
-=head1 REQUEST SYNTAX
+    # $token[0] specifies the resource
+    $tokens[0] = 'default' if ! @tokens or $tokens[0] =~ m/help/i or $tokens[0] =~ m/version/i;
+    my $resource = shift @tokens;
 
-Documentation of L<App::Dochazka::REST> request syntax. Each section below
-corresponds to a URL, in which you should replace C<dochazka.site> with the
-FQDN of your own Dochazka REST server. The full URL is shown only for the
-first couple entries. All responses are JSON-encoded status objects unless
-otherwise noted.
-
-
-=over
-
-=item C<< http://dochazka.site/ >>
-
-(If this URL is opened in a browser, a HTML page will be displayed. The HTML
-source code is defined in C<< $mesg->DOCHAZKA_REST_HTML >>.)
-
-The path in this case will be C<< / >> (empty path) and the response will
-be the same as for L<"/version">.
-
-For the sake of brevity, all the remaining paths will omit the 
-C<< http://dochazka.site/ >> part.
-
-=cut
-
-    if ( $path eq '' or $path eq '/' ) {
+    if ( $resource =~ m/default/i ) {
         $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
             payload => {
-                rout => \&_version,
-                args => [ '' ]
+                rout => \&_default,
+                args => [ @tokens ],
             }
         );
     }
-
-
-=item C<< /version >>
-
-Returns version number of the L<App::Dochazka::REST> that is
-installed at the site.
-
-=cut
-
-    elsif ( $path =~ s/^\/version//i ) {
-        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-            payload => {
-                rout => \&_version,
-                args => [ $path ]
-            }
-        );
-    }
-
-
-=item C<< /help >>
-
-Returns a hopefully helpful status object containing a URL where this
-documentation can be accessed.
-
-=cut
-
-    elsif ( $path =~ s/^\/help//i ) {
-        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-            payload => {
-                rout => \&_help,
-                args => [ $path ]
-            }
-        );
-    }
-
-
-=item C<< /site/[PARAM] >>
-
-Returns value of the given site param in the payload.
-
-=cut
-
-    elsif ( $path =~ s/^\/site//i ) {
+    elsif ( $resource =~ m/site/i ) {
         $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
             payload => {
                 rout => \&_site,
-                args => [ $path ]
+                args => [ @tokens ]
             }
         );
     }
-
-
-# NOTE:
-# LOOKUP STARTS HERE
-
-    elsif ( $path =~ s/^\/lookup//i ) {
-        $path =~ s/^.*(?=\/)//;
-
-        if ( $path =~ s/^\/employee//i ) {
-            $path =~ s/^.*(?=\/)//;
-
-=item C<< /lookup/employees/nick/[SEARCH_KEY] >>
-
-(Lookup is always for multiple records. To look up a single record, use
-C</fetch>.) Look up employees by nick.
-
-=cut
-            if ( $path =~ s/^\/nick//i ) {
-                $path =~ s/^.*(?=\/)//;
-                $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-                    payload => {
-                        rout => \&_emp_by_nick,
-                        args => [ $path ]
-                    }
-                );
-            }
-        }
-    }
-
-
-=item C<< /forbidden >>
-
-This request always returns 403 Forbidden
-
-=cut
-
-    elsif ( $path =~ s/^\/forbidden//i ) {
+    elsif ( $resource =~ m/forbidden/i ) {
         $status = $CELL->status_not_ok;
     }
 
-
-   
-
-
-
-=back
-
-=cut
-
+    # resource not recognized
     return $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
         payload => {
-            rout => \&_unrecognized,
-            args => [ $path ]
+            rout => \&_bad_resource,
+            args => [ @tokens ]
         }
     ) if ! defined $status;
 
-    $log->info( "is_auth returning a status" );
-    #$log->info( Dumper( $status ) );
     return $status;
 }
 
 
-sub _version {
-    my ( $path ) = @_;
+sub _default {
+    my @tokens = @_;
     my $server_status = __PACKAGE__->SUPER::status;
+    my $uri = $site->DOCHAZKA_URI;
     my $status = $CELL->status_ok( 
-        'DISPATCH_VERSION', 
+        'DISPATCH_DEFAULT', 
         args => [ $VERSION, $server_status ],
         payload => { 
-            version => "$VERSION",
+            documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
+            resources => {
+                'employee' => {
+                    link => "$uri/employee",
+                    description => 'Employee (i.e. a user of Dochazka)',
+                },
+                'privhistory' => {
+                    link => "$uri/privhistory",
+                    description => "Privilege history (changes to an employee's privilege level over time)",
+                },
+                'schedhistory' => {
+                    link => "$uri/schedhistory",
+                    description => "Schedule history (changes to an employee's schedule over time)",
+                },
+                'schedule' => {
+                    link => "$uri/schedule",
+                    description => "Schedule (expected weekly work hours of an employee or employees)",
+                },
+                'activity' => {
+                    link => "$uri/activity",
+                    description => "Activity (a way in which employees can spend their time)",
+                },
+                'interval' => {
+                    link => "$uri/interval",
+                    description => "Interval (a period of time during which an employee did something)",
+                },
+                'lock' => {
+                    link => "$uri/lock",
+                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
+                },
+                'siteparam' => {
+                    link => "$uri/siteparam",
+                    description => "Site parameter (a value configurable by the site administrator)",
+                },
+            },
         },
     );
-    $status->{'extraneous_url_part'} = $path if $path;
-    return $status;
-}
-
-
-sub _help {
-    my ( $path ) = @_;
-    my $du = "https://metacpan.org/pod/App::Dochazka::REST::Dispatch";
-    my $status = $CELL->status_ok( 
-        'DISPATCH_HELP', 
-        args => [ $du ],
-        payload => { 
-            documentation_url => $du,
-        },
-    );
-    $status->{'extraneous_url_part'} = $path if $path;
+    $status->{'extra_tokens'} = \@tokens if @tokens;
     return $status;
 }
 
 
 sub _site {
     no strict 'refs';
-    my ( $path ) = @_;
+    my @tokens = @_;
     my ( $param, $value, $status );
+    $param = shift @tokens;
+
+    $log->info( "Entering _site, \$param is undefined" ) if ! defined $param;
+    $log->info( "Entering _site, \$param is $param" ) if defined $param;
 
     # correct value for $path looks like, e.g. '/DOCHAZKA_APPNAME'
-    if ( $path =~ s/^\/([^\/]+)// ) {
-        $param = $1;
+    if ( $param ) {
         $value = $site->$param;
         $status = $value
             ? $CELL->status_ok( 
-                  'DISPATCH_SITE_OK', 
+                  'DISPATCH_SITE_PARAM_FOUND', 
                   args => [ $param ], 
                   payload => { $param => $value } 
               )
@@ -303,11 +227,12 @@ sub _site {
         $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
             args => [ "site param" ] );
     }
-    $status->{'extraneous_url_part'} = $path if $path;
+    $status->{'extra_tokens'} = \@tokens if @tokens;
     return $status;
 }
     
 
+# FIXME
 sub _emp_by_nick {
     my ( $path ) = @_;     # sk means Search Key
     my ( $sk, $status );
@@ -323,85 +248,33 @@ sub _emp_by_nick {
         $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
             args => [ "search key" ] );
     }
-    $status->{'extraneous_url_part'} = $path if $path;
+    #$status->{'extra_tokens'} = \@tokens if @tokens;
     return $status;
 }
 
 
-sub _unrecognized {
-    my ( $path ) = @_;
+# FIXME: should be DISPATCH_BAD_RESOURCE
+sub _bad_resource {
+    my @tokens = @_;
 
     return $CELL->status_err( 
         'DISPATCH_UNRECOGNIZED', 
         payload => { 
-            request => $path,
+            request => join( '/', @tokens ),
         },
     );
 }
 
 
 sub _forbidden {
-    my ( $path ) = @_;
+    my @tokens = @_;
 
     return $CELL->status_err( 
         'DISPATCH_FORBIDDEN', 
         payload => { 
-            request => $path,
+            request => join( '/', @tokens ),
         },
     );
 }
-
-#-----------------------------------
-# FIXME: this function is deprecated
-#-----------------------------------
-sub _get_response {
-    my ( $path ) = @_;
-
-    my $status; # allocate memory for response
-    my $extra;
-
-    # 1. "" or "/"
-    if ( $path eq '' or $path eq '/' ) {
-        $status = _version( '' );
-    }
-
-    # 2. "/version"
-    elsif ( $path =~ s/^\/version//i ) {
-        $status = _version( $path );
-    }
-
-    # 3. "/help"
-    elsif ( $path =~ s/^\/help//i ) {
-        $status = _help( $path );
-    }
-
-    # 4. "/site"
-    elsif ( $path =~ s/^\/site//i ) {
-        $status = _site( $path );
-    }
-
-    # 5. "/lookup"
-    elsif ( $path =~ s/^\/lookup//i ) {
-
-        if ( $path =~ s/^\/employee//i ) {
-
-            if ( $path =~ s/^\/nick//i ) {
-                $status = _emp_by_nick( $path );
-            }
-        }
-    }
-
-    # 999. anything else
-    #else {
-    #    $status = { unrecognized => $path };
-    #}
-
-    # if nothing matched, bail out
-    return unless blessed $status;
-
-    # sanitize the status object
-    return $status->expurgate;
-}
-
 
 1;

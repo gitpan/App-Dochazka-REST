@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.098
+Version 0.099
 
 =cut
 
-our $VERSION = '0.098';
+our $VERSION = '0.099';
 
 
 =head2 Development status
@@ -116,33 +116,73 @@ be implemented can also be thought of as clients.
 
 =head1 REST INTERFACE
 
-L<App::Dochazka::REST> presents a I<REST> interface to potential clients.
-In practice, this means that communications between client and server use
-the HTTP(S) protocol. The idea is that the client will send HTTP(S)
-requests (usually C<GET> and C<POST>) to a well-known hostname and port
-where an L<App::Dochazka::REST> (server) instance is listening. The server
-processes incoming HTTP requests and sends back HTTP responses. 
+L<App::Dochazka::REST> attempts to present a I<REST>ful interface to potential
+clients. For a description of what this means in practice, see L<...>.
 
-Simpler requests can be made using the GET method with the details of the
-request specified in the URL itself (e.g.,
-L<http://dochazka.site/employee/Dolejsi>).  More complex requests need
-to be encoded in JSON and handed to the server by the POST method. If the
-server generates a response body, it will be in JSON unless the client
-specifically asks for HTML.
+In the HTTP request, the client should provide an C<Accept:> header specifying
+either HTML (C<text/html>) or JSON (C<application/json>). If neither is specified,
+the response body will be in HTML.
+
+The REST interface has the following resources. More information about them
+can be found by accessing the URL L<http://dochazka.site/[RESOURCE]> (where
+C<dochazka.site> is the FQDN of a Dochazka REST server):
+
+=over
+
+=item * employee
+
+=item * privhistory
+
+=item * schedhistory
+
+=item * schedule
+
+=item * activity
+
+=item * interval
+
+=item * lock
+
+=back
 
 
-=head2 How requests are handled
 
-When a request comes in, it is subjected to a number of tests according to
-the L<HTTP Activity
-Diagram|https://raw.githubusercontent.com/wiki/basho/webmachine/images/http-headers-status-v3.png>.
+=head2 C<employee>
 
-
-=head2 Request syntax
-
-Request syntax is defined and documented in L<App::Dochazka::REST::Dispatch>.
+The C<employee> resource responds to the C<GET> method.
 
 
+=head3 C<GET>
+
+This section details C<GET> requests on the C<employee> resource:
+
+=over
+
+=item * C</employee/eid/$EID>
+
+Request for a single employee.
+
+=item * C</employee/nick/$NICK>
+
+If the search key, C<$NICK>, contains a C<%> character, this is considered a
+request that might return multiple employees -- e.g., C</employee/nick/r%>
+would return all employees with nicks starting with the letter C<r>. If no C<%> 
+is present in the search key, it is considered a lookup request for a single
+employee whose nick matches the search key.
+
+CASE SENSITIVITY?
+
+=item * C</employee/email/$EMAIL>
+
+Look up an employee (or employees) by email address. Behavior is analogous
+to L</employee/nick/$NICK>.
+
+=item * C</employee/fullname/$FULLNAME>
+
+Look up an employee (or employees) by their full name. Behavior is analogous
+to L</employee/nick/$NICK>.
+
+=back
 
 
 
