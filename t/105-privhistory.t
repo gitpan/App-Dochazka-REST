@@ -55,8 +55,6 @@ my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 36;
 }
 
 # get database handle and ping the database just to be sure
@@ -176,3 +174,5 @@ is( noof( $dbh, 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
 is( noof( $dbh, 'employees' ), 2 );
+
+done_testing;

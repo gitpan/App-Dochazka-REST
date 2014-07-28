@@ -52,14 +52,12 @@ use Test::More;
 
 # initialize and connect to database
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
 
 # plan tests
-if ( $REST->{init_status}->not_ok ) {
+if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 8;
 }
-my $status;
 
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
@@ -74,3 +72,5 @@ ok( tsrange_equal( $dbh, $intvl1, $intvl2) );
 ok( tsrange_equal( $dbh, $intvl2, '[2014-07-15 8:0   , "2014-07-15 12:0")' ) );
 ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:01, 2014-07-15 12:00)' ) );
 ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
+
+done_testing;

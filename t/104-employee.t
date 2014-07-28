@@ -51,8 +51,6 @@ my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 62;
 }
 
 # test database handle
@@ -196,3 +194,5 @@ ok( $status->ok );
 
 # Employees table should now have two records (root, demo)
 is( noof( $dbh, 'employees' ), 2 );
+
+done_testing;

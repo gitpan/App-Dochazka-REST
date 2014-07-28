@@ -48,10 +48,6 @@ use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More;
 
-# set up a testing plan
-plan tests => 22;
-#plan skip_all => "Under construction";
-
 # create request object with authorization header appended
 sub req {
     my @args = @_;
@@ -61,10 +57,12 @@ sub req {
     return $r;
 }
 
-
-# initialize
-my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
-ok( $REST->{'init_status'}->ok );
+# initialize, connect to database, and set up a testing plan
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+}
 my $app = $REST->{'app'};
 
 # instantiate Plack::Test object
@@ -112,3 +110,4 @@ $res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 
+done_testing;

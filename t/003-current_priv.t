@@ -54,8 +54,6 @@ my $status = $REST->{init_status};
 # plan tests
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 17;
 }
 
 # define helper functions
@@ -144,3 +142,4 @@ test_sql_success(1, <<SQL);
 DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 
+done_testing;

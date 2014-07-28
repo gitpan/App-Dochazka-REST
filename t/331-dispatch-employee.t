@@ -48,9 +48,6 @@ use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More;
 
-# set up a testing plan
-plan tests => 24;
-#plan skip_all => "Under construction";
 
 # create request object with authorization header appended
 sub req {
@@ -61,10 +58,11 @@ sub req {
     return $r;
 }
 
-
-# initialize
-my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
-ok( $REST->{'init_status'}->ok );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+}
 my $app = $REST->{'app'};
 
 # instantiate Plack::Test object
@@ -112,3 +110,4 @@ is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_NO_RECORDS_FOUND/ );
 
+done_testing;

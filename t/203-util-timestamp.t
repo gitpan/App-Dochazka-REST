@@ -30,8 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# some tests to ensure/demonstrate that current_priv stored procedure
-# works as advertised
+# tests for Util/Timestamp.pm
 #
 
 #!perl
@@ -47,14 +46,16 @@ use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use Test::More;
 
+plan skip_all => "Under construction";
+
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-if ( $REST->{init_status}->not_ok ) {
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 1;
 }
 
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
+done_testing;

@@ -52,8 +52,6 @@ my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 14;
 }
 
 # insert a testing employee
@@ -86,3 +84,5 @@ is( $emp->remark, undef );
 
 # nothing to clean up, as this unit test file does not
 # actually touch the database
+
+done_testing;

@@ -47,7 +47,7 @@ use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 15;
+use Test::More;
 
 sub req_json {
     my @args = @_;
@@ -75,7 +75,10 @@ sub req_bad_creds {
 
 # initialize 
 my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
-ok( $REST->{'init_status'}->ok );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) { 
+    plan skip_all => "not configured or server not running";
+}
 my $app = $REST->{'app'};
 
 # instantiate Plack::Test object
@@ -114,4 +117,4 @@ $res = $test->request( req_json GET => '/HEE HAW!!!/non-existent/resource' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 
-
+done_testing;

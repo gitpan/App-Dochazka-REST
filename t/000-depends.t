@@ -34,7 +34,7 @@
 use 5.006;
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 19;
+use Test::More;
 
 BEGIN {
     use_ok( 'App::CELL' );
@@ -58,4 +58,5 @@ BEGIN {
     use_ok( 'App::Dochazka::REST::Util::Timestamp' );
 }
 
+done_testing;
 #diag( "Testing App::Dochazka::REST $App::Dochazka::REST::VERSION, Perl $], $^X" );

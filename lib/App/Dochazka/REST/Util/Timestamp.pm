@@ -51,11 +51,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.106
+Version 0.107
 
 =cut
 
-our $VERSION = '0.106';
+our $VERSION = '0.107';
 
 
 

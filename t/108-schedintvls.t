@@ -56,8 +56,6 @@ plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! def
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 31;
 }
 
 my $dbh = $REST->{dbh};
@@ -121,3 +119,5 @@ map {
      } @$bogus_intvls;
 
 # CLEANUP: none as this unit test doesn't change the database
+
+done_testing;

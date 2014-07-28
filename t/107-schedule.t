@@ -61,8 +61,6 @@ plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! def
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else {
-    plan tests => 83;
 }
 
 # get database handle and ping DBD
@@ -278,3 +276,5 @@ is( noof( $dbh, 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
 is( noof( $dbh, 'employees' ), 2 );
+
+done_testing;

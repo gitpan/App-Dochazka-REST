@@ -45,8 +45,6 @@ use Carp;
 my $status = App::Dochazka::REST->init_no_db( sitedir => '/etc/dochazka' );
 if ( $status->not_ok ) {
     plan skip_all => "Not configured. Please run the test suite manually after initial site configuration";
-} else {
-    plan tests => 7;
 }
 
 # connect to postgres database
@@ -97,3 +95,4 @@ my $eid_of_root = $site->DOCHAZKA_EID_OF_ROOT;
 #diag( "eid_of_root == $eid_of_root" );
 ok( $eid_of_root > 0, "EID of root is $eid_of_root" );
 
+done_testing;

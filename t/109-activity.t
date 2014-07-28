@@ -50,12 +50,10 @@ use Test::More;
 # plan tests
 plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-if ( $REST->{init_status}->not_ok ) {
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
-} else { 
-    plan tests => 55;
 }
-my $status;
 
 # get database handle and check DBD connection
 my $dbh = $REST->{dbh};

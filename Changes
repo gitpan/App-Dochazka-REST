@@ -653,3 +653,8 @@ Revision history for Dochazka-REST
 - Resource.pm, Dispatch*: send entire context to targets and let them pick out
   what they need from it
 
+0.107  2014-07-28 12:16 CEST
+- add core dependencies to Build.PL
+- clean up test suite
+- t/: fix 3?? tests so they don't break builds in OBS
+
