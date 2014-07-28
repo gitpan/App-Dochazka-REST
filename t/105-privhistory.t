@@ -169,10 +169,10 @@ foreach my $priv ( @$ph ) {
 # one left (root's)
 is( noof( $dbh, "privhistory" ), 1 );
 
-# Total number of employees should now be 2 (root and Mr. Privhistory)
-is( noof( $dbh, 'employees' ), 2 );
+# Total number of employees should now be 2 (root, demo and Mr. Privhistory)
+is( noof( $dbh, 'employees' ), 3 );
 
 # Delete Mr. Privhistory himself, too, to clean up
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 1 );
+is( noof( $dbh, 'employees' ), 2 );

@@ -36,6 +36,7 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid );
 use Carp;
 use Data::Dumper;
@@ -59,11 +60,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.099
+Version 0.106
 
 =cut
 
-our $VERSION = '0.099';
+our $VERSION = '0.106';
 
 
 
@@ -403,7 +404,7 @@ sub delete {
 
 =head2 load_by_nick
 
-Attempts to loads employee from database, by the nick provided in the
+Attempts to load employee from database, by the nick provided in the
 argument list, which must be an exact match. If the employee is found,
 it is loaded into a temporary hash. If called as a class method, an
 employee object is spawned from the values in the temporary hash. If
@@ -417,7 +418,7 @@ Returns a status object. On success, the object will be in the payload.
 sub load_by_nick {
     my ( $self, $nick ) = @_;
     my $status = _load( nick => $nick );
-    return $status unless $status->ok;
+    return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # record was found and is in the payload
     if ( ref $self ) { # class method
@@ -425,7 +426,7 @@ sub load_by_nick {
         $status->payload( $self );
     } else {             # instance method
         my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
-        $status->payload( $newobj);
+        $status->payload( $newobj );
     }
     return $status;
 }
@@ -440,15 +441,15 @@ Analogous method to L<"load_by_nick">.
 sub load_by_eid {
     my ( $self, $eid ) = @_;
     my $status = _load( eid => $eid );
-    return $status unless $status->ok;
+    return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # record was found and is in the payload
-    if ( ref $self ) { # class method
+    if ( ref $self ) { # instance method
         $self->reset( %{ $status->payload } );
         $status->payload( $self );
-    } else {             # instance method
+    } else {           # class method
         my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
-        $status->payload( $newobj);
+        $status->payload( $newobj );
     }
     return $status;
 }
@@ -485,34 +486,14 @@ sub _load {
     return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] ) 
         if $dbh->err;
     return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
-        payload => $newself ) if defined $newself;
-    return $CELL->status_warn( 'DISPATCH_RECORDS_FOUND', args => [ 0 ] );
+        payload => $newself, count => 1 ) if defined $newself;
+    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
 }
 
 
 =head1 FUNCTIONS
 
 The following functions are not object methods.
-
-
-=head2 eid_by_nick
-
-Given a database handle and a nick, attempt ot retrieve the
-EID corresponding to the nick. Returns EID or undef on failure.
-
-=cut
-
-sub eid_by_nick {
-    my ( $dbh, $nick ) = @_;
-    croak "Must provide database handle and nick" 
-        if ! defined($dbh) or ! defined( $nick );
-    my $emp = __PACKAGE__->spawn(
-        dbh => $dbh,
-    );
-    my $status = $emp->load_by_nick( $nick );
-    return $emp->{eid} if $status->ok;
-    return;
-}
 
 
 =head2 select_multiple_by_nick
@@ -524,49 +505,52 @@ expurgated employee objects).
 =cut
 
 sub select_multiple_by_nick {
-    my ( $class, $dbh, $sk ) = @_;        # sk means "search key"
-    croak( "Bad database handle" ) unless $dbh->ping;
-    $sk = '%' if not $sk;          # select all if no search key given
+    my ( $class, $sk ) = @_;        # sk means "search key"
     my $status;
+
+    # get database handle from parent
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    croak( "Bad database handle" ) unless $dbh->ping;
+
+    # no undefined search key
+    $sk = $sk || '%'; 
     
-    $log->info( "Entering select_multiple_by_nick" );
+    $log->debug( "Entering select_multiple_by_nick" );
     my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
-    $log->info( "Preparing SQL statement ->$sql<-" );
+    $log->debug( "Preparing SQL statement ->$sql<-" );
     my $sth = $dbh->prepare( $sql );
-    $log->info( "SQL statement prepared" );
+    $log->debug( "SQL statement prepared" );
     $dbh->{RaiseError} = 1;
     try {
         local $SIG{__WARN__} = sub {
                 die @_;
             };
         $sth->execute( $sk );
-        $log->info( "SQL statement executed with search key ->$sk<-" );
+        $log->debug( "SQL statement executed with search key ->$sk<-" );
         my $result = []; 
         my $counter = 0;
         while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) { 
             $counter += 1;
-            my $emp = __PACKAGE__->spawn(
-                dbh => $dbh,
-            );  
+            my $emp = __PACKAGE__->spawn;
             $emp->reset( %$tmpres );
             push @$result, $emp->expurgate;
-            $log->info( Dumper( $result ) );
+            #$log->info( Dumper( $result ) );
         }   
-        $log->info( "$counter records fetched" );
-        $log->info( Dumper( $result ) );
+        $log->debug( "$counter records fetched" );
+        #$log->info( Dumper( $result ) );
         if ( $counter > 0 ) { 
             $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND',
                 args => [ $counter ], payload => $result, count => $counter );
         } else {
-            $status = $CELL->status_warn( 'DISPATCH_RECORDS_FOUND',
-                args => [ $counter ], payload => $result, count => $counter );
+            $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+                count => $counter );
         }   
     } catch {
         $status => $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef );  
     };  
     $dbh->{RaiseError} = 0;
 
-    $log->info( Dumper( $status ) );
+    $log->debug( Dumper( $status ) );
     return $status;
 }
 

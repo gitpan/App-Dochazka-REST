@@ -81,7 +81,7 @@ my $emp = App::Dochazka::REST::Model::Employee->spawn(
 $status = $emp->insert;
 ok( $status->ok );
 ok( $emp->eid > 0 );
-is( noof( $dbh, 'employees'), 2 );
+is( noof( $dbh, 'employees'), 3 );
 
 # load 'WORK'
 my $work = App::Dochazka::REST::Model::Activity->spawn(
@@ -120,8 +120,8 @@ ok( $status->ok );
 is( noof( $dbh, 'intervals' ), 0 );
 
 # 2. delete Mr. Sched
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( $dbh, 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 1 );
+is( noof( $dbh, 'employees' ), 2 );
 

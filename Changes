@@ -607,3 +607,49 @@ Revision history for Dochazka-REST
 - t/: disable all data model tests except 001-init.t, tests can be activated by
   setting an environment variable
 
+0.100  2014-07-25 17:19 CEST
+- added CSS to our HTML template to enable line wrapping in <pre></pre>
+  blocks
+- Build.PL: require Path::Router 
+
+0.101  2014-07-26 23:24 CEST
+- Resource.pm, Dispatch.pm: major revamp to implement Path::Router
+- Resource.pm, Dispatch.pm, LDAP.pm: authentication
+- Dispatch/Employee.pm: get ready for each resource to have its own controller
+  (dispatch) module
+- Employee.pm: authentication
+- t/: update tests to current state, add some HTTP tests
+
+0.102  2014-07-27 19:18 CEST
+- each major resource will have its own controller, e.g.: 
+  App::Dochazka::REST::Dispatch::Employee
+- each controller will inherit from App::Dochazka::REST::Dispatch, 
+  where the 'init' method will also run the 'init' methods in 
+  all of its sub-controllers (taken from the DISPATCH_CONTROLLERS
+  site param)
+- implement separate Path::Router instances for GET, POST, etc.
+
+0.103  2014-07-27 20:42 CEST
+- Resource.pm, Dispatch.pm, Dispatch/Employee.pm: separate router accessor and
+  router initialization routines so there are separate routers for each HTTP
+  method (just 'GET' and 'POST' for now) -- this is necessary to be able to 
+  handle a GET request for, e.g., '/employee/nick/bud' differently than a
+  POST request for the same path/resource
+
+0.104  2014-07-27 21:03 CEST
+- add GET route /employee/eid/:param
+
+0.105  2014-07-27 22:44 CEST
+- move 'authenticate' from Model/Employee.pm to Resource.pm and rename to
+  '_authenticate')
+- Dispatch/Employee.pm: add default GET target
+- cleanup
+- t/: rename data model tests to 1??-something.t and tweak them so they run
+  cleanly again
+
+0.106  2014-07-28 10:26 CEST
+- cleanup
+- put current employee object in request context
+- Resource.pm, Dispatch*: send entire context to targets and let them pick out
+  what they need from it
+

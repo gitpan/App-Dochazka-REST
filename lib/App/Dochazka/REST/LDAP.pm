@@ -31,20 +31,22 @@
 # ************************************************************************* 
 
 # ------------------------
-# Database handle module
+# LDAP module
 # ------------------------
 
-package App::Dochazka::REST::dbh;
+package App::Dochazka::REST::LDAP;
 
+use 5.012;
 use strict;
 use warnings;
 
+use App::CELL qw( $log $site );
 
 
 
 =head1 NAME
 
-App::Dochazka::REST::dbh - database handle module (parent of data model classes)
+App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 
 
@@ -64,49 +66,43 @@ our $VERSION = '0.106';
 
 =head1 DESCRIPTION
 
-This module is the parent of all the data model classes. Its sole purpose is to
-transparently provide the data model classes with a database handle.
+Container for LDAP-related stuff.
 
 =cut
 
 
-
-our $dbh;
 
 
 =head1 METHODS
 
-=head2 init
 
-Something like a constructor.
+=head2 ldap_exists
+
+Takes a nick. Returns true or false. Determines if the nick exists in the LDAP database.
+Any errors in communication with the LDAP server are written to the log.
 
 =cut
 
-sub init {
-    my ( $class, $recvd_dbh ) = @_;
-    $dbh = $recvd_dbh;
-    return;
+sub ldap_exists {
+    my ( $nick ) = @_;
+    return 0 unless $nick;
+    return 0;
 }
 
 
-=head2 dbh
+=head2 ldap_auth
 
-Something like an instance method, to be accessed via inheritance.
-
-=cut
-
-sub dbh { $dbh; }
-
-
-=head2 status
-
-Report whether the database server is up or down.
+Takes a nick and a password. Returns true or false. Determines if the password matches
+the one stored in the LDAP database.
 
 =cut
 
-sub status {
-    return $dbh->ping ? "UP" : "DOWN" if defined $dbh;
-    return "DOWN";
+sub ldap_auth {
+    my ( $nick, $password ) = @_;
+    return 0 unless $nick;
+    $password = $password || '';
+    return 0;
 }
-   
+
+
 1;

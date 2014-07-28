@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.099
+    Version 0.106
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -21,7 +21,7 @@ SYNOPSIS
     Read on for documentation.
 
 DESCRIPTION
-    This is `App::Dochazka::REST', the Perl module that implements the REST
+    This is "App::Dochazka::REST", the Perl module that implements the REST
     interface, data model, and underlying database of Dochazka, the
     open-source Attendance/Time Tracking (ATT) system.
 
@@ -29,11 +29,11 @@ DESCRIPTION
     Its reference implementation runs on the Linux platform.
 
   Dochazka architecture
-    There is more to Dochazka than `App::Dochazka::REST', of course.
+    There is more to Dochazka than "App::Dochazka::REST", of course.
     Dochazka REST is the "server component" of Dochazka, consisting of a
     Plack/PSGI web server (implemented using Web::Machine) and a data model.
 
-    Once `App::Dochazka::REST' is installed, configured, and running, a
+    Once "App::Dochazka::REST" is installed, configured, and running, a
     client will be need in order to actually use Dochazka.
 
     Though no client yet exists, two are planned: a command-line interface
@@ -46,62 +46,79 @@ REST INTERFACE
     potential clients. For a description of what this means in practice, see
     ....
 
-    In the HTTP request, the client should provide an `Accept:' header
-    specifying either HTML (`text/html') or JSON (`application/json'). If
+    In the HTTP request, the client should provide an "Accept:" header
+    specifying either HTML ("text/html") or JSON ("application/json"). If
     neither is specified, the response body will be in HTML.
 
     The REST interface has the following resources. More information about
-    them can be found by accessing the URL http://dochazka.site/[RESOURCE]
-    (where `dochazka.site' is the FQDN of a Dochazka REST server):
+    them can be found by accessing the URL <http://dochazka.site/[RESOURCE]>
+    (where "dochazka.site" is the FQDN of a Dochazka REST server):
 
-    * employee
-    * privhistory
-    * schedhistory
-    * schedule
-    * activity
-    * interval
-    * lock
+    *   employee
 
-  `employee'
-    The `employee' resource responds to the `GET' method.
+    *   privhistory
 
-    `GET'
-    This section details `GET' requests on the `employee' resource:
+    *   schedhistory
 
-    * `/employee/eid/$EID'
+    *   schedule
+
+    *   activity
+
+    *   interval
+
+    *   lock
+
+  "employee"
+    The "employee" resource responds to the "GET" method.
+
+   "GET"
+    This section details "GET" requests on the "employee" resource:
+
+    *   "/employee/eid/$EID"
+
         Request for a single employee.
 
-    * `/employee/nick/$NICK'
-        If the search key, `$NICK', contains a `%' character, this is
+    *   "/employee/nick/$NICK"
+
+        If the search key, $NICK, contains a "%" character, this is
         considered a request that might return multiple employees -- e.g.,
-        `/employee/nick/r%' would return all employees with nicks starting
-        with the letter `r'. If no `%' is present in the search key, it is
+        "/employee/nick/r%" would return all employees with nicks starting
+        with the letter "r". If no "%" is present in the search key, it is
         considered a lookup request for a single employee whose nick matches
         the search key.
 
         CASE SENSITIVITY?
 
-    * `/employee/email/$EMAIL'
-        Look up an employee (or employees) by email address. Behavior is
-        analogous to employee/nick/$NICK.
+    *   "/employee/email/$EMAIL"
 
-    * `/employee/fullname/$FULLNAME'
+        Look up an employee (or employees) by email address. Behavior is
+        analogous to "employee/nick/$NICK".
+
+    *   "/employee/fullname/$FULLNAME"
+
         Look up an employee (or employees) by their full name. Behavior is
-        analogous to employee/nick/$NICK.
+        analogous to "employee/nick/$NICK".
 
 DATA MODEL
-    This section describes the `App::Dochazka::REST' data model.
+    This section describes the "App::Dochazka::REST" data model.
     Conceptually, Dochazka data can be seen to exist in the following
     classes of objects:
 
-    * Policy (parameters set when database is first created)
-    * Employee (an individual employee)
-    * Privhistory (history of changes in an employee's privilege level)
-    * Schedule (a schedule)
-    * Schedhistory (history of changes in an employee's schedule)
-    * Activities (what kinds of work are recognized)
-    * Intervals ("work", "attendance", and/or "time tracked")
-    * Locks (determining whether a reporting period is locked or not)
+    *   Policy (parameters set when database is first created)
+
+    *   Employee (an individual employee)
+
+    *   Privhistory (history of changes in an employee's privilege level)
+
+    *   Schedule (a schedule)
+
+    *   Schedhistory (history of changes in an employee's schedule)
+
+    *   Activities (what kinds of work are recognized)
+
+    *   Intervals ("work", "attendance", and/or "time tracked")
+
+    *   Locks (determining whether a reporting period is locked or not)
 
     These classes are described in the following sections.
 
@@ -110,15 +127,15 @@ DATA MODEL
     parameters are set once at installation time and, once set, can never be
     changed -- these are referred to as "site policy" parameters. Others,
     referred to as "site configuration parameters" or "site params", are set
-    in configuration files such as `Dochazka_SiteConfig.pm' (see SITE
-    CONFIGURATION) and can be changed more-or-less at will.
+    in configuration files such as "Dochazka_SiteConfig.pm" (see "SITE
+    CONFIGURATION") and can be changed more-or-less at will.
 
     The key difference between site policy and site configuration is that
     site policy parameters cannot be changed, because changing them would
     compromise the referential integrity of the underlying database.
 
     Site policy parameters are set at installation time and are stored, as a
-    single JSON string, in the `SitePolicy' table. This table is rendered
+    single JSON string, in the "SitePolicy" table. This table is rendered
     effectively immutable by a trigger.
 
     For details, see App::Dochazka::REST::Model::Policy.
@@ -149,22 +166,27 @@ DATA MODEL
     For details, see App::Dochazka::REST::Model::Employee.
 
   Privhistory
-    Dochazka has four privilege levels: `admin', `active', `inactive', and
-    `passerby':
+    Dochazka has four privilege levels: "admin", "active", "inactive", and
+    "passerby":
 
-    * `admin' -- employee can view, modify, and place/remove locks on her
-    own attendance data as well as that of other employees; she can also
-    administer employee accounts and set privilege levels of other employees
-    * `active' -- employee can view her own profile, attendance data, modify
-    her own unlocked attendance data, and place locks on her attendance data
-    * `inactive' -- employee can view her own profile and attendance data
-    * `passerby' -- employee can view her own profile
+    *   "admin" -- employee can view, modify, and place/remove locks on her
+        own attendance data as well as that of other employees; she can also
+        administer employee accounts and set privilege levels of other
+        employees
 
-    Dochazka's `privhistory' object is used to track changes in an
+    *   "active" -- employee can view her own profile, attendance data,
+        modify her own unlocked attendance data, and place locks on her
+        attendance data
+
+    *   "inactive" -- employee can view her own profile and attendance data
+
+    *   "passerby" -- employee can view her own profile
+
+    Dochazka's "privhistory" object is used to track changes in an
     employee's privilege level over time. Each time an employee's privilege
     level changes, a Dochazka administrator (i.e., an employee whose current
     privilege level is 'admin'), a record is inserted into the database (in
-    the `privhistory' table). Ordinary employees (i.e. those whose current
+    the "privhistory" table). Ordinary employees (i.e. those whose current
     privilege level is 'active') can read their own privhistory.
 
     Thus, with Dochazka it is possible not only to determine not only an
@@ -172,8 +194,8 @@ DATA MODEL
     histories" and to determine employees' privilege levels for any date
     (timestamp) in the past.
 
-    For details, see App::Dochazka::REST::Model::Privhistory and When
-    history changes take effect.
+    For details, see App::Dochazka::REST::Model::Privhistory and "When
+    history changes take effect".
 
   Schedule
     In addition to actual attendance data, Dochazka sites may need to store
@@ -201,7 +223,7 @@ DATA MODEL
     For details, see App::Dochazka::REST::Model::Schedule.
 
   Schedhistory
-    The `schedhistory' table contains a historical record of changes in the
+    The "schedhistory" table contains a historical record of changes in the
     employee's schedule. This makes it possible to determine an employee's
     schedule for any date (timestamp) in the past, as well as (crucially)
     the employee's current schedule.
@@ -209,18 +231,18 @@ DATA MODEL
     Every time an employee's schedule is to change, a Dochazka administrator
     must insert a record into this table. (Employees who are not
     administrators can only read their own history; they do not have write
-    privileges.) For more information on privileges, see AUTHORIZATION.
+    privileges.) For more information on privileges, see "AUTHORIZATION".
 
     For details, see App::Dochazka::REST::Model::Schedhistory.
 
   Activity
     While on the job, employees "work" -- i.e., they engage in various
-    activities that are tracked using Dochazka. The `activities' table
+    activities that are tracked using Dochazka. The "activities" table
     contains definitions of all the possible activities that may be entered
-    in the `intervals' table.
+    in the "intervals" table.
 
     The initial set of activities is defined in the site install
-    configuration (`DOCHAZKA_ACTIVITY_DEFINITIONS') and enters the database
+    configuration ("DOCHAZKA_ACTIVITY_DEFINITIONS") and enters the database
     at installation time. Additional activities can be added later (by
     administrators), but activities can be deleted only if no intervals
     refer to them.
@@ -234,11 +256,11 @@ DATA MODEL
   Interval
     Intervals are the heart of Dochazka's attendance data. For Dochazka, an
     interval is an amount of time that an employee spends doing an activity.
-    In the database, intervals are represented using the `tsrange' range
+    In the database, intervals are represented using the "tsrange" range
     operator introduced in PostgreSQL 9.2.
 
-    Optionally, an interval can have a `long_desc' (employee's description
-    of what she did during the interval) and a `remark' (admin remark).
+    Optionally, an interval can have a "long_desc" (employee's description
+    of what she did during the interval) and a "remark" (admin remark).
 
     For details, see App::Dochazka::REST::Model::Interval.
 
@@ -248,8 +270,9 @@ DATA MODEL
     period (tsrange) cannot be changed. That means, for intervals in the
     locked tsrange:
 
-    * existing intervals cannot be updated or deleted
-    * no new intervals can be inserted
+    *   existing intervals cannot be updated or deleted
+
+    *   no new intervals can be inserted
 
     Employees can create locks (i.e., insert records into the locks table)
     on their own EID, but they cannot delete or update those locks (or any
@@ -292,14 +315,14 @@ CAVEATS
     (1964-12-31), and a Friday (1964-01-01), respectively.
 
   When history changes take effect
-    The `effective' field of the `privhistory' and `schedhistory' tables
+    The "effective" field of the "privhistory" and "schedhistory" tables
     contains the effective date/time of the history change. This field takes
     a timestamp, and a trigger ensures that the value is evenly divisible by
     five minutes (by rounding). In other words,
 
         '1964-06-13 14:45'
 
-    is a valid `effective' timestamp, while
+    is a valid "effective" timestamp, while
 
         '2014-01-01 00:00:01'
 
@@ -311,22 +334,25 @@ INSTALLATION
 
     It entails the following steps:
 
-    * Server preparation
+    *   Server preparation
+
         Dochazka REST needs hardware (either physical or virtualized) to run
         on. The hardware will need to have a network connection, etc.
         Obviously, this step is entirely beyond the scope of this document.
 
-    * Software installation
+    *   Software installation
+
         Once the hardware is ready, the Dochazka REST software and all its
         dependencies are installed on it. This could be accomplished by
-        downloading and unpacking the tarball (or running `git clone') and
+        downloading and unpacking the tarball (or running "git clone") and
         following the installation instructions, or, more expediently, by
         installing a packaged version of Dochazka REST if one is available
         (see
-        https://build.opensuse.org/package/show/home:smithfarm/perl-App-Doch
-        azka-REST).
+        <https://build.opensuse.org/package/show/home:smithfarm/perl-App-Doc
+        hazka-REST>).
 
-    * PostgreSQL setup
+    *   PostgreSQL setup
+
         One of Dochazka REST's principal dependencies is PostgreSQL server
         (version 9.2 or higher). This needs to be installed (should happen
         automatically when using the packaged version of
@@ -339,9 +365,9 @@ INSTALLATION
             postgres-# ALTER ROLE postgres WITH PASSWORD 'mypass';
             ALTER ROLE
 
-        At this point, we exit `psql' and, still as the user `postgres', we
-        edit `pg_hba.conf'. Using our favorite editor, we change the METHOD
-        entry for `local' so it looks like this:
+        At this point, we exit "psql" and, still as the user "postgres", we
+        edit "pg_hba.conf". Using our favorite editor, we change the METHOD
+        entry for "local" so it looks like this:
 
             # TYPE  DATABASE   USER   ADDRESS     METHOD
             local   all        all                password
@@ -350,7 +376,8 @@ INSTALLATION
 
             bash# systemctl restart postgresql.service
 
-    * Site configuration
+    *   Site configuration
+
         Before the Dochazka REST database can be initialized, we will need
         to tell App::Dochazka::REST about the PostgreSQL superuser password
         that we set in the previous step. This is done via a site parameter.
@@ -371,18 +398,20 @@ INSTALLATION
         (NOTE: Strictly speaking, this sitedir setup is only needed for
         database initialization. During normal operation,
         App::Dochazka::REST connects to the database using the default user
-        `dochazka' and password `dochazka'. These are taken from the site
-        parameters `DOCHAZKA_DBUSER' and `DOCHAZKA_DBPASS'.)
+        "dochazka" and password "dochazka". These are taken from the site
+        parameters "DOCHAZKA_DBUSER" and "DOCHAZKA_DBPASS".)
 
-    * Syslog setup
-        It is much easier to administer a Dochazka instance if `syslog' is
+    *   Syslog setup
+
+        It is much easier to administer a Dochazka instance if "syslog" is
         running and configured properly to place Dochazka's log messages
         into a separate file in a known location. In the future,
-        App::Dochazka::REST might provide a `syslog_test' script to help the
+        App::Dochazka::REST might provide a "syslog_test" script to help the
         administrator complete this step.
 
-    * Database initialization
-        In the future, there might be a nifty `dochazka-dbinit' script to
+    *   Database initialization
+
+        In the future, there might be a nifty "dochazka-dbinit" script to
         make this process less painful, but for now the easiest way to
         initialize the database is to clone the git repo from SourceForge
         and run the test suite:
@@ -397,10 +426,11 @@ INSTALLATION
         Assuming the previous steps were completed correctly, all the tests
         should complete without errors.
 
-    * Start the server
+    *   Start the server
+
         The last step is to start the Dochazka REST service. Maybe, in the
-        future, this will be possible using a command like `systemctl start
-        dochazka.service'. Right now, though, an executable is run, as root,
+        future, this will be possible using a command like "systemctl start
+        dochazka.service". Right now, though, an executable is run, as root,
         manually from the bash prompt:
 
             bash# dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
@@ -409,9 +439,10 @@ INSTALLATION
 
             bash$ dochazka-rest
 
-    * Take it for a spin
+    *   Take it for a spin
+
         Point your browser to the hostname you entered in the previous step,
-        or to http://0:5000/ if you didn't enter a hostname.
+        or to <http://0:5000/> if you didn't enter a hostname.
 
     The above procedure only includes the most basic steps. Sites with
     reverse proxies, firewalls, load balancers, connection pools, etc. will
@@ -419,28 +450,28 @@ INSTALLATION
 
 AUTHENTICATION
     Since employees do not access the database directly, but only via the
-    `App::Dochazka::REST' web server, the web server needs to tie all
+    "App::Dochazka::REST" web server, the web server needs to tie all
     incoming requests to an EID.
 
   Current implementation
     At the moment, this is accomplished via Web::Machine using HTTP Basic
     Authentication with a single hardcoded username/password combination
-    `demo/demo'.
+    "demo/demo".
 
-    This allows us to use, e.g., `curl' like this:
+    This allows us to use, e.g., "curl" like this:
 
         $ curl http://demo:demo@0:5000/
 
   Possible future implementation
-    This is done when the session is established (see Session management).
+    This is done when the session is established (see "Session management").
     In the site configuration, the administrator associates an LDAP field
     with either EID or nick. When an employee initiates a session by
-    contacting the server, `App::Dochazka::REST' first looks up the employee
+    contacting the server, "App::Dochazka::REST" first looks up the employee
     in the LDAP database and determines her EID, either directly or via the
     employee's nick. If the EID is valid, the password entered by the
     employee is checked against the password stored in the LDAP database.
 
-    Alternatively, `App::Dochazka::REST' can be configured to authenticate
+    Alternatively, "App::Dochazka::REST" can be configured to authenticate
     employees against passwords stored in the Dochazka database.
 
     When the REST server registers an incoming request, it first checks to
@@ -449,8 +480,9 @@ AUTHENTICATION
 
     Authentication consists of:
 
-    * a check against Dochazka's own list (database) of employees
-    * an optional, additional check against an LDAP database
+    *   a check against Dochazka's own list (database) of employees
+
+    *   an optional, additional check against an LDAP database
 
     Depending on how the REST server is configured, one of these will
     include a password check. The server will send the client a session key,
@@ -476,10 +508,10 @@ METHODS
 
   init_no_db
     Load site configuration and set up logging. Intended for use from the
-    `init' method as well as from App::Dochazka::REST unit tests that need
-    to connect to the pristine database using `connect_db_pristine'.
+    "init" method as well as from App::Dochazka::REST unit tests that need
+    to connect to the pristine database using "connect_db_pristine".
 
-    Takes an optional PARAMHASH which is passed to `$CELL->load'. The
+    Takes an optional PARAMHASH which is passed to "$CELL->load". The
     App::Dochazka::REST distro sharedir is loaded as the first sitedir,
     before any sitedir specified in the PARAMHASH is loaded. Call examples:
 
@@ -515,30 +547,34 @@ METHODS
 GLOSSARY OF TERMS
     In Dochazka, some commonly-used terms have special meanings:
 
-    * employee -- Regardless of whether they are employees in reality, for
-    the purposes of Dochazka employees are the folks whose attendance/time
-    is being tracked. Employees are expected to interact with Dochazka using
-    the following functions and commands.
-    * administrator -- In Dochazka, administrators are employees with
-    special powers. Certain REST/CLI functions are available only to
-    administrators.
-    * CLI client -- CLI stands for Command-Line Interface. The CLI client is
-    the Perl script that is run when an employee types `dochazka' at the
-    bash prompt.
-    * REST server -- REST stands for ... . The REST server is a collection
-    of Perl modules running on a server at the site.
-    * site -- In a general sense, the "site" is the company, organization,
-    or place that has implemented (installed, configured) Dochazka for
-    attendance/time tracking. In a technical sense, a site is a specific
-    instance of the Dochazka REST server that CLI clients connect to.
+    *   employee -- Regardless of whether they are employees in reality, for
+        the purposes of Dochazka employees are the folks whose
+        attendance/time is being tracked. Employees are expected to interact
+        with Dochazka using the following functions and commands.
+
+    *   administrator -- In Dochazka, administrators are employees with
+        special powers. Certain REST/CLI functions are available only to
+        administrators.
+
+    *   CLI client -- CLI stands for Command-Line Interface. The CLI client
+        is the Perl script that is run when an employee types "dochazka" at
+        the bash prompt.
+
+    *   REST server -- REST stands for ... . The REST server is a collection
+        of Perl modules running on a server at the site.
+
+    *   site -- In a general sense, the "site" is the company, organization,
+        or place that has implemented (installed, configured) Dochazka for
+        attendance/time tracking. In a technical sense, a site is a specific
+        instance of the Dochazka REST server that CLI clients connect to.
 
 AUTHOR
-    Nathan Cutler, `<presnypreklad@gmail.com>'
+    Nathan Cutler, "<presnypreklad@gmail.com>"
 
 BUGS
-    Please report any bugs or feature requests to `bug-dochazka-rest at
-    rt.cpan.org', or through the web interface at
-    http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-Dochazka-REST. The
+    Please report any bugs or feature requests to "bug-dochazka-rest at
+    rt.cpan.org", or through the web interface at
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-Dochazka-REST>. The
     author will be notified, and then you'll automatically be notified of
     progress on your bug as he makes changes.
 
@@ -556,11 +592,13 @@ SUPPORT
 
     Other resources:
 
-    * RT: CPAN's request tracker (report bugs here)
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-Dochazka-REST
+    *   RT: CPAN's request tracker (report bugs here)
 
-    * AnnoCPAN: Annotated CPAN documentation
-        http://annocpan.org/dist/App-Dochazka-REST
+        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-Dochazka-REST>
+
+    *   AnnoCPAN: Annotated CPAN documentation
+
+        <http://annocpan.org/dist/App-Dochazka-REST>
 
 LICENSE AND COPYRIGHT
     Copyright (c) 2014, SUSE LLC All rights reserved.

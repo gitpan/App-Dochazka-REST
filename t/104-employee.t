@@ -40,7 +40,7 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
-use App::Dochazka::REST::Model::Employee qw( eid_by_nick );
+use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
 use Test::More;
@@ -52,7 +52,7 @@ my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 } else {
-    plan tests => 56;
+    plan tests => 62;
 }
 
 # test database handle
@@ -66,14 +66,16 @@ ok( blessed($emp), "object is blessed" );
 
 # attempt to load a non-existent nick into the object
 $status = $emp->load_by_nick( 'mrfu' ); 
-is( $status->level, 'WARN', "Mr. Fu's nick doesn't exist" );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Mr. Fu's nick doesn't exist" );
+is( $status->{'count'}, 0, "Mr. Fu's nick doesn't exist" );
 
 # (root employee is created at dbinit time)
 # attempt to load root by nick and test accessors
 $status = $emp->load_by_nick( 'root' ); 
 diag( $status->text ) unless $status->ok;
 ok( $status->ok, "Root employee loaded into object" );
-is( $emp->remark, 'IMMUTABLE' );
+is( $emp->remark, 'dbinit' );
 is( $emp->nick, 'root' );
 is( $emp->eid, 1 );
 is( $emp->priv, 'admin' );
@@ -136,11 +138,15 @@ is( $emp->remark, undef );
 
 # attempt to load a non-existent EID
 $status = $emp->load_by_eid(443);
-ok( $status->not_ok, "Nick ID 443 does not exist" );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Nick ID 443 does not exist" );
+is( $status->{'count'}, 0, "Nick ID 443 does not exist" );
 
 # attempt to load a non-existent nick
 $status = $emp->load_by_nick( 'smithfarm' );
-ok( $status->not_ok, "Nick smithfarm does not exist" );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
+is( $status->{'count'}, 0 );
 
 # load Mrs. Fu
 $status = $emp->load_by_nick( 'mrsfu' );
@@ -165,8 +171,8 @@ is( $emp->remark, $emp->{remark}, "accessor: remark" );
 is( $emp->priv, $emp->{priv}, "accessor: priv" );
 is( $emp->priv, "passerby", "accessor: priv" );
 
-# Employees table should have three records (root, Mrs. Fu, and Mr. Fu)
-is( noof( $dbh, 'employees' ), 3 );
+# Employees table should have three records (root, demo, Mrs. Fu, and Mr. Fu)
+is( noof( $dbh, 'employees' ), 4 );
 
 # Expurgate Mr. Fu
 $status = $emp->load_by_nick( "mrfu" );
@@ -188,5 +194,5 @@ ok( $status->ok );
 $status = $emp->delete;
 ok( $status->ok );
 
-# Employees table should now have one record (root)
-is( noof( $dbh, 'employees' ), 1 );
+# Employees table should now have two records (root, demo)
+is( noof( $dbh, 'employees' ), 2 );

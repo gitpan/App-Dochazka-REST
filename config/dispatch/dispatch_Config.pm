@@ -30,83 +30,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 
-# ------------------------
-# Database handle module
-# ------------------------
-
-package App::Dochazka::REST::dbh;
-
-use strict;
-use warnings;
-
+# -----------------------------------
+# Dochazka-REST
+# -----------------------------------
+# dispatch_Config.pm
+#
+# Path dispatch configuration file
+# -----------------------------------
 
 
+# DISPATCH_CONTROLLERS
+#    list of major resources that we dispatch (a "major" resource is 
+#    one that has a dedicated controller/dispatch module
+set( 'DISPATCH_CONTROLLERS', [
+    'Employee', 
+#    'Privhistory', 'Schedhistory', 'Schedule', 'Activity',
+#    'Interval', 'Lock',
+] );
 
-=head1 NAME
-
-App::Dochazka::REST::dbh - database handle module (parent of data model classes)
-
-
-
-
-
-=head1 VERSION
-
-Version 0.106
-
-=cut
-
-our $VERSION = '0.106';
-
-
-
-
-
-=head1 DESCRIPTION
-
-This module is the parent of all the data model classes. Its sole purpose is to
-transparently provide the data model classes with a database handle.
-
-=cut
-
-
-
-our $dbh;
-
-
-=head1 METHODS
-
-=head2 init
-
-Something like a constructor.
-
-=cut
-
-sub init {
-    my ( $class, $recvd_dbh ) = @_;
-    $dbh = $recvd_dbh;
-    return;
-}
-
-
-=head2 dbh
-
-Something like an instance method, to be accessed via inheritance.
-
-=cut
-
-sub dbh { $dbh; }
-
-
-=head2 status
-
-Report whether the database server is up or down.
-
-=cut
-
-sub status {
-    return $dbh->ping ? "UP" : "DOWN" if defined $dbh;
-    return "DOWN";
-}
-   
-1;

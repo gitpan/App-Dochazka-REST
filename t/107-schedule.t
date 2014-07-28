@@ -71,7 +71,7 @@ my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
 # spawn and insert employee object
-is( noof( $dbh, "employees" ), 1 );
+is( noof( $dbh, "employees" ), 2 );
 
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     dbh => $dbh,
@@ -274,7 +274,7 @@ ok( $status->ok );
 is( noof( $dbh, 'schedules' ), 0 );
 
 # 3. delete the employee (Mr. Sched)
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( $dbh, 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 1 );
+is( noof( $dbh, 'employees' ), 2 );

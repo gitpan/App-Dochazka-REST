@@ -34,13 +34,14 @@
 use 5.006;
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 18;
+use Test::More tests => 19;
 
 BEGIN {
     use_ok( 'App::CELL' );
     use_ok( 'DBD::Pg' );
     use_ok( 'DBI' );
     use_ok( 'JSON' );
+    use_ok( 'Path::Router' );
     use_ok( 'Plack::Runner' );
     use_ok( 'Web::Machine' );
     use_ok( 'App::Dochazka::REST' );

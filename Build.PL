@@ -31,6 +31,7 @@ my $builder = Module::Build->new(
         'DBD::Pg'       => 0,
         'DBI'           => 0,
         'JSON'          => 0,
+        'Path::Router'  => 0,
         'Plack::Runner' => 0,
         'Web::Machine'  => 0.15,
     },

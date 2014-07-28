@@ -40,12 +40,17 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Dispatch::Employee;
 use Carp;
 use Data::Dumper;
+use Path::Router;
 use Scalar::Util qw( blessed );
 
-use parent 'App::Dochazka::REST::dbh';
+use parent 'App::Dochazka::REST::Resource';
+
+
+
 
 =head1 NAME
 
@@ -57,103 +62,106 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.099
+Version 0.106
 
 =cut
 
-our $VERSION = '0.099';
-
+our $VERSION = '0.106';
 
 
 
 
 =head1 DESCRIPTION
 
-This module contains a single function, L<is_auth>, that processes the "path"
-from the HTTP request. 
+This module contains functions that deal with path dispatch, or path routing --
+i.e. processing the "path" from the HTTP request. 
+
+
+
+
+=head1 FUNCTIONS
+
+
+=head2 init
+
+Takes method and runs the router initialization routine for that method.
 
 =cut
 
-
-=head2 is_auth
-
-Takes a PARAMHASH with the following mandatory parameters: 
-
-    'eid'     the EID of the employee making the request
-    'priv'    current privilege level of that employee
-    'method'  the HTTP method being used to access the resource
-    'path'    the path string
-
-Returns a status object, the level of which can be either 'OK' (authorized) or
-'NOT_OK' (not authorized). If the status is 'OK', the payload will contain a
-reference to a hash that will look like this:
-
-    {
-        rout => CODEREF,
-        args => [ ... ],
-    }
-
-where 'rout' is a reference to the subroutine to be run to obtain the JSON
-string to be placed in the HTTP response, and 'args' is a list of arguments to
-be provided to that function. Also, the extraneous URL part (if any) is
-appended to the status object as 'extra'.
-
-=cut
-
-sub is_auth {
-    my ( @ARGS ) = @_;
-    croak "Odd number of arguments" if @ARGS % 2;
-    my %ARGS = @ARGS;
-
-    my $status; # allocate memory for response
-    my $extra;
-
-    # split the path into tokens
-    # FIXME: implement escaping of '/' characters so tokens can contain them
-    my $path = $ARGS{path};
-    $path =~ s/^\///;
-    my @tokens = split( /\//, $path );
-
-
-    # $token[0] specifies the resource
-    $tokens[0] = 'default' if ! @tokens or $tokens[0] =~ m/help/i or $tokens[0] =~ m/version/i;
-    my $resource = shift @tokens;
-
-    if ( $resource =~ m/default/i ) {
-        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-            payload => {
-                rout => \&_default,
-                args => [ @tokens ],
-            }
-        );
-    }
-    elsif ( $resource =~ m/site/i ) {
-        $status = $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-            payload => {
-                rout => \&_site,
-                args => [ @tokens ]
-            }
-        );
-    }
-    elsif ( $resource =~ m/forbidden/i ) {
-        $status = $CELL->status_not_ok;
-    }
-
-    # resource not recognized
-    return $CELL->status_ok( 'DOCHAZKA_AUTH_OK', 
-        payload => {
-            rout => \&_bad_resource,
-            args => [ @tokens ]
-        }
-    ) if ! defined $status;
-
-    return $status;
+sub init {
+    my ( $class, $method ) = @_;
+    die "Method not defined" unless defined $method;
+    $method = uc $method;
+    return _init_get() if $method eq 'GET';
+    return _init_post() if $method eq 'POST';
 }
 
 
-sub _default {
-    my @tokens = @_;
-    my $server_status = __PACKAGE__->SUPER::status;
+sub _init_get {
+
+    my $router_get = __PACKAGE__->SUPER::_router_get( Path::Router->new );
+    die "Bad router" unless $router_get->isa( 'Path::Router' );
+
+    $router_get->add_route( '',
+        target => \&_get_default,
+    );
+
+    $router_get->add_route( 'help',
+        target => \&_get_default,
+    );
+
+    $router_get->add_route( 'version',
+        target => \&_get_default,
+    );
+   
+    $router_get->add_route( 'forbidden',
+        target => \&_get_forbidden,
+    );
+   
+    $router_get->add_route( 'siteparam/:param',
+        target => \&_get_site_param,
+    );
+   
+    foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
+        my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_get';
+        my $retval = eval $exp;
+        $log->info( "Initialized sub-controllers by executing $exp with return value $retval" );
+    }
+}
+
+
+sub _init_post {
+   
+    my $router_post = __PACKAGE__->SUPER::_router_post( Path::Router->new );
+    die "Bad router" unless $router_post->isa( 'Path::Router' );
+
+    $router_post->add_route( '',
+        ( target => \&_post_default, )
+    );
+
+    foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
+        my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_post';
+        my $retval = eval $exp;
+        $log->info( "Executed $exp with return value $retval" );
+    }
+}
+
+
+
+=head1 ACTION FUNCTIONS
+
+The following functions implement actions for the various controllers.
+
+=cut
+
+
+sub _get_default {
+    my ( %ARGS ) = @_;
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+    }
+    
+    my $server_status = App::Dochazka::REST::dbh::status;
     my $uri = $site->DOCHAZKA_URI;
     my $status = $CELL->status_ok( 
         'DISPATCH_DEFAULT', 
@@ -165,30 +173,30 @@ sub _default {
                     link => "$uri/employee",
                     description => 'Employee (i.e. a user of Dochazka)',
                 },
-                'privhistory' => {
-                    link => "$uri/privhistory",
-                    description => "Privilege history (changes to an employee's privilege level over time)",
-                },
-                'schedhistory' => {
-                    link => "$uri/schedhistory",
-                    description => "Schedule history (changes to an employee's schedule over time)",
-                },
-                'schedule' => {
-                    link => "$uri/schedule",
-                    description => "Schedule (expected weekly work hours of an employee or employees)",
-                },
-                'activity' => {
-                    link => "$uri/activity",
-                    description => "Activity (a way in which employees can spend their time)",
-                },
-                'interval' => {
-                    link => "$uri/interval",
-                    description => "Interval (a period of time during which an employee did something)",
-                },
-                'lock' => {
-                    link => "$uri/lock",
-                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
-                },
+#                'privhistory' => {
+#                    link => "$uri/privhistory",
+#                    description => "Privilege history (changes to an employee's privilege level over time)",
+#                },
+#                'schedhistory' => {
+#                    link => "$uri/schedhistory",
+#                    description => "Schedule history (changes to an employee's schedule over time)",
+#                },
+#                'schedule' => {
+#                    link => "$uri/schedule",
+#                    description => "Schedule (expected weekly work hours of an employee or employees)",
+#                },
+#                'activity' => {
+#                    link => "$uri/activity",
+#                    description => "Activity (a way in which employees can spend their time)",
+#                },
+#                'interval' => {
+#                    link => "$uri/interval",
+#                    description => "Interval (a period of time during which an employee did something)",
+#                },
+#                'lock' => {
+#                    link => "$uri/lock",
+#                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
+#                },
                 'siteparam' => {
                     link => "$uri/siteparam",
                     description => "Site parameter (a value configurable by the site administrator)",
@@ -196,85 +204,48 @@ sub _default {
             },
         },
     );
-    $status->{'extra_tokens'} = \@tokens if @tokens;
     return $status;
 }
 
 
-sub _site {
-    no strict 'refs';
-    my @tokens = @_;
-    my ( $param, $value, $status );
-    $param = shift @tokens;
+sub _get_site_param {
+    my ( %ARGS ) = @_;
 
-    $log->info( "Entering _site, \$param is undefined" ) if ! defined $param;
-    $log->info( "Entering _site, \$param is $param" ) if defined $param;
-
-    # correct value for $path looks like, e.g. '/DOCHAZKA_APPNAME'
-    if ( $param ) {
-        $value = $site->$param;
-        $status = $value
-            ? $CELL->status_ok( 
-                  'DISPATCH_SITE_PARAM_FOUND', 
-                  args => [ $param ], 
-                  payload => { $param => $value } 
-              )
-            : $CELL->status_err( 
-                  'DISPATCH_SITE_NOT_DEFINED', 
-                  args => [ $param ] 
-              );
-    } else {
-        $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
-            args => [ "site param" ] );
+    # ACL check
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
     }
-    $status->{'extra_tokens'} = \@tokens if @tokens;
-    return $status;
-}
     
-
-# FIXME
-sub _emp_by_nick {
-    my ( $path ) = @_;     # sk means Search Key
-    my ( $sk, $status );
-
-    $log->info( "Entering _emp_by_nick with path ->$path<-" );
-    # correct value for $path looks like '/[SEARCH_KEY]'
-    if ( $path =~ s/^\/([^\/]+)// ) {
-        $sk = $1;
-        $log->info( "Search key is ->$sk<-" );
-        $status = App::Dochazka::REST::Model::Employee->select_multiple_by_nick( 
-            __PACKAGE__->SUPER::dbh, $sk );
-    } else {
-        $status = $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', 
-            args => [ "search key" ] );
+    # generate content
+    my ( $param, $value, $status );
+    $param = $ARGS{'context'}->{'mapping'}->{'param'};
+    {
+        no strict 'refs';
+        $value = $site->$param;
     }
-    #$status->{'extra_tokens'} = \@tokens if @tokens;
+    $status = $value
+        ? $CELL->status_ok( 
+              'DISPATCH_SITE_PARAM_FOUND', 
+              args => [ $param ], 
+              payload => { $param => $value } 
+          )
+        : $CELL->status_err( 
+              'DISPATCH_SITE_NOT_DEFINED', 
+              args => [ $param ] 
+          );
     return $status;
 }
 
 
-# FIXME: should be DISPATCH_BAD_RESOURCE
-sub _bad_resource {
-    my @tokens = @_;
+sub _get_forbidden {
+    my ( %ARGS ) = @_;
 
-    return $CELL->status_err( 
-        'DISPATCH_UNRECOGNIZED', 
-        payload => { 
-            request => join( '/', @tokens ),
-        },
-    );
-}
+    # ACL check (ACL status of this function is "always forbidden no matter what")
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        return $CELL->status_err( 'DISPATCH_FORBIDDEN' );
+    }
 
-
-sub _forbidden {
-    my @tokens = @_;
-
-    return $CELL->status_err( 
-        'DISPATCH_FORBIDDEN', 
-        payload => { 
-            request => join( '/', @tokens ),
-        },
-    );
+    die "Das ist verboten!"
 }
 
 1;

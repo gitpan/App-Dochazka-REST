@@ -31,8 +31,8 @@
 # ************************************************************************* 
 
 # ------------------------
-# This package defines how our web server behaves. All the "heavy
-# lifting" is done by Web::Machine and Plack.  
+# This package defines how our web server handles the request-response 
+# cycle. All the "heavy lifting" is done by Web::Machine and Plack.
 # ------------------------
 
 package App::Dochazka::REST::Resource;
@@ -43,7 +43,8 @@ use warnings;
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
-use Data::Dumper;
+use App::Dochazka::REST::Model::Employee;
+use Data::Structure::Util qw( unbless );
 use Encode qw( decode_utf8 );
 use JSON;
 use Web::Machine::Util qw( create_header );
@@ -61,11 +62,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.099
+Version 0.106
 
 =cut
 
-our $VERSION = '0.099';
+our $VERSION = '0.106';
 
 
 
@@ -97,10 +98,19 @@ L<App::Dochazka::REST>.
 
 =cut
 
+
+
+
+=head1 PACKAGE VARIABLES
+
+=cut
+
 # a package variable to streamline calls to the JSON module
 my $JSON = JSON->new->allow_nonref->pretty;
-
-
+# a package variable to store Path::Router instance for GET requests
+my $router_get;
+# a package variable to store Path::Router instance for POST requests
+my $router_post;
 
 
 =head1 METHODS
@@ -128,16 +138,12 @@ Whip out some HTML to educate passersby.
 
 sub render_html { 
     my ( $self ) = @_;
-    my $server_status = App::Dochazka::REST::dbh->status;
-    $log->info( 'render_html \$self->context' );
-    $log->info( Dumper( $self->context ) );
     
     my $msgobj = $CELL->msg( 
         'DOCHAZKA_REST_HTML', 
         $VERSION, 
-        $self->context->{'path'},
-        $JSON->encode( $self->context->{'response'} ), 
-        $server_status 
+        $self->_make_json,
+        App::Dochazka::REST::dbh->status,
     );
     $msgobj
         ? $msgobj->text
@@ -152,7 +158,10 @@ Encode the context as a JSON string.
 
 =cut
 
-sub render_json { $JSON->encode( (shift)->context->{'response'} );  }
+sub render_json { 
+    my ( $self ) = @_;
+    $self->_make_json;
+}
 
 
 
@@ -167,6 +176,36 @@ sub context {
     my $self = shift;
     $self->{'context'} = shift if @_;
     $self->{'context'};
+}
+
+
+=head2 router
+
+Accessor. Takes one parameter -- the method. Returns the router instance for that method.
+
+=cut
+
+sub router {
+    my ( $self, $method ) = @_;
+    die "No method" unless defined $method;
+    $method = lc $method;
+    return $self->_router_get if $method eq 'get';
+    return $self->_router_post if $method eq 'post';
+    die "Bad method $method";
+}
+
+
+sub _router_get {
+    my $self = shift;
+    $router_get = shift if @_;
+    $router_get;
+}
+
+
+sub _router_post {
+    my $self = shift;
+    $router_post = shift if @_;
+    $router_post;
 }
 
 
@@ -218,8 +257,12 @@ sub uri_too_long {
 
 =head2 is_authorized
 
-Authenticate the originator of the request, using HTTP Basic
-Authentication.
+Authentication method.
+
+Authenticate the originator of the request, using HTTP Basic Authentication.
+Upon successful authentication, check that the user (employee) exists in 
+the database (create if necessary) and retrieve her EID. Push the EID and
+current privilege level onto the context.
 
 =cut
 
@@ -227,11 +270,17 @@ sub is_authorized {
     my ( $self, $auth_header ) = @_;
 
     if ( $auth_header ) {
-        return 1 if $auth_header->username eq 'demo'
-                 && $auth_header->password eq 'demo';
+        my $username = $auth_header->username;
+        my $password = $auth_header->password;
+        my $auth_status = _authenticate( $username, $password );
+        if ( $auth_status->ok ) {
+            my $emp = $auth_status->payload;
+            $self->_push_onto_context( { current => $emp, } );
+            return 1;
+        }
     }
     return create_header(
-        'WWWAuthenticate' => [ 'Basic' => ( realm => 'User: demo, Password: demo' ) ]
+        'WWWAuthenticate' => [ 'Basic' => ( realm => $CELL->msg( 'DOCHAZKA_BASIC_AUTH_MESSAGE' )->text ) ]
     ); 
 
 }
@@ -239,42 +288,115 @@ sub is_authorized {
 
 =head2 forbidden
 
-Parse the path to determine what is being asked of us. At the same time,
-check if the user (employee) is authorized to do that.
+Authorization (ACL check) method.
+
+First, parse the path and look at the method to determine which controller
+action the user is asking us to perform. Each controller action has an ACL
+associated with it, from which we can determine whether employees of each of
+the four different privilege levels are authorized to perform that action.  
+
+Requests for non-existent resources will always pass the ACL check.
+
+If the request passes the ACL check, the mapping (if any) is pushed onto the
+context for use in the L<"resource_exists"> routine which actually runs the
+action.
 
 =cut
 
 sub forbidden {
     my ( $self ) = @_;
+    my $method = lc $self->request->method;
+    die "Bad method $method" unless $method eq 'get';
+    my $router = $self->router( $method );
+    App::Dochazka::REST::Dispatch->init( $method ) unless $router;
+    $router = $self->router( $method );
+    die "Problem with router" unless $router->isa( 'Path::Router' );
 
     # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
     # In order to process them, they must first be "decoded" into Perl characters.
     my $path = decode_utf8( $self->request->path_info );
-
-    # Put the path into the context
-    $self->context( { path => $path } );
+    $self->_push_onto_context( { 'path' => $path } );
    
-    # Determine authorization status (hardcoded for now)
-    my $status = App::Dochazka::REST::Dispatch::is_auth( eid => 1, priv => 'admin', path => $path );
-
-    if ( $status->ok ) { # not forbidden to do that
-        my $rs = &{ $status->payload->{'rout'} }( @{ $status->payload->{'args'} } );
-        $self->_push( { 'response' => $rs->expurgate } );
-        return 0;
+    # test path for a match
+    if ( my $match = $router->match( $path ) ) {
+        my $route = $match->route;
+        $self->_push_onto_context( { 
+            'target' => $route->target,
+            'mapping' => $match->mapping, 
+        } );
+        # target is executed twice: this is the first time, when we
+        # send it 'acleid' and 'aclpriv', which indicates to the target
+        # that we want to get the ACL status, which is indicated by the
+        # status level (OK/NOT_OK)
+        my $acl_status = $route->target->( 
+            acleid => $self->context->{'current'}->{'eid'},
+            aclpriv => $self->context->{'current'}->{'priv'},
+        );
+        return 1 unless $acl_status->ok; # fail ACL check
     }
+    return 0; # pass ACL check
 
-    # forbidden to do that
-    return 1;
 }
 
 
-=head2 _push
+=head2 resource_exists
 
-Takes a hashref and "pushes" it onto C<< $self->{'context'} >>
+If the resource exists, its mapping will have been determined in the L<"forbidden">
+routine. So, our job here is to execute the appropriate target if the mapping
+exists. Executing the target builds the response entity.
+
+=cut 
+
+sub resource_exists {
+    my ( $self ) = @_;
+
+    # if 'target' and 'mapping' exist, we can execute the target with the
+    # mapping in the PARAMHASH
+    if ( exists $self->context->{'target'} and exists $self->context->{'mapping'} ) {
+
+        my $target = $self->context->{'target'};
+
+	# Get rid of the target CODEREF now that we're done with it, so it
+	# doesn't trigger an error later, when we convert the context to JSON.
+        delete $self->context->{'target'};
+
+        # This is the second time we execute the target (first was in 'forbidden'
+        # to get the ACL status. This time, instead of ACL data we send the 
+	# entire request context. We send the entire context because, at this
+	# point, we don't know exactly which items from the context the
+	# target will need.
+        my $status = &$target( 'context' => $self->context, );
+
+        # 'expurgate' the status to get rid of unnecessary ballast
+        my $entity = $status->expurgate;
+
+	# The target returns a status object, but this time we simply push that
+	# object onto the context (after "expurgating", or "unblessing", it).
+        $self->_push_onto_context( { 'entity' => $entity } );
+
+	# Returning 1 here signals that the request was processed successfully
+	# (200 OK) and everything needed to construct the response is in the
+	# context.
+        return 1;
+    }
+
+    # We have already determined (in 'forbidden') whether or not the resource
+    # exists. Non-existence of the resource is signalled by non-inclusion of
+    # 'target' and 'mapping'. So if these two are not present, we return 0
+    # and the client gets "404 Not Found".
+    return 0; 
+}
+
+
+
+=head2 _push_onto_context
+
+Takes a hashref and "pushes" it onto C<< $self->{'context'} >> for use later
+on in the course of processing the request.
 
 =cut
 
-sub _push {
+sub _push_onto_context {
     my ( $self, $hr ) = @_;
 
     my $context = $self->context;
@@ -283,5 +405,82 @@ sub _push {
     }
     $self->context( $context );
 }
+
+
+=head2 _make_json
+
+Makes the JSON for inclusion in the response entity.
+
+=cut
+
+sub _make_json {
+    my ( $self ) = @_;
+    $JSON->encode( unbless $self->context );
+}
+
+
+=head2 _authenticate
+
+Authenticate the nick associated with an incoming REST request.  Takes a nick
+and a password (i.e., a set of credentials). Returns a status object, which
+will have level 'OK' on success (with employee object in the payload), 'NOT_OK'
+on failure.
+
+=cut
+
+sub _authenticate {
+    my ( $nick, $password ) = @_;
+    my ( $status, $emp );
+
+    # empty credentials: fall back to demo/demo
+    if ( $nick ) {
+        $log->notice( "Login attempt from $nick" );
+    } else {
+        $log->notice( "Login attempt from (anonymous)" );
+        $nick = 'demo'; 
+        $password = 'demo'; 
+    }
+
+    # check if the employee exists in LDAP
+    if ( App::Dochazka::REST::LDAP::ldap_exists( $nick ) ) {
+
+        # employee exists in LDAP
+        # - check if exists in database; create if necessary
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        if ( $status->not_ok ) {
+            $emp = App::Dochazka::REST::Model::Employee->spawn( nick => $nick );
+            $status = $emp->insert;
+            return $status unless $status->ok;
+        }
+        # - authenticate by LDAP bind
+        if ( App::Dochazka::REST::LDAP::ldap_auth( $nick, $password ) ) {
+            return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
+        } else {
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+        }
+    }
+
+    # if not, authenticate against the password stored in the employee object.
+    else {
+        # - check if this employee exists in database
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        if ( $status->not_ok ) {
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+        }
+        # - employee exists: get it
+        $emp = $status->payload;
+        # - the password might be empty
+        $password = '' unless defined( $password );
+        my $passhash = $emp->passhash;
+        $passhash = '' unless defined( $passhash );
+        # - check password against passhash
+        if ( $password eq $passhash ) {
+            return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
+        } else {
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+        }
+    }
+}            
+
 
 1;

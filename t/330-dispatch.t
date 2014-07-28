@@ -46,7 +46,11 @@ use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 20;
+use Test::More;
+
+# set up a testing plan
+plan tests => 22;
+#plan skip_all => "Under construction";
 
 # create request object with authorization header appended
 sub req {
@@ -57,53 +61,54 @@ sub req {
     return $r;
 }
 
-# initialize 
-my $status = App::Dochazka::REST->init_no_db( site => '/etc/dochazka' );
-ok( $status->ok );
+
+# initialize
+my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
+ok( $REST->{'init_status'}->ok );
+my $app = $REST->{'app'};
 
 # instantiate Plack::Test object
-my $test = Plack::Test->create( Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app );
+my $test = Plack::Test->create( $app );
 ok( blessed $test );
+
 
 # the very basic-est request
 
 my $res = $test->request( req GET => '/' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 2. /version
-$res = $test->request( req GET => '/verSIOn' );
+$res = $test->request( req GET => '/version' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 3. /help
-$res = $test->request( req GET => '/HELP' );
+$res = $test->request( req GET => '/help' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 4. /site
-$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/' );
+$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME/' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 my $match_string = $site->DOCHAZKA_APPNAME;
 like( $res->content, qr/$match_string/ );
 
-$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME' );
+$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/$match_string/ );
 
-$res = $test->request( req GET => '/site/DOCHAZKA_appname' );
+$res = $test->request( req GET => '/siteparam/DOCHAZKA_appname' );
+is( $res->code, 200 );
 is_valid_json( $res->content );
 unlike( $res->content, qr/DISPATCH_SITE_UNDEFINED/ );
 
-$res = $test->request( req GET => '/site' );
-is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_MISSING_PARAMETER/ );
-
-$res = $test->request( req GET => '/site/' );
-is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_MISSING_PARAMETER/ );
-
-$res = $test->request( req GET => '/site/DOCHAZKA_APPNAME/foobar' );
-is_valid_json( $res->content );
-like( $res->content, qr/foobar/ );
+$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
 

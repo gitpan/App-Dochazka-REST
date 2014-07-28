@@ -30,7 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# tests for Resource.pm
+# test path dispatch
 #
 
 #!perl
@@ -41,15 +41,19 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Resource;
 use Data::Dumper;
 use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
-use Test::More tests => 15;
+use Test::More;
 
-sub req_json {
+# set up a testing plan
+plan tests => 24;
+#plan skip_all => "Under construction";
+
+# create request object with authorization header appended
+sub req {
     my @args = @_;
     my $r = HTTP::Request->new( @args );
     $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
@@ -57,23 +61,8 @@ sub req_json {
     return $r;
 }
 
-sub req_html {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'text/html' );
-    return $r;
-}
 
-sub req_bad_creds {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpibGJvc3Q=' );
-    return $r;
-}
-
-
-# initialize 
+# initialize
 my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
 ok( $REST->{'init_status'}->ok );
 my $app = $REST->{'app'};
@@ -82,36 +71,44 @@ my $app = $REST->{'app'};
 my $test = Plack::Test->create( $app );
 ok( blessed $test );
 
-# the very basic-est request (200)
-my $res = $test->request( req_json GET => '/' );
+
+# get 'root' employee by nick
+my $res = $test->request( req GET => '/employee/nick/root' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
-like( $res->content, qr/App::Dochazka::REST/ );
+like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+like( $res->content, qr/Root Immutable/ );
 
-# a too-long request (414)
-$res = $test->request( req_json GET => '/' x 1001 );
-#diag( "code is " . $res->code );
-is( $res->code, 414 );
-is( $res->content, 'Request-URI Too Large' );
-
-# request for HTML
-$res = $test->request( req_html GET => '/' );
+# get 'demo' employee by nick
+$res = $test->request( req GET => '/employee/nick/demo' );
 is( $res->code, 200 );
-like( $res->content, qr/<html>/ );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+like( $res->content, qr/Demo Employee/ );
 
-# request with bad credentials (401)
-$res = $test->request( req_bad_creds GET => '/' );
-is( $res->code, 401 );
-is( $res->content, 'Unauthorized' );
+# get non-existent employee by nick
+$res = $test->request( req GET => '/employee/nick/heathledger' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_NO_RECORDS_FOUND/ );
 
-# request that doesn't pass ACL check (403)
-$res = $test->request( req_json GET => '/forbidden' );
-is( $res->code, 403 );
-is( $res->content, 'Forbidden' );
+# get 'root' employee by EID
+$res = $test->request( req GET => '/employee/eid/1' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+like( $res->content, qr/Root Immutable/ );
 
-# request for non-existent resource
-$res = $test->request( req_json GET => '/HEE HAW!!!/non-existent/resource' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+# get 'demo' employee by EID
+$res = $test->request( req GET => '/employee/eid/2' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+like( $res->content, qr/Demo Employee/ );
 
+# get non-existent employee by EID
+$res = $test->request( req GET => '/employee/eid/53432' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_NO_RECORDS_FOUND/ );
 
