@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.108
+Version 0.109
 
 =cut
 
-our $VERSION = '0.108';
+our $VERSION = '0.109';
 
 
 

@@ -667,3 +667,7 @@ Revision history for Dochazka-REST
 - Dispatch/Employee.pm: make 'employee/nick/:param' resource return 
   an array only when the search finds more than one employee
 
+0.109  2014-07-28 14:28 CEST
+- bring back 'employee/current' resource
+- fix 'link' attribute displayed for each resource by '_get_default' targets
+

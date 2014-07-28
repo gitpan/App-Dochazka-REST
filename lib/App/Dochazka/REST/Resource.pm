@@ -62,11 +62,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.108
+Version 0.109
 
 =cut
 
-our $VERSION = '0.108';
+our $VERSION = '0.109';
 
 
 
@@ -323,6 +323,7 @@ sub forbidden {
         $self->_push_onto_context( { 
             'target' => $route->target,
             'mapping' => $match->mapping, 
+            'uri' => $self->request->base->as_string,
         } );
         # target is executed twice: this is the first time, when we
         # send it 'acleid' and 'aclpriv', which indicates to the target

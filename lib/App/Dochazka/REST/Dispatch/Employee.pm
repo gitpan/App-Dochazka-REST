@@ -62,11 +62,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.108
+Version 0.109
 
 =cut
 
-our $VERSION = '0.108';
+our $VERSION = '0.109';
 
 
 
@@ -108,6 +108,18 @@ sub _init_get {
         target => \&_get_eid,
     );
 
+    $router_get->add_route( 'employee/current',
+        target => \&_get_current,
+    );
+
+    $router_get->add_route( 'employee/logged_in',
+        target => \&_get_current,
+    );
+
+    $router_get->add_route( 'whoami',
+        target => \&_get_current,
+    );
+
     return "Employee GET router initialization complete";   
 }
 
@@ -141,8 +153,9 @@ sub _get_default {
         return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
     }
 
+    my $uri = $ARGS{'context'}->{'uri'};
+    $uri =~ s/\/*$//;
     my $server_status = App::Dochazka::REST::dbh::status;
-    my $uri = $site->DOCHAZKA_URI;
     return $CELL->status_ok(
         'DISPATCH_EMPLOYEE_DEFAULT',
         args => [ $VERSION, $server_status ],
@@ -156,6 +169,10 @@ sub _get_default {
                 'eid/:param' => {
                     link => "$uri/employee/eid/:param",
                     description => "Load a single employee by EID",
+                },
+                'current' => {
+                    link => "$uri/employee/current",
+                    description => "Display profile of current employee (i.e., the employee you logged in as)",
                 },
             },
         },
@@ -195,5 +212,17 @@ sub _get_eid {
     App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
 }
 
+
+sub _get_current {
+    my ( %ARGS ) = @_;
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+    }
+
+    my $current_emp = $ARGS{'context'}->{'current'};
+    $CELL->status_ok( 'DISPATCH_EMPLOYEE_CURRENT', args => 
+        [ $current_emp->{'nick'} ], payload => $current_emp );
+}
 
 1;

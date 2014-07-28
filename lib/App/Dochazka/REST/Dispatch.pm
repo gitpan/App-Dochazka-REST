@@ -62,11 +62,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.108
+Version 0.109
 
 =cut
 
-our $VERSION = '0.108';
+our $VERSION = '0.109';
 
 
 
@@ -161,8 +161,9 @@ sub _get_default {
         return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
     }
     
+    my $uri = $ARGS{'context'}->{'uri'};
+    $uri =~ s/\/*$//;
     my $server_status = App::Dochazka::REST::dbh::status;
-    my $uri = $site->DOCHAZKA_URI;
     my $status = $CELL->status_ok( 
         'DISPATCH_DEFAULT', 
         args => [ $VERSION, $server_status ],
