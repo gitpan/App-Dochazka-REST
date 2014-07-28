@@ -62,11 +62,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.107
+Version 0.108
 
 =cut
 
-our $VERSION = '0.107';
+our $VERSION = '0.108';
 
 
 
@@ -171,7 +171,16 @@ sub _get_nick {
     }
 
     my $nick = $ARGS{'context'}->{'mapping'}->{'param'};
-    App::Dochazka::REST::Model::Employee-> select_multiple_by_nick( $nick );
+    my $status = App::Dochazka::REST::Model::Employee->
+        select_multiple_by_nick( $nick );
+    if ( $status->payload ) {
+        foreach my $emp ( @{ $status->payload } ) {
+            $emp = $emp->expurgate;
+        }
+        my $count = @{ $status->payload };
+        $status->payload( $status->{'payload'}->[0] ) if $count == 1;
+    }
+    return $status;
 }
 
 

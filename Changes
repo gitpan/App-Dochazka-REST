@@ -658,3 +658,12 @@ Revision history for Dochazka-REST
 - clean up test suite
 - t/: fix 3?? tests so they don't break builds in OBS
 
+0.108  2014-07-28 13:16 CEST
+- Resource.pm: expurgate employee objects (to remove passhash and salt)
+  before displaying them; if DOCHAZKA_DEBUG environment variable is set,
+  display the entire context, otherwise display 'entity' only
+- Model/Employee.pm: make 'expurgate' method delete 'passhash' and 'salt'
+  attributes
+- Dispatch/Employee.pm: make 'employee/nick/:param' resource return 
+  an array only when the search finds more than one employee
+

@@ -62,11 +62,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.107
+Version 0.108
 
 =cut
 
-our $VERSION = '0.107';
+our $VERSION = '0.108';
 
 
 
@@ -275,7 +275,7 @@ sub is_authorized {
         my $auth_status = _authenticate( $username, $password );
         if ( $auth_status->ok ) {
             my $emp = $auth_status->payload;
-            $self->_push_onto_context( { current => $emp, } );
+            $self->_push_onto_context( { current => $emp->expurgate, } );
             return 1;
         }
     }
@@ -415,7 +415,10 @@ Makes the JSON for inclusion in the response entity.
 
 sub _make_json {
     my ( $self ) = @_;
-    $JSON->encode( unbless $self->context );
+    my $what = $ENV{'DOCHAZKA_DEBUG'}
+        ? $self->context
+        : $self->context->{'entity'};
+    $JSON->encode( unbless $what );
 }
 
 

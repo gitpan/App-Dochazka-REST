@@ -60,11 +60,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.107
+Version 0.108
 
 =cut
 
-our $VERSION = '0.107';
+our $VERSION = '0.108';
 
 
 
@@ -533,7 +533,7 @@ sub select_multiple_by_nick {
             $counter += 1;
             my $emp = __PACKAGE__->spawn;
             $emp->reset( %$tmpres );
-            push @$result, $emp->expurgate;
+            push @$result, $emp;
             #$log->info( Dumper( $result ) );
         }   
         $log->debug( "$counter records fetched" );
@@ -564,17 +564,19 @@ sub select_multiple_by_nick {
 sub expurgate {
     my ( $self ) = @_; 
     return unless blessed( $self );
-    my $dbh = $self->{'dbh'};
-    delete $self->{'dbh'};
 
     my $udc;
     try {
-        $udc = unbless( dclone( $self ) );
+        $udc = dclone( $self );
+        delete $udc->{'passhash'};
+        delete $udc->{'salt'};
+        unbless $udc;
     } catch {
         $log->err( "AAAAAAAAHHHHHHH: $_" );
     };
 
-    $self->{'dbh'} = $dbh;
+    die "Expurgated employee contains passhash?" if $udc->{'passhash'};
+    die "Expurgated employee contains salt?" if $udc->{'salt'};
     return $udc;
 }
 
