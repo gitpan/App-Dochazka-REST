@@ -60,11 +60,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.109
+Version 0.114
 
 =cut
 
-our $VERSION = '0.109';
+our $VERSION = '0.114';
 
 
 
@@ -183,6 +183,8 @@ functions:
 
 =over
 
+=item * L<nick_exists> (given a nick, return true/false)
+
 =item * L<eid_by_nick> (given a nick, returns EID)
 
 =back
@@ -198,14 +200,14 @@ This module provides the following exports:
 
 =over 
 
-=item L<eid_by_nick> - function
+=item L<nick_exists> - function
 
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( eid_by_nick );
+our @EXPORT_OK = qw( nick_exists );
 
 
 
@@ -405,13 +407,14 @@ sub delete {
 =head2 load_by_nick
 
 Attempts to load employee from database, by the nick provided in the
-argument list, which must be an exact match. If the employee is found,
-it is loaded into a temporary hash. If called as a class method, an
-employee object is spawned from the values in the temporary hash. If
-called on an existing object, overwrites whatever might have been there
-before. 
+argument list, which must be an exact match. If the employee is found, it
+is loaded into a temporary hash. If called as a class method, a new
+employee object is spawned and populated with the values in the temporary
+hash. If called on an existing object, overwrites whatever might have been
+there before. 
 
-Returns a status object. On success, the object will be in the payload.
+In general, this function returns the same status object as it gets
+from L<_load>.
 
 =cut
 
@@ -421,10 +424,10 @@ sub load_by_nick {
     return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # record was found and is in the payload
-    if ( ref $self ) { # class method
+    if ( ref $self ) { # instance method
         $self->reset( %{ $status->payload } );
         $status->payload( $self );
-    } else {             # instance method
+    } else {           # class method
         my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
         $status->payload( $newobj );
     }
@@ -466,8 +469,11 @@ following PARAMHASHes:
     nick => $nick
     eid => $eid
 
-Returns a status object. On success, the populated hashref will be in
-the payload.
+Returns one of three possible status objects:
+
+   success: level OK, code DISPATCH_RECORDS_FOUND, object in payload
+   failure: level OK, code DISPATCH_NO_RECORDS_FOUND
+   DBI err: level ERR, code DOCHAZKA_DBI_ERR
 
 =cut
 
@@ -578,6 +584,27 @@ sub expurgate {
     die "Expurgated employee contains passhash?" if $udc->{'passhash'};
     die "Expurgated employee contains salt?" if $udc->{'salt'};
     return $udc;
+}
+
+
+
+=head1 EXPORTED FUNCTIONS
+
+The following functions are exported and are not called as methods.
+
+
+=head2 nick_exists
+
+Simple true/false check if a nick exists
+
+=cut
+
+sub nick_exists {
+   my ( $nick ) = @_;
+   my $status = __PACKAGE__->load_by_nick( $nick );
+   return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
+       ? 1
+       : 0;
 }
 
 

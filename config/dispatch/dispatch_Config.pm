@@ -43,8 +43,7 @@
 #    list of major resources that we dispatch (a "major" resource is 
 #    one that has a dedicated controller/dispatch module
 set( 'DISPATCH_CONTROLLERS', [
-    'Employee', 
-#    'Privhistory', 'Schedhistory', 'Schedule', 'Activity',
-#    'Interval', 'Lock',
+    'Employee', 'Privhistory',
+#    'Schedhistory', 'Schedule', 'Activity', 'Interval', 'Lock',
 ] );
 

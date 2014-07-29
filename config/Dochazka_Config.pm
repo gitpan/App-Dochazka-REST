@@ -91,6 +91,34 @@ set( 'DOCHAZKA_ACTIVITY_DEFINITIONS', [
 #     in advance that Dochazka will accept an activity interval.
 set( 'DOCHAZKA_ADVANCE_INTERVALS_MAX_DAYS', 45 );
 
+# DOCHAZKA_LDAP
+#     Enable/disable LDAP authentication
+set( 'DOCHAZKA_LDAP', 0 );
+
+# DOCHAZKA_LDAP_AUTOCREATE
+#     Autocreate unknown users if found in LDAP
+set( 'DOCHAZKA_LDAP_AUTOCREATE', 0 );
+
+# DOCHAZKA_LDAP_SERVER
+#     LDAP server for LDAP authentication
+#     make sure to include either 'ldap://' or 'ldaps://'
+set( 'DOCHAZKA_LDAP_SERVER', 'ldaps://ldap.dochazka.site' );
+
+# DOCHAZKA_LDAP_BASE
+#     base DN
+set( 'DOCHAZKA_LDAP_BASE', 'dc=dochazka,dc=site' );
+
+# DOCHAZKA_LDAP_FILTER
+#     filter
+set( 'DOCHAZKA_LDAP_FILTER', '(EMPLOYEESTATUS=Active)' );
+
+# DOCHAZKA_LDAP_TEST_UID_EXISTENT
+#     an existent UID for LDAP testing (t/201-LDAP.t)
+set( 'DOCHAZKA_LDAP_TEST_UID_EXISTENT', 'I_exist_in_local_LDAP' );
+
+# DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT
+#     a non-existent UID for LDAP testing (t/201-LDAP.t)
+set( 'DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT', 'I_do_NOT_exist_in_local_LDAP' );
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

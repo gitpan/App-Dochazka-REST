@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.109
+Version 0.114
 
 =cut
 
-our $VERSION = '0.109';
+our $VERSION = '0.114';
 
 
 =head2 Development status
@@ -123,9 +123,15 @@ In the HTTP request, the client should provide an C<Accept:> header specifying
 either HTML (C<text/html>) or JSON (C<application/json>). If neither is specified,
 the response body will be in HTML.
 
-The REST interface has the following resources. More information about them
-can be found by accessing the URL L<http://dochazka.site/[RESOURCE]> (where
-C<dochazka.site> is the FQDN of a Dochazka REST server):
+The REST interface consists of a number of resources. The resources are 
+documented in the REST server itself, and can be explored using a web browser.
+For example, if the URL of your Dochazka installation is
+L<http://dochazka.site>, that's the place to start. The response to that
+URL will show all the top-level resources. Then, if you want to explore a
+resource further, you go to  L<http://dochazka.site/[RESOURCE]>.
+
+The following top-level resources are used to create, read, update, and delete
+attendance data:
 
 =over
 
@@ -146,41 +152,78 @@ C<dochazka.site> is the FQDN of a Dochazka REST server):
 =back
 
 
+=head2 Request-response cycle
 
-=head2 C<employee>
+(In order to protect user passwords from network sniffing and other nefarious
+activities, the server may be set up to accept HTTPS requests only. These are
+then decrypted to make HTTP requests. This document ignores this important
+implementation detail. If this bothers you, you can treat 'HTTP' as an
+abbreviation for 'HTTP and/or HTTPS'.)
 
-The C<employee> resource responds to the C<GET> method.
+Incoming HTTP requests are handled by L<App::Dochazka::REST::Resource>,
+which inherits from L<Web::Machine::Resource>. The latter uses L<Plack> to
+implement a PSGI-compliant stack.
 
+L<Web::Machine> uses a "state-machine" approach to implementing the HTTP 1.1
+standard. The request is processed by running it through the state machine: the
+request goes in, and the response comes out. Each "cog" of the state machine
+is a L<Web::Machine::Resource> method that can be overrided by a child module.
+In our case, this module is L<App::Dochazka::REST::Resource>, and the methods
+it overrides can be seen in its source code.
 
-=head3 C<GET>
-
-This section details C<GET> requests on the C<employee> resource:
+The behavior of the resulting web server can be summarized, in a hand-wavingly
+way, as follows:
 
 =over
 
-=item * C</employee/eid/$EID>
+=item * B<UTF-8 assumed>
 
-Request for a single employee.
+The server assumes all incoming requests are encoded in UTF-8, and it encodes
+all of its responses in UTF-8 as well.
 
-=item * C</employee/nick/$NICK>
+=item * B<Allowed methods test>
 
-If the search key, C<$NICK>, contains a C<%> character, this is considered a
-request that might return multiple employees -- e.g., C</employee/nick/r%>
-would return all employees with nicks starting with the letter C<r>. If no C<%> 
-is present in the search key, it is considered a lookup request for a single
-employee whose nick matches the search key.
+One of the first things the server looks at, when it receives a request, is 
+the method. Only certain HTTP methods, such as 'GET' and 'POST', are accepted.
+If this test fails, a "405 Method Not Allowed" response is sent.
 
-CASE SENSITIVITY?
+=item * B<Internal and external authentication>
 
-=item * C</employee/email/$EMAIL>
+All incoming requests are subject to HTTP Basic Authentication. The credentials
+entered by the user can be authenticated against an external database (LDAP),
+and internal database (PostgreSQL 'employees' table), or both. For details, see
+L<"AUTHENTICATION">. If authentication fails, a "401 Unauthorized" response is
+sent. This should not be confused with the next step ("Authorization/ACL check").
 
-Look up an employee (or employees) by email address. Behavior is analogous
-to L</employee/nick/$NICK>.
+In a web browser, repeated failed authentication attempts are typically
+associated with repeated display of the credentials dialog (and no other
+indication of what is wrong, which can be confusing to users but is probably a
+good idea, because any error messages could be abused by attackers).
 
-=item * C</employee/fullname/$FULLNAME>
+=item * B<Authorization/ACL check>
 
-Look up an employee (or employees) by their full name. Behavior is analogous
-to L</employee/nick/$NICK>.
+After the request is authenticated (i.e. associated with a known employee), the
+server examines the resource being requested and compares it with the employee's
+privilege level. If the privilege level is too low for the requested operation, 
+a "403 Forbidden" response is sent.
+
+=item * B<Test for resource existence>
+
+The last test a request undergoes on its quest to become a response is the
+test of resource existence. If the request is asking for a non-existent resource,
+e.g. L<http://dochazka.site/employee/curent>, it cannot be fulfilled and a "404
+Not Found" response will be sent.
+
+As some readers might already have guessed, the server already knows whether 
+or not the resource exists in the previous step, Authorization/ACL check. Each 
+stop on the quest can only generate a single error message, however. To deal
+with this quandary, the ACL check for non-existent resources is set to always
+pass. This causes requests for non-existent resources to whizz right through
+the ACL check, only to be caught by the Test for resource existence.
+
+=item * B<Response generation> 
+
+# FIXME need some verbiage here
 
 =back
 
@@ -573,6 +616,15 @@ need to set those up, as well.
 Since employees do not access the database directly, but only via the
 C<App::Dochazka::REST> web server, the web server needs to tie all incoming requests
 to an EID. 
+
+All incoming requests are subject to HTTP Basic Authentication. The credentials
+entered by the user can be authenticated against an external database
+(LDAP), and internal database (PostgreSQL 'employees' table), or both. 
+
+This yields the following possible combinations: internal auth only, external
+auth only, internal auth followed by external auth, and external auth followed
+by internal auth. The desired combination can be set in the site configuration.
+
 
 
 =head2 Current implementation

@@ -29,54 +29,39 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-
-# -----------------------------------
-# Dochazka-REST
-# -----------------------------------
-# dispatch_Config.pm
 #
-# configuration parameters related to path dispatch
-# -----------------------------------
+# tests for LDAP.pm
+#
 
-DISPATCH_ACL_CHECK_OK
-Request passed ACL check
+#!perl
+use 5.012;
+use strict;
+use warnings FATAL => 'all';
 
-DISPATCH_DEFAULT
-App::Dochazka::REST version %s, server is %s
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
+use Data::Dumper;
+use App::Dochazka::REST;
+use App::Dochazka::REST::LDAP;
+use Test::More;
 
-DISPATCH_EMPLOYEE_DEFAULT
-App::Dochazka::REST version %s, server is %s
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+}
 
-DISPATCH_HELP
-For App::Dochazka::REST documentation, visit %s
+diag( "DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
+plan skip_all => "LDAP testing disabled" unless $site->DOCHAZKA_LDAP;
 
-DISPATCH_BAD_RESOURCE
-Bad resource. You must specify a valid resource.
+# known existent LDAP user exists in LDAP?
+ok( App::Dochazka::REST::LDAP::ldap_exists( 
+    $site->DOCHAZKA_LDAP_TEST_UID_EXISTENT
+) );
 
-DISPATCH_FORBIDDEN
-Sorry, you can't do that
+# known non-existent LDAP user does not exist in LDAP?
+ok( ! App::Dochazka::REST::LDAP::ldap_exists( 
+    $site->DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT
+) );
 
-DISPATCH_UNRECOGNIZED
-Bad resource
-
-DISPATCH_SITE_PARAM_FOUND
-Value of site param %s is in payload
-
-DISPATCH_SITE_NOT_DEFINED
-Site param %s is not defined
-
-DISPATCH_MISSING_PARAMETER
-Request seems to be missing a parameter (%s)
-
-DISPATCH_RECORDS_FOUND
-Request retrieved %s record(s)
-
-DISPATCH_NO_RECORDS_FOUND
-Search completed successfully, but no records were found
-
-DISPATCH_EMPLOYEE_CURRENT
-You are currently logged in as %s
-
-DISPATCH_PRIVHISTORY_EMPTY
-There is no privilege on record for employee %s
-
+done_testing;

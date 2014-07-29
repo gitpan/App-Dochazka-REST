@@ -31,17 +31,17 @@
 # ************************************************************************* 
 
 # ------------------------
-# Employee dispatcher/controller module
+# Privhistory dispatcher/controller module
 # ------------------------
 
-package App::Dochazka::REST::Dispatch::Employee;
+package App::Dochazka::REST::Dispatch::Privhistory;
 
 use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Carp;
 use Data::Dumper;
 use Path::Router;
@@ -54,7 +54,7 @@ use parent 'App::Dochazka::REST::Dispatch';
 
 =head1 NAME
 
-App::Dochazka::REST::Dispatch::Employee - path dispatch
+App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 
 
@@ -73,7 +73,7 @@ our $VERSION = '0.114';
 
 =head1 DESCRIPTION
 
-Controller/dispatcher module for the 'employee' resource.
+Controller/dispatcher module for the 'privhistory' resource.
 
 
 
@@ -93,35 +93,23 @@ sub _init_get {
     my $router_get = __PACKAGE__->SUPER::router( 'GET' );
     die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
 
-    $router_get->add_route( 'employee',
+    $router_get->add_route( 'privhistory',
         target => \&_get_default,
     );
 
-    $router_get->add_route( 'employee/help',
+    $router_get->add_route( 'privhistory/help',
         target => \&_get_default,
     );
 
-    $router_get->add_route( 'employee/nick/:param',
-        target => \&_get_nick,
+    $router_get->add_route( 'privhistory/current',
+        target => \&_get_privhistory,
     );
 
-    $router_get->add_route( 'employee/eid/:param',
-        target => \&_get_eid,
+    $router_get->add_route( 'privhistory/current/:param',
+        target => \&_get_privhistory,
     );
 
-    $router_get->add_route( 'employee/current',
-        target => \&_get_current,
-    );
-
-    $router_get->add_route( 'employee/logged_in',
-        target => \&_get_current,
-    );
-
-    $router_get->add_route( 'whoami',
-        target => \&_get_current,
-    );
-
-    return "Employee GET router initialization complete";   
+    return "Privhistory GET router initialization complete";   
 }
 
 
@@ -163,17 +151,13 @@ sub _get_default {
         payload => {
             documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
             resources => {
-                'nick/:param' => {
-                    link => "$uri/employee/nick/:param",
-                    description => 'Search for employees by nick (either exact match or LIKE match using %)',
-                },
-                'eid/:param' => {
-                    link => "$uri/employee/eid/:param",
-                    description => "Load a single employee by EID",
-                },
                 'current' => {
-                    link => "$uri/employee/current",
-                    description => "Display profile of current employee (i.e., the employee you logged in as)",
+                    link => "$uri/privhistory/current",
+                    description => 'Get entire history of privilege level changes for the current employee',
+                },
+                'current/:param' => {
+                    link => "$uri/privhistory/current/:param",
+                    description => 'Get partial history of privilege level changes for the current employee (i.e, limit to tsrange given in param)',
                 },
             },
         },
@@ -181,49 +165,39 @@ sub _get_default {
 }
 
 
-sub _get_nick {
+sub _get_privhistory {
     my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory" ); 
+
+    # ACL status of this target is 'active'
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $priv = $ARGS{'aclpriv'};
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'active' or $priv eq 'admin';
+        return $CELL->status_not_ok;
     }
 
-    my $nick = $ARGS{'context'}->{'mapping'}->{'param'};
-    my $status = App::Dochazka::REST::Model::Employee->
-        select_multiple_by_nick( $nick );
-    if ( $status->payload ) {
-        foreach my $emp ( @{ $status->payload } ) {
-            $emp = $emp->expurgate;
-        }
-        my $count = @{ $status->payload };
-        $status->payload( $status->{'payload'}->[0] ) if $count == 1;
+    my $tsrange = $ARGS{'context'}->{'mapping'}->{'param'};
+    my $eid = $ARGS{'context'}->{'current'}->{'eid'};
+    my $nick = $ARGS{'context'}->{'current'}->{'nick'};
+    my $status = get_privhistory( $eid, $tsrange );
+    if ( $status->ok ) {
+        # The payload will be an array reference
+        my $arrayref = $status->payload;
+        my $new_payload = { 
+            eid => $eid,
+            nick => $nick,
+            privhistory => $arrayref 
+        };
+        $status->payload( $new_payload );
     }
+    #if ( $status->payload ) {
+    #    foreach my $pho ( @{ $status->payload } ) {
+    #        $pho = $pho->expurgate;
+    #    }
+    #    my $count = @{ $status->payload };
+    #    $status->payload( $status->{'payload'}->[0] ) if $count == 1;
+    #}
     return $status;
-}
-
-
-sub _get_eid {
-    my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
-    }
-
-    my $eid = $ARGS{'context'}->{'mapping'}->{'param'};
-    App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-}
-
-
-sub _get_current {
-    my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
-    }
-
-    my $current_emp = $ARGS{'context'}->{'current'};
-    $CELL->status_ok( 'DISPATCH_EMPLOYEE_CURRENT', args => 
-        [ $current_emp->{'nick'} ], payload => $current_emp );
 }
 
 1;

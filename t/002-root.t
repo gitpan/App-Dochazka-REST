@@ -118,6 +118,12 @@ UPDATE employees SET passhash=?, salt=? WHERE eid=?
 SQL
 is( $rv, 1, "root employee's passhash and salt changed" );
 
+# change it back
+$rv = $dbh->do( <<SQL , undef, 'immutable', undef, $eid_of_root ) or die( $dbh->errstr );
+UPDATE employees SET passhash=?, salt=? WHERE eid=?
+SQL
+is( $rv, 1, "root employee's passhash and salt changed back the way they were before" );
+
 # attempt to delete the root employee
 #diag( 'attempt to delete the root employee' );
 test_sql_fail(qr/root employee is immutable/, <<SQL);

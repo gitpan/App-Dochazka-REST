@@ -126,11 +126,15 @@ ok( $status->ok, "Load OK" );
 is( noof( $dbh, "privhistory" ), 2 );
 
 # test get_privhistory
-$status = get_privhistory( $dbh, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $emp->eid, "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 my $ph = $status->payload;
 is( scalar @$ph, 1, "One record" );
-#diag( Dumper( $ph ) );
+
+# backwards tsrange triggers DBI error
+$status = get_privhistory( $emp->eid, "[$tomorrow_ts, $today_ts)" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR', "backwards tsrange triggers DBI error" );
 
 # add another record within the range
 my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
@@ -141,13 +145,13 @@ my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
               remark => $ins_remark,
           );
 is( $priv3->phid, undef, "phid undefined before INSERT" );
-$priv3->insert;
+$status = $priv3->insert;
 diag( $status->text ) if $status->not_ok;
 ok( $status->ok, "Post-insert status ok" );
 ok( $priv3->phid > 0, "INSERT assigned an phid" );
 
 # test get_privhistory again -- do we get two records?
-$status = get_privhistory( $dbh, $emp->eid, "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $emp->eid, "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 $ph = $status->payload;
 is( scalar @$ph, 2, "Two records" );

@@ -43,7 +43,6 @@ use warnings;
 use App::CELL qw( $log $site );
 
 
-
 =head1 NAME
 
 App::Dochazka::REST::LDAP - LDAP module (for authentication)
@@ -54,11 +53,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.109
+Version 0.114
 
 =cut
 
-our $VERSION = '0.109';
+our $VERSION = '0.114';
 
 
 
@@ -83,9 +82,56 @@ Any errors in communication with the LDAP server are written to the log.
 
 =cut
 
+my ( $ldap, $dn );
 sub ldap_exists {
     my ( $nick ) = @_;
+    my $server = $site->DOCHAZKA_LDAP_SERVER;
+    my $base = $site->DOCHAZKA_LDAP_BASE;
+    my $filter = $site->DOCHAZKA_LDAP_FILTER;
     return 0 unless $nick;
+
+    return 0 unless $site->DOCHAZKA_LDAP;
+
+    require Net::LDAP;
+    require Net::LDAP::Filter;
+
+    $ldap = Net::LDAP->new( $server );
+    $log->error("$@") unless $ldap;
+    return 0 unless $ldap;
+        
+    if (defined($filter) && ($filter ne "()")) {
+        $filter = Net::LDAP::Filter->new( "(&" .
+                                           $filter .
+                                           "(uid=$nick)" .
+                                           ")"
+                                       );
+    } else {
+        die "LDAP Filter invalid or not present.";
+    }
+
+    my ($mesg, $entry, $count);
+
+    $log->info( "Running LDAP search on $server with filter " .
+       $filter->as_string );
+
+    $mesg = $ldap->search(
+                           base => "$base",
+                           scope => "sub",
+                           filter => $filter
+                         );
+
+    $mesg->code && die $mesg->error;
+
+    $count = 0;
+    for $entry ($mesg->entries) {
+        $count += 1;
+        if ($count == 1) {
+            $dn = $entry->dn();
+            last;
+        }
+    }
+    return 1 if $count > 0;
+
     return 0;
 }
 
@@ -98,11 +144,26 @@ the one stored in the LDAP database.
 =cut
 
 sub ldap_auth {
+    no strict 'subs';
     my ( $nick, $password ) = @_;
     return 0 unless $nick;
     $password = $password || '';
+
+    return 0 unless $site->DOCHAZKA_LDAP;
+
+    require Net::LDAP;
+    require Net::LDAP::Filter;
+
+    my $mesg = $ldap->bind( "$dn",
+                           password => "$password",
+                       );
+
+    if ($mesg->code == Net::LDAP::LDAP_SUCCESS) {
+        $log->info("Access granted to $nick");
+        return 1;
+    }
+    $log->info("Access denied to $nick because of bad password.");
     return 0;
 }
-
 
 1;

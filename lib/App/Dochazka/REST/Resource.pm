@@ -43,7 +43,9 @@ use warnings;
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
-use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::LDAP;
+use App::Dochazka::REST::Model::Employee qw( nick_exists );
+use Data::Dumper;
 use Data::Structure::Util qw( unbless );
 use Encode qw( decode_utf8 );
 use JSON;
@@ -62,11 +64,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.109
+Version 0.114
 
 =cut
 
-our $VERSION = '0.109';
+our $VERSION = '0.114';
 
 
 
@@ -448,14 +450,22 @@ sub _authenticate {
     # check if the employee exists in LDAP
     if ( App::Dochazka::REST::LDAP::ldap_exists( $nick ) ) {
 
-        # employee exists in LDAP
-        # - check if exists in database; create if necessary
-        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-        if ( $status->not_ok ) {
-            $emp = App::Dochazka::REST::Model::Employee->spawn( nick => $nick );
-            $status = $emp->insert;
-            return $status unless $status->ok;
+        # if the employee doesn't exist in the database, possibly autocreate
+        if ( ! nick_exists( $nick ) ) {
+            if ( $site->DOCHAZKA_LDAP_AUTOCREATE ) {
+                my $emp = App::Dochazka::REST::Model::Employee->spawn(
+                    nick => $nick,
+                );
+                $status = $emp->insert;
+                die "Could not create $nick as new employee" unless $status->ok;
+            } else {
+                return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+            }
         }
+
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
+        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+
         # - authenticate by LDAP bind
         if ( App::Dochazka::REST::LDAP::ldap_auth( $nick, $password ) ) {
             return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
@@ -466,17 +476,22 @@ sub _authenticate {
 
     # if not, authenticate against the password stored in the employee object.
     else {
+
+        $log->notice( "Employee $nick not found in LDAP; reverting to internal auth" );
+
         # - check if this employee exists in database
-        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-        if ( $status->not_ok ) {
+        if ( ! nick_exists( $nick ) ) {
             return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
         }
-        # - employee exists: get it
-        $emp = $status->payload;
+
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
+        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+
         # - the password might be empty
         $password = '' unless defined( $password );
         my $passhash = $emp->passhash;
         $passhash = '' unless defined( $passhash );
+
         # - check password against passhash
         if ( $password eq $passhash ) {
             return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );

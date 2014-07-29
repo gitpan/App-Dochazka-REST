@@ -145,3 +145,4 @@ $status = $bogus_act->load_by_code( 'BOGUS' );
 #diag( $status->level . " " . $status->text ) unless $status->ok;
 ok( $status->not_ok );
 
+done_testing;

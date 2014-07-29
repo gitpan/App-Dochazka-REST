@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.109
+    Version 0.114
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -50,9 +50,15 @@ REST INTERFACE
     specifying either HTML (`text/html') or JSON (`application/json'). If
     neither is specified, the response body will be in HTML.
 
-    The REST interface has the following resources. More information about
-    them can be found by accessing the URL http://dochazka.site/[RESOURCE]
-    (where `dochazka.site' is the FQDN of a Dochazka REST server):
+    The REST interface consists of a number of resources. The resources are
+    documented in the REST server itself, and can be explored using a web
+    browser. For example, if the URL of your Dochazka installation is
+    http://dochazka.site, that's the place to start. The response to that
+    URL will show all the top-level resources. Then, if you want to explore
+    a resource further, you go to http://dochazka.site/[RESOURCE].
+
+    The following top-level resources are used to create, read, update, and
+    delete attendance data:
 
     * employee
     * privhistory
@@ -62,32 +68,76 @@ REST INTERFACE
     * interval
     * lock
 
-  `employee'
-    The `employee' resource responds to the `GET' method.
+  Request-response cycle
+    (In order to protect user passwords from network sniffing and other
+    nefarious activities, the server may be set up to accept HTTPS requests
+    only. These are then decrypted to make HTTP requests. This document
+    ignores this important implementation detail. If this bothers you, you
+    can treat 'HTTP' as an abbreviation for 'HTTP and/or HTTPS'.)
 
-    `GET'
-    This section details `GET' requests on the `employee' resource:
+    Incoming HTTP requests are handled by App::Dochazka::REST::Resource,
+    which inherits from Web::Machine::Resource. The latter uses Plack to
+    implement a PSGI-compliant stack.
 
-    * `/employee/eid/$EID'
-        Request for a single employee.
+    Web::Machine uses a "state-machine" approach to implementing the HTTP
+    1.1 standard. The request is processed by running it through the state
+    machine: the request goes in, and the response comes out. Each "cog" of
+    the state machine is a Web::Machine::Resource method that can be
+    overrided by a child module. In our case, this module is
+    App::Dochazka::REST::Resource, and the methods it overrides can be seen
+    in its source code.
 
-    * `/employee/nick/$NICK'
-        If the search key, `$NICK', contains a `%' character, this is
-        considered a request that might return multiple employees -- e.g.,
-        `/employee/nick/r%' would return all employees with nicks starting
-        with the letter `r'. If no `%' is present in the search key, it is
-        considered a lookup request for a single employee whose nick matches
-        the search key.
+    The behavior of the resulting web server can be summarized, in a
+    hand-wavingly way, as follows:
 
-        CASE SENSITIVITY?
+    * UTF-8 assumed
+        The server assumes all incoming requests are encoded in UTF-8, and
+        it encodes all of its responses in UTF-8 as well.
 
-    * `/employee/email/$EMAIL'
-        Look up an employee (or employees) by email address. Behavior is
-        analogous to employee/nick/$NICK.
+    * Allowed methods test
+        One of the first things the server looks at, when it receives a
+        request, is the method. Only certain HTTP methods, such as 'GET' and
+        'POST', are accepted. If this test fails, a "405 Method Not Allowed"
+        response is sent.
 
-    * `/employee/fullname/$FULLNAME'
-        Look up an employee (or employees) by their full name. Behavior is
-        analogous to employee/nick/$NICK.
+    * Internal and external authentication
+        All incoming requests are subject to HTTP Basic Authentication. The
+        credentials entered by the user can be authenticated against an
+        external database (LDAP), and internal database (PostgreSQL
+        'employees' table), or both. For details, see "AUTHENTICATION". If
+        authentication fails, a "401 Unauthorized" response is sent. This
+        should not be confused with the next step ("Authorization/ACL
+        check").
+
+        In a web browser, repeated failed authentication attempts are
+        typically associated with repeated display of the credentials dialog
+        (and no other indication of what is wrong, which can be confusing to
+        users but is probably a good idea, because any error messages could
+        be abused by attackers).
+
+    * Authorization/ACL check
+        After the request is authenticated (i.e. associated with a known
+        employee), the server examines the resource being requested and
+        compares it with the employee's privilege level. If the privilege
+        level is too low for the requested operation, a "403 Forbidden"
+        response is sent.
+
+    * Test for resource existence
+        The last test a request undergoes on its quest to become a response
+        is the test of resource existence. If the request is asking for a
+        non-existent resource, e.g. http://dochazka.site/employee/curent, it
+        cannot be fulfilled and a "404 Not Found" response will be sent.
+
+        As some readers might already have guessed, the server already knows
+        whether or not the resource exists in the previous step,
+        Authorization/ACL check. Each stop on the quest can only generate a
+        single error message, however. To deal with this quandary, the ACL
+        check for non-existent resources is set to always pass. This causes
+        requests for non-existent resources to whizz right through the ACL
+        check, only to be caught by the Test for resource existence.
+
+    * Response generation
+        # FIXME need some verbiage here
 
 DATA MODEL
     This section describes the `App::Dochazka::REST' data model.
@@ -421,6 +471,16 @@ AUTHENTICATION
     Since employees do not access the database directly, but only via the
     `App::Dochazka::REST' web server, the web server needs to tie all
     incoming requests to an EID.
+
+    All incoming requests are subject to HTTP Basic Authentication. The
+    credentials entered by the user can be authenticated against an external
+    database (LDAP), and internal database (PostgreSQL 'employees' table),
+    or both.
+
+    This yields the following possible combinations: internal auth only,
+    external auth only, internal auth followed by external auth, and
+    external auth followed by internal auth. The desired combination can be
+    set in the site configuration.
 
   Current implementation
     At the moment, this is accomplished via Web::Machine using HTTP Basic

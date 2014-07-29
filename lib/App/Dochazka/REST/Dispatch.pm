@@ -42,6 +42,7 @@ use warnings;
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::Employee;
+use App::Dochazka::REST::Dispatch::Privhistory;
 use Carp;
 use Data::Dumper;
 use Path::Router;
@@ -62,11 +63,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.109
+Version 0.114
 
 =cut
 
-our $VERSION = '0.109';
+our $VERSION = '0.114';
 
 
 
@@ -100,7 +101,7 @@ sub init {
 sub _init_get {
 
     my $router_get = __PACKAGE__->SUPER::_router_get( Path::Router->new );
-    die "Bad router" unless $router_get->isa( 'Path::Router' );
+    die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
 
     $router_get->add_route( '',
         target => \&_get_default,
@@ -124,6 +125,7 @@ sub _init_get {
    
     foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
         my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_get';
+        $log->info( "About to run $exp" );
         my $retval = eval $exp;
         $log->info( "Initialized sub-controllers by executing $exp with return value $retval" );
     }
@@ -174,10 +176,10 @@ sub _get_default {
                     link => "$uri/employee",
                     description => 'Employee (i.e. a user of Dochazka)',
                 },
-#                'privhistory' => {
-#                    link => "$uri/privhistory",
-#                    description => "Privilege history (changes to an employee's privilege level over time)",
-#                },
+                'privhistory' => {
+                    link => "$uri/privhistory",
+                    description => "Privilege history (changes to an employee's privilege level over time)",
+                },
 #                'schedhistory' => {
 #                    link => "$uri/schedhistory",
 #                    description => "Schedule history (changes to an employee's schedule over time)",

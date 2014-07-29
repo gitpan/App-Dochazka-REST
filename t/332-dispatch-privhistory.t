@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 # ************************************************************************* 
 # Copyright (c) 2014, SUSE LLC
 # 
@@ -31,62 +30,70 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# App::Dochazka::REST server executable
+# test path dispatch
 #
-# -------------------------------------------------------------------------
 
-use 5.014;
+#!perl
+use 5.012;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
-use App::CELL::Test::LogToFile;
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
-use Plack::Builder;
-use Plack::Runner;
- 
-=head1 NAME
-
-dochazka-rest - App::Dochazka::REST server startup script
-
-
-
-=head1 VERSION
-
-Version 0.114
-
-=cut
-
-our $VERSION = '0.114';
+use Data::Dumper;
+use HTTP::Request;
+use Plack::Test;
+use Scalar::Util qw( blessed );
+use Test::JSON;
+use Test::More;
 
 
+# create request object with authorization header appended ('root')
+sub req_root {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic cm9vdDppbW11dGFibGU=' );
+    $r->header( 'Accept' => 'application/json' );
+    return $r;
+}
 
-=head1 SYNOPSIS
+# create request object with authorization header appended ('demo')
+sub req_demo {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'application/json' );
+    return $r;
+}
 
-    $ dochazka-rest
-
-
-
-=head1 DESCRIPTION
-
-Run this script from the bash prompt to start the server.
-
-=cut
-
-print "App::Dochazka::REST ver. $VERSION\n";
-print "Initializing and connecting to database\n";
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
-print $status->text unless $status->ok;
-print "Starting server\n";
-
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
+}
 my $app = $REST->{'app'};
 
-my $runner = Plack::Runner->new;
-$runner->parse_options(@ARGV);
-$runner->run( 
-    builder {
-        enable "StackTrace", force => 1;
-        $app 
-    }
-);
+# instantiate Plack::Test object
+my $test = Plack::Test->create( $app );
+ok( blessed $test );
 
+# 'privhistory' resource
+my $res = $test->request( req_demo GET => '/privhistory' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+
+$res = $test->request( req_root GET => '/privhistory' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+
+# 'privhistory/current' resource - auth fail
+$res = $test->request( req_demo GET => '/privhistory/current' );
+is( $res->code, 403 );
+
+$res = $test->request( req_root GET => '/privhistory/current' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+
+done_testing;
