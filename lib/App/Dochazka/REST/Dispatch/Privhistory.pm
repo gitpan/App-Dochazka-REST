@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Model::Employee qw( eid_exists nick_exists );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Carp;
@@ -63,11 +64,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.116
+Version 0.117
 
 =cut
 
-our $VERSION = '0.116';
+our $VERSION = '0.117';
 
 
 
@@ -154,9 +155,10 @@ The following functions implement actions for the various routes.
 sub _get_default {
     my ( %ARGS ) = @_;
 
-    # ACL check (ACL status of this function is 'passerby')
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'passerby'; # open to all
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $uri = $ARGS{'context'}->{'uri'};
@@ -202,11 +204,10 @@ sub _get_privhistory_nick {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
 
-    # ACL status of this target is 'admin'
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $priv = $ARGS{'aclpriv'};
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'admin';
-        return $CELL->status_not_ok;
+        my $acl = 'admin';
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
@@ -223,11 +224,10 @@ sub _get_privhistory_eid {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
 
-    # ACL status of this target is 'admin'
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $priv = $ARGS{'aclpriv'};
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'admin';
-        return $CELL->status_not_ok;
+        my $acl = 'admin';
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
@@ -245,11 +245,10 @@ sub _get_privhistory_current {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
 
-    # ACL status of this target is 'active'
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $priv = $ARGS{'aclpriv'};
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'active' or $priv eq 'admin';
-        return $CELL->status_not_ok;
+        my $acl = 'active';
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};

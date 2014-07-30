@@ -29,54 +29,90 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-#
-# test path dispatch
-#
 
-#!perl
-use 5.012;
+# ------------------------
+# Test helper functions module
+# ------------------------
+
+package App::Dochazka::REST::Test;
+
 use strict;
-use warnings FATAL => 'all';
+use warnings;
 
-#use App::CELL::Test::LogToFile;
-use App::CELL qw( $meta $site );
-use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_root req_demo );
-use Data::Dumper;
+use App::CELL qw( $CELL );
 use HTTP::Request;
-use Plack::Test;
-use Scalar::Util qw( blessed );
-use Test::JSON;
-use Test::More;
 
-# initialize
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-my $status = $REST->{init_status};
-if ( $status->not_ok ) {
-    plan skip_all => "not configured or server not running";
+
+
+=head1 NAME
+
+App::Dochazka::REST::Test - Test helper functions
+
+
+
+
+
+=head1 VERSION
+
+Version 0.117
+
+=cut
+
+our $VERSION = '0.117';
+
+
+
+
+
+=head1 DESCRIPTION
+
+This module provides helper code for unit tests.
+
+=cut
+
+
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( req_root req_demo );
+
+
+
+
+=head1 FUNCTIONS
+
+=head2 req_root
+
+Make an HTTP request as 'root' (admin priv)
+
+=cut
+
+sub req_root {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic cm9vdDppbW11dGFibGU=' );
+    $r->header( 'Accept' => 'application/json' );
+    return $r;
 }
-my $app = $REST->{'app'};
 
-# instantiate Plack::Test object
-my $test = Plack::Test->create( $app );
-ok( blessed $test );
 
-# 'privhistory' resource
-my $res = $test->request( req_demo GET => '/privhistory' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
 
-$res = $test->request( req_root GET => '/privhistory' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
+=head2 req_demo
 
-# 'privhistory/current' resource - auth fail
-$res = $test->request( req_demo GET => '/privhistory/current' );
-is( $res->code, 403 );
+Make an HTTP request as 'demo' (passerby priv)
 
-$res = $test->request( req_root GET => '/privhistory/current' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+=cut
 
-done_testing;
+sub req_demo {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'application/json' );
+    return $r;
+}
+
+1;

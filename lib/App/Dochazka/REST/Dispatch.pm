@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Privhistory;
 use Carp;
@@ -63,11 +64,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.116
+Version 0.117
 
 =cut
 
-our $VERSION = '0.116';
+our $VERSION = '0.117';
 
 
 
@@ -159,8 +160,11 @@ The following functions implement actions for the various controllers.
 
 sub _get_default {
     my ( %ARGS ) = @_;
+
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'passerby'; # this function is available to all
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
     
     my $uri = $ARGS{'context'}->{'uri'};
@@ -216,7 +220,8 @@ sub _get_site_param {
 
     # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'admin'; # this function is available to admins only
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
     
     # generate content
@@ -243,12 +248,14 @@ sub _get_site_param {
 sub _get_forbidden {
     my ( %ARGS ) = @_;
 
-    # ACL check (ACL status of this function is "always forbidden no matter what")
+    # ACL check 
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        # this is a special case: "always forbidden no matter what" -- 
+        # useful for testing
         return $CELL->status_err( 'DISPATCH_FORBIDDEN' );
     }
 
-    die "Das ist verboten!"
+    die "Das ist streng verboten";
 }
 
 1;

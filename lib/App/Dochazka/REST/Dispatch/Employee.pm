@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Model::Employee;
 use Carp;
 use Data::Dumper;
@@ -62,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.116
+Version 0.117
 
 =cut
 
-our $VERSION = '0.116';
+our $VERSION = '0.117';
 
 
 
@@ -149,9 +150,10 @@ The following functions implement actions for the various routes.
 sub _get_default {
     my ( %ARGS ) = @_;
 
-    # ACL check (ACL status of this function is 'passerby')
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'passerby'; # open to all
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $uri = $ARGS{'context'}->{'uri'};
@@ -184,8 +186,11 @@ sub _get_default {
 sub _get_nick {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
+
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'admin'; # just us admins
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $nick = $ARGS{'context'}->{'mapping'}->{'param'};
@@ -205,8 +210,16 @@ sub _get_nick {
 sub _get_eid {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
+
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'admin'; # just us admins
+        return check_acl( $acl, $ARGS{'aclpriv'} );
+    }
+
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $ARGS{aclpriv} eq 'admin';
+        return $CELL->status_not_ok( 'DISPATCH_ACL_CHECK_OK' );
     }
 
     my $eid = $ARGS{'context'}->{'mapping'}->{'param'};
@@ -217,8 +230,11 @@ sub _get_eid {
 sub _get_current {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
+
+    # ACL check
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' );
+        my $acl = 'passerby'; # everyone
+        return check_acl( $acl, $ARGS{'aclpriv'} );
     }
 
     my $current_emp = $ARGS{'context'}->{'current'};

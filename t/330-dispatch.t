@@ -41,21 +41,12 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
+use App::Dochazka::REST::Test qw( req_root req_demo );
 use Data::Dumper;
-use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More;
-
-# create request object with authorization header appended
-sub req {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'application/json' );
-    return $r;
-}
 
 # initialize, connect to database, and set up a testing plan
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
@@ -72,41 +63,41 @@ ok( blessed $test );
 
 # the very basic-est request
 
-my $res = $test->request( req GET => '/' );
+my $res = $test->request( req_demo GET => '/' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 2. /version
-$res = $test->request( req GET => '/version' );
+$res = $test->request( req_demo GET => '/version' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 3. /help
-$res = $test->request( req GET => '/help' );
+$res = $test->request( req_demo GET => '/help' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/App::Dochazka::REST/ );
 
 # 4. /site
-$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME/' );
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 my $match_string = $site->DOCHAZKA_APPNAME;
 like( $res->content, qr/$match_string/ );
 
-$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME' );
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/$match_string/ );
 
-$res = $test->request( req GET => '/siteparam/DOCHAZKA_appname' );
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_appname' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 unlike( $res->content, qr/DISPATCH_SITE_UNDEFINED/ );
 
-$res = $test->request( req GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 

@@ -41,22 +41,13 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
+use App::Dochazka::REST::Test qw( req_root req_demo );
 use Data::Dumper;
-use HTTP::Request;
 use Plack::Test;
 use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More;
 
-
-# create request object with authorization header appended
-sub req {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'application/json' );
-    return $r;
-}
 
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};
@@ -71,43 +62,55 @@ ok( blessed $test );
 
 
 # get 'root' employee by nick
-my $res = $test->request( req GET => '/employee/nick/root' );
+my $res = $test->request( req_root GET => '/employee/nick/root' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
 like( $res->content, qr/Root Immutable/ );
 
 # get 'demo' employee by nick
-$res = $test->request( req GET => '/employee/nick/demo' );
+$res = $test->request( req_root GET => '/employee/nick/demo' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
 like( $res->content, qr/Demo Employee/ );
 
 # get non-existent employee by nick
-$res = $test->request( req GET => '/employee/nick/heathledger' );
+$res = $test->request( req_root GET => '/employee/nick/heathledger' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_NO_RECORDS_FOUND/ );
 
 # get 'root' employee by EID
-$res = $test->request( req GET => '/employee/eid/1' );
+$res = $test->request( req_root GET => '/employee/eid/1' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
 like( $res->content, qr/Root Immutable/ );
 
 # get 'demo' employee by EID
-$res = $test->request( req GET => '/employee/eid/2' );
+$res = $test->request( req_root GET => '/employee/eid/2' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
 like( $res->content, qr/Demo Employee/ );
 
 # get non-existent employee by EID
-$res = $test->request( req GET => '/employee/eid/53432' );
+$res = $test->request( req_root GET => '/employee/eid/53432' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/DISPATCH_NO_RECORDS_FOUND/ );
+
+# get current employee as demo
+$res = $test->request( req_demo GET => '/employee/current' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/Demo Employee/ );
+
+# get current employee as root
+$res = $test->request( req_root GET => '/employee/current' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/Root Immutable/ );
 
 done_testing;

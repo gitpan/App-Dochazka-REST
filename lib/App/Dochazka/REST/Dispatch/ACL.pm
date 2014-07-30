@@ -29,54 +29,96 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-#
-# test path dispatch
-#
 
-#!perl
-use 5.012;
+# ------------------------
+# ACL module
+# ------------------------
+
+package App::Dochazka::REST::Dispatch::ACL;
+
 use strict;
-use warnings FATAL => 'all';
+use warnings;
 
-#use App::CELL::Test::LogToFile;
-use App::CELL qw( $meta $site );
-use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_root req_demo );
-use Data::Dumper;
-use HTTP::Request;
-use Plack::Test;
-use Scalar::Util qw( blessed );
-use Test::JSON;
-use Test::More;
+use App::CELL qw( $CELL );
 
-# initialize
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-my $status = $REST->{init_status};
-if ( $status->not_ok ) {
-    plan skip_all => "not configured or server not running";
+
+
+=head1 NAME
+
+App::Dochazka::REST::Dispatch::ACL - ACL module
+
+
+
+
+
+=head1 VERSION
+
+Version 0.117
+
+=cut
+
+our $VERSION = '0.117';
+
+
+
+
+
+=head1 DESCRIPTION
+
+This module provides helper code for ACL checks.
+
+=cut
+
+
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( check_acl );
+
+
+
+
+=head1 FUNCTIONS
+
+=head2 check_acl
+
+Compare priv level of resource ($acl) with the priv level of the employee
+($priv). If $priv is at least as high as the $acl, the function returns
+
+    $CELL->status_ok( 'DISPATCH_ACL_CHECK' )
+
+otherwise it returns:
+
+    $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' )
+
+=cut
+
+sub check_acl {
+    my ( $acl, $priv ) = @_;
+    die unless defined $acl and defined $priv;
+
+    my $pass = $CELL->status_ok( 'DISPATCH_ACL_CHECK' );
+    my $fail = $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' );
+
+    if ( $acl eq 'passerby' ) {
+        return $pass;
+    } elsif ( $acl eq 'inactive' ) {
+        return $pass if $priv eq 'inactive';
+        return $pass if $priv eq 'active';
+        return $pass if $priv eq 'admin';
+    } elsif ( $acl eq 'active' ) {
+        return $pass if $priv eq 'active';
+        return $pass if $priv eq 'admin';
+    } elsif ( $acl eq 'admin' ) {
+        return $pass if $priv eq 'admin';
+    }
+
+    return $fail;
 }
-my $app = $REST->{'app'};
 
-# instantiate Plack::Test object
-my $test = Plack::Test->create( $app );
-ok( blessed $test );
 
-# 'privhistory' resource
-my $res = $test->request( req_demo GET => '/privhistory' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-
-$res = $test->request( req_root GET => '/privhistory' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-
-# 'privhistory/current' resource - auth fail
-$res = $test->request( req_demo GET => '/privhistory/current' );
-is( $res->code, 403 );
-
-$res = $test->request( req_root GET => '/privhistory/current' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
-
-done_testing;
+1;

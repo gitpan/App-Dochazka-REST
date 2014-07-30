@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.116
+Version 0.117
 
 =cut
 
-our $VERSION = '0.116';
+our $VERSION = '0.117';
 
 
 

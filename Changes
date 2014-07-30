@@ -711,3 +711,9 @@ Revision history for Dochazka-REST
 - rename DOCHAZKA_BASIC_AUTH_REALM for clarity and turn it into a site
   configuration parameter so it can be overrided
 
+0.117  2014-07-30 15:53 CEST
+- Dispatch/Employee.pm: add proper ACL checks to 'employee/nick' and
+  'employee/eid'
+- Dispatch/ACL.pm: put ACL check code into a separate module
+- Test.pm: put some common testing code into a separate module
+
