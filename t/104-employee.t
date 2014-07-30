@@ -40,7 +40,7 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
-use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Model::Employee qw( nick_exists eid_exists );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
 use Test::More;
@@ -101,6 +101,12 @@ $status = $emp->insert();
 ok( $status->ok, "Mr. Fu inserted" );
 my $eid_of_mrfu = $emp->{eid};
 #diag( "eid of mrfu is $eid_of_mrfu" );
+
+# nick_exists and eid_exists functions
+ok( nick_exists( 'mrfu' ) );
+ok( eid_exists( $eid_of_mrfu ) );  
+ok( ! nick_exists( 'fandango' ) ); 
+ok( ! eid_exists( 1341 ) ); 
 
 # spawn another object
 my $emp2 = App::Dochazka::REST::Model::Employee->spawn;

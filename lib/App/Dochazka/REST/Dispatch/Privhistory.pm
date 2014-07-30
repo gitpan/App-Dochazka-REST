@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Model::Employee qw( eid_exists nick_exists );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Carp;
 use Data::Dumper;
@@ -62,11 +63,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.114
+Version 0.115
 
 =cut
 
-our $VERSION = '0.114';
+our $VERSION = '0.115';
 
 
 
@@ -101,12 +102,28 @@ sub _init_get {
         target => \&_get_default,
     );
 
-    $router_get->add_route( 'privhistory/current',
-        target => \&_get_privhistory,
+    $router_get->add_route( 'privhistory/nick/:nick',
+        target => \&_get_privhistory_nick,
     );
 
-    $router_get->add_route( 'privhistory/current/:param',
-        target => \&_get_privhistory,
+    $router_get->add_route( 'privhistory/nick/:nick/:tsrange',
+        target => \&_get_privhistory_nick,
+    );
+
+    $router_get->add_route( 'privhistory/eid/:eid',
+        target => \&_get_privhistory_eid,
+    );
+
+    $router_get->add_route( 'privhistory/eid/:eid/:tsrange',
+        target => \&_get_privhistory_eid,
+    );
+
+    $router_get->add_route( 'privhistory/current',
+        target => \&_get_privhistory_current,
+    );
+
+    $router_get->add_route( 'privhistory/current/:tsrange',
+        target => \&_get_privhistory_current,
     );
 
     return "Privhistory GET router initialization complete";   
@@ -151,13 +168,29 @@ sub _get_default {
         payload => {
             documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
             resources => {
+                'nick/:nick' => {
+                    link => "$uri/privhistory/nick/:nick",
+                    description => 'Get entire history of privilege level changes for the employee with the given nick',
+                },
+                'nick/:nick/:tsrange' => {
+                    link => "$uri/privhistory/nick/:nick/:tsrange",
+                    description => 'Get partial history of privilege level changes for the employee with the given nick (i.e, limit to given tsrange)',
+                },
+                'eid/:eid' => {
+                    link => "$uri/privhistory/eid/:eid",
+                    description => 'Get entire history of privilege level changes for the employee with the given EID',
+                },
+                'eid/:eid/:tsrange' => {
+                    link => "$uri/privhistory/eid/:eid/:tsrange",
+                    description => 'Get partial history of privilege level changes for the employee with the given EID (i.e, limit to given tsrange)',
+                },
                 'current' => {
                     link => "$uri/privhistory/current",
                     description => 'Get entire history of privilege level changes for the current employee',
                 },
-                'current/:param' => {
-                    link => "$uri/privhistory/current/:param",
-                    description => 'Get partial history of privilege level changes for the current employee (i.e, limit to tsrange given in param)',
+                'current/:tsrange' => {
+                    link => "$uri/privhistory/current/:tsrange",
+                    description => 'Get partial history of privilege level changes for the current employee (i.e, limit to given tsrange)',
                 },
             },
         },
@@ -165,9 +198,52 @@ sub _get_default {
 }
 
 
-sub _get_privhistory {
+sub _get_privhistory_nick {
     my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory" ); 
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
+
+    # ACL status of this target is 'admin'
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        my $priv = $ARGS{'aclpriv'};
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'admin';
+        return $CELL->status_not_ok;
+    }
+
+    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
+    my $nick = $ARGS{'context'}->{'mapping'}->{'nick'};
+
+    # load EID from nick, display error if EID doesn't exist
+    my $emp = nick_exists( $nick );
+    return $CELL->status_err( 'DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ] ) if not defined( $emp );
+    return $emp if $emp->isa( 'App::CELL::Status' );
+    return get_privhistory( $emp->eid, $tsrange );
+}
+
+sub _get_privhistory_eid {
+    my ( %ARGS ) = @_;
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
+
+    # ACL status of this target is 'admin'
+    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
+        my $priv = $ARGS{'aclpriv'};
+        return $CELL->status_ok( 'DISPATCH_ACL_CHECK_OK' ) if $priv eq 'admin';
+        return $CELL->status_not_ok;
+    }
+
+    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
+    my $eid = $ARGS{'context'}->{'mapping'}->{'eid'};
+
+    # load nick from EID, display error if nick doesn't exist
+    
+    my $emp = eid_exists( $eid );
+    return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] ) if not defined( $emp );
+    return $emp if $emp->isa( 'App::CELL::Status' );
+    return get_privhistory( $eid, $tsrange );
+}
+
+sub _get_privhistory_current {
+    my ( %ARGS ) = @_;
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
 
     # ACL status of this target is 'active'
     if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
@@ -176,28 +252,11 @@ sub _get_privhistory {
         return $CELL->status_not_ok;
     }
 
-    my $tsrange = $ARGS{'context'}->{'mapping'}->{'param'};
+    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
     my $eid = $ARGS{'context'}->{'current'}->{'eid'};
     my $nick = $ARGS{'context'}->{'current'}->{'nick'};
-    my $status = get_privhistory( $eid, $tsrange );
-    if ( $status->ok ) {
-        # The payload will be an array reference
-        my $arrayref = $status->payload;
-        my $new_payload = { 
-            eid => $eid,
-            nick => $nick,
-            privhistory => $arrayref 
-        };
-        $status->payload( $new_payload );
-    }
-    #if ( $status->payload ) {
-    #    foreach my $pho ( @{ $status->payload } ) {
-    #        $pho = $pho->expurgate;
-    #    }
-    #    my $count = @{ $status->payload };
-    #    $status->payload( $status->{'payload'}->[0] ) if $count == 1;
-    #}
-    return $status;
+    
+    return get_privhistory( $eid, $tsrange );
 }
 
 1;

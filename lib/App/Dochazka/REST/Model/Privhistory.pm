@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.114
+Version 0.115
 
 =cut
 
-our $VERSION = '0.114';
+our $VERSION = '0.115';
 
 
 
@@ -381,7 +381,7 @@ sub get_privhistory {
     $tsr = '[,)' if not $tsr;
     my $status;
     my $counter = 0;
-    my $result = [];
+    my $result = { eid => $eid, privhistory => [] };
 
     $dbh->{RaiseError} = 1;
     try {
@@ -393,10 +393,13 @@ sub get_privhistory {
                 dbh => $dbh,
             );
             $ph->reset( %$tmpres );
-            push @$result, $ph;
+            push @{ $result->{'privhistory'} }, $ph;
         }
     } catch {
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef ); 
+        my $arg = $dbh->err
+            ? $dbh->errstr
+            : $_;
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
     };
     $dbh->{RaiseError} = 0;
     return $status if defined $status;
@@ -405,7 +408,7 @@ sub get_privhistory {
             [ $counter ], payload => $result, count => $counter );
     } else {
         $status = $CELL->status_warn( 'DISPATCH_PRIVHISTORY_EMPTY', 
-            args => [ 'FIXME' ], payload => $result, count => $counter );
+            args => [ $eid ], payload => $result, count => $counter );
     }
     $dbh->{RaiseError} = 0;
     return $status;

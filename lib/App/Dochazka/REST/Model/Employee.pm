@@ -60,11 +60,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.114
+Version 0.115
 
 =cut
 
-our $VERSION = '0.114';
+our $VERSION = '0.115';
 
 
 
@@ -185,8 +185,6 @@ functions:
 
 =item * L<nick_exists> (given a nick, return true/false)
 
-=item * L<eid_by_nick> (given a nick, returns EID)
-
 =back
 
 For basic C<employee> object workflow, see the unit tests in
@@ -207,7 +205,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( nick_exists );
+our @EXPORT_OK = qw( nick_exists eid_exists );
 
 
 
@@ -420,17 +418,18 @@ from L<_load>.
 
 sub load_by_nick {
     my ( $self, $nick ) = @_;
+    die "Bad arguments" unless defined( $self );
+ 
+    # if called as a class method, spawn a new object
+    $self = __PACKAGE__->spawn unless blessed $self;
+
+    # attempt to load into hashref
     my $status = _load( nick => $nick );
     return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # record was found and is in the payload
-    if ( ref $self ) { # instance method
-        $self->reset( %{ $status->payload } );
-        $status->payload( $self );
-    } else {           # class method
-        my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
-        $status->payload( $newobj );
-    }
+    $self->reset( %{ $status->payload } );
+    $status->payload( $self );
     return $status;
 }
 
@@ -443,17 +442,19 @@ Analogous method to L<"load_by_nick">.
 
 sub load_by_eid {
     my ( $self, $eid ) = @_;
+    die "Bad arguments" unless defined( $self );
+
+    # if called as a class method, spawn a new object
+    $self = __PACKAGE__->spawn unless blessed $self;
+    die unless $self->isa( __PACKAGE__ );
+
+    # attempt to load into hashref
     my $status = _load( eid => $eid );
     return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # record was found and is in the payload
-    if ( ref $self ) { # instance method
-        $self->reset( %{ $status->payload } );
-        $status->payload( $self );
-    } else {           # class method
-        my $newobj = __PACKAGE__->spawn( %{ $status->payload } );
-        $status->payload( $newobj );
-    }
+    $self->reset( %{ $status->payload } );
+    $status->payload( $self );
     return $status;
 }
 
@@ -461,17 +462,16 @@ sub load_by_eid {
 
 =head3 _load
 
-Load employee, by eid or nick, into an existing object, overwriting
-whatever was there before. The search key (eid or nick) must be an exact
-match: this function returns only 1 or 0 records. Takes one of the two
-following PARAMHASHes:
+Fetches employee from database, by eid or nick, into a hashref. The search key
+(eid or nick) must be an exact match: this function returns only 1 or 0
+records. Takes one of the two following PARAMHASHes:
 
     nick => $nick
     eid => $eid
 
 Returns one of three possible status objects:
 
-   success: level OK, code DISPATCH_RECORDS_FOUND, object in payload
+   success: level OK, code DISPATCH_RECORDS_FOUND, hashref in payload
    failure: level OK, code DISPATCH_NO_RECORDS_FOUND
    DBI err: level ERR, code DOCHAZKA_DBI_ERR
 
@@ -481,14 +481,15 @@ sub _load {
     my ( %ARGS ) = @_;
     my $sql;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    my ( $spec ) = keys %ARGS;
+    my ( $key ) = keys %ARGS;
 
-    $sql = ($spec eq 'nick')
+    $sql = ($key eq 'nick')
         ? $site->SQL_EMPLOYEE_SELECT_BY_NICK
         : $site->SQL_EMPLOYEE_SELECT_BY_EID;
+    #die "SQL is $sql, key is $key, key value is $ARGS{$key}" unless $ARGS{$key} eq 'root';
 
     # N.B. - the select can only return a single record
-    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$spec} );
+    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$key} );
     return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] ) 
         if $dbh->err;
     return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
@@ -521,16 +522,13 @@ sub select_multiple_by_nick {
     # no undefined search key
     $sk = $sk || '%'; 
     
-    $log->debug( "Entering select_multiple_by_nick" );
     my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
-    $log->debug( "Preparing SQL statement ->$sql<-" );
-    my $sth = $dbh->prepare( $sql );
-    $log->debug( "SQL statement prepared" );
     $dbh->{RaiseError} = 1;
     try {
         local $SIG{__WARN__} = sub {
                 die @_;
             };
+        my $sth = $dbh->prepare( $sql );
         $sth->execute( $sk );
         $log->debug( "SQL statement executed with search key ->$sk<-" );
         my $result = []; 
@@ -595,17 +593,38 @@ The following functions are exported and are not called as methods.
 
 =head2 nick_exists
 
-Simple true/false check if a nick exists
+Simple true/false check if a nick exists. If the nick exists, returns the
+corresponding employee object (i.e. a true value). If the nick does not
+exist, returns 'undef' (a false value). If there is a DBI error, the 
+function dies.
 
 =cut
 
 sub nick_exists {
    my ( $nick ) = @_;
    my $status = __PACKAGE__->load_by_nick( $nick );
+   die $status->text unless $status->ok;
    return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
-       ? 1
-       : 0;
+       ? $status->payload
+       : undef;
 }
+
+
+=head2 eid_exists
+
+Analogous function to L<"nick_exists">.
+
+=cut
+
+sub eid_exists {
+   my ( $eid ) = @_;
+   my $status = __PACKAGE__->load_by_eid( $eid );
+   die $status->text unless $status->ok;
+   return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
+       ? $status->payload
+       : undef;
+}
+
 
 
 =head1 AUTHOR

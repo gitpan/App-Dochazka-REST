@@ -695,3 +695,11 @@ Revision history for Dochazka-REST
 - privhistory resource
 - Model/Employee.pm: implement true/false 'nick_exists' exported function
 
+0.115  2014-07-30 09:08 CEST
+- Model/Privhistory.pm: fix bug "DBI errors should not include file and line
+  number in 'catch' block of 'get_privhistory' routine"
+- Model/Employee.pm: add 'eid_exists' exported function; rewrite 'nick_exists';
+  revise load_by_nick, load_by_employee, and _load methods
+- Dispatch/Privhistory.pm: add 'privhistory/nick' and 'privhistory/eid' 
+  resources 
+

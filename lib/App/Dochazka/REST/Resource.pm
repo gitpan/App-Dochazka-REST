@@ -64,11 +64,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.114
+Version 0.115
 
 =cut
 
-our $VERSION = '0.114';
+our $VERSION = '0.115';
 
 
 
@@ -480,12 +480,8 @@ sub _authenticate {
         $log->notice( "Employee $nick not found in LDAP; reverting to internal auth" );
 
         # - check if this employee exists in database
-        if ( ! nick_exists( $nick ) ) {
-            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
-        }
-
-        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
-        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+        my $emp = nick_exists( $nick );
+        return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' ) unless $emp->isa( 'App::Dochazka::REST::Model::Employee' );
 
         # - the password might be empty
         $password = '' unless defined( $password );
