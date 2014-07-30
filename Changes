@@ -703,3 +703,11 @@ Revision history for Dochazka-REST
 - Dispatch/Privhistory.pm: add 'privhistory/nick' and 'privhistory/eid' 
   resources 
 
+0.116  2014-07-30 14:19 CEST
+- LDAP.pm: get rid of 'Argument "Net::LDAP::LDAP_SUCCESS" isn't numeric'
+  warning (not clear how to properly use this constant); when searching
+  for the user's DN, check 'uid', 'cn', and 'email' fields for matches,
+  instead of just 'uid'
+- rename DOCHAZKA_BASIC_AUTH_REALM for clarity and turn it into a site
+  configuration parameter so it can be overrided
+

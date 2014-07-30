@@ -53,11 +53,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.115
+Version 0.116
 
 =cut
 
-our $VERSION = '0.115';
+our $VERSION = '0.116';
 
 
 
@@ -86,33 +86,53 @@ my ( $ldap, $dn );
 sub ldap_exists {
     my ( $nick ) = @_;
     my $server = $site->DOCHAZKA_LDAP_SERVER;
-    my $base = $site->DOCHAZKA_LDAP_BASE;
-    my $filter = $site->DOCHAZKA_LDAP_FILTER;
     return 0 unless $nick;
 
     return 0 unless $site->DOCHAZKA_LDAP;
 
-    require Net::LDAP;
-    require Net::LDAP::Filter;
+    require Net::LDAP; 
 
     $ldap = Net::LDAP->new( $server );
     $log->error("$@") unless $ldap;
     return 0 unless $ldap;
+
+    $log->info( "Connected to LDAP server $server" );
         
-    if (defined($filter) && ($filter ne "()")) {
-        $filter = Net::LDAP::Filter->new( "(&" .
+    if ( ! ( $dn = ldap_search( $ldap, 'uid', $nick ) ) ) {
+        if ( ! ( $dn = ldap_search( $ldap, 'cn', $nick ) ) ) {
+            if ( ! ( $dn = ldap_search( $ldap, 'email', $nick ) ) ) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+
+=head2 ldap_search
+
+Given Net::LDAP handle, LDAP field, and nick, search for the nick in
+the given field (e.g. 'uid', 'cn' etc.). 
+
+=cut
+
+sub ldap_search {
+    my ( $ldap, $field, $nick ) = @_;
+    my $base = $site->DOCHAZKA_LDAP_BASE;
+    my $filter = $site->DOCHAZKA_LDAP_FILTER;
+    die "LDAP Filter invalid or not present" unless defined($filter) and $filter ne "()";
+
+    require Net::LDAP::Filter;
+
+    $filter = Net::LDAP::Filter->new( "(&" .
                                            $filter .
                                            "(uid=$nick)" .
                                            ")"
-                                       );
-    } else {
-        die "LDAP Filter invalid or not present.";
-    }
+                                    );
 
     my ($mesg, $entry, $count);
 
-    $log->info( "Running LDAP search on $server with filter " .
-       $filter->as_string );
+    $log->info( "Running LDAP search with filter " . $filter->as_string );
 
     $mesg = $ldap->search(
                            base => "$base",
@@ -130,8 +150,7 @@ sub ldap_exists {
             last;
         }
     }
-    return 1 if $count > 0;
-
+    return $dn if $count > 0;
     return 0;
 }
 
@@ -157,12 +176,12 @@ sub ldap_auth {
     my $mesg = $ldap->bind( "$dn",
                            password => "$password",
                        );
-
-    if ($mesg->code == Net::LDAP::LDAP_SUCCESS) {
+    if ( $mesg->code == 0 ) {
+        $ldap->unbind;
         $log->info("Access granted to $nick");
         return 1;
     }
-    $log->info("Access denied to $nick because of bad password.");
+    $log->info("Access denied to $nick because LDAP server returned code " . $mesg->code);
     return 0;
 }
 

@@ -64,11 +64,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.115
+Version 0.116
 
 =cut
 
-our $VERSION = '0.115';
+our $VERSION = '0.116';
 
 
 
@@ -282,7 +282,11 @@ sub is_authorized {
         }
     }
     return create_header(
-        'WWWAuthenticate' => [ 'Basic' => ( realm => $CELL->msg( 'DOCHAZKA_BASIC_AUTH_MESSAGE' )->text ) ]
+        'WWWAuthenticate' => [ 
+            'Basic' => ( 
+                realm => $site->DOCHAZKA_BASIC_AUTH_REALM 
+            ) 
+        ]
     ); 
 
 }

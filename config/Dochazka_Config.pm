@@ -91,6 +91,11 @@ set( 'DOCHAZKA_ACTIVITY_DEFINITIONS', [
 #     in advance that Dochazka will accept an activity interval.
 set( 'DOCHAZKA_ADVANCE_INTERVALS_MAX_DAYS', 45 );
 
+# DOCHAZKA_BASIC_AUTH_REALM
+#     message displayed to user when she is asked to enter her credentials
+set( 'DOCHAZKA_BASIC_AUTH_REALM', 
+     'ENTER YOUR DOCHAZKA CREDENTIALS (e.g., demo/demo)' );
+
 # DOCHAZKA_LDAP
 #     Enable/disable LDAP authentication
 set( 'DOCHAZKA_LDAP', 0 );

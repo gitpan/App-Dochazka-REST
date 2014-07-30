@@ -62,11 +62,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.115
+Version 0.116
 
 =cut
 
-our $VERSION = '0.115';
+our $VERSION = '0.116';
 
 
 
