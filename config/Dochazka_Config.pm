@@ -117,6 +117,11 @@ set( 'DOCHAZKA_LDAP_SERVER', 'ldaps://ldap.dochazka.site' );
 #     base DN
 set( 'DOCHAZKA_LDAP_BASE', 'dc=dochazka,dc=site' );
 
+# DOCHAZKA_LDAP_NICK_MAPPING
+#     in order for LDAP authentication to work, the Dochazka 'nick' must
+#     be mapped to a field in the LDAP database (e.g. 'uid', 'cn', etc.)
+set( 'DOCHAZKA_LDAP_NICK_MAPPING', 'uid' );
+
 # DOCHAZKA_LDAP_FILTER
 #     filter
 set( 'DOCHAZKA_LDAP_FILTER', '(EMPLOYEESTATUS=Active)' );

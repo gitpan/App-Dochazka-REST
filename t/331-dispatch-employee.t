@@ -55,6 +55,7 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 my $app = $REST->{'app'};
+$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );

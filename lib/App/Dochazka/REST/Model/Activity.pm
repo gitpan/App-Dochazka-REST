@@ -36,10 +36,11 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid );
 use DBI;
+use Params::Validate qw{:all};
 
 use parent 'App::Dochazka::REST::dbh';
 
@@ -54,11 +55,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.122
+Version 0.125
 
 =cut
 
-our $VERSION = '0.122';
+our $VERSION = '0.125';
 
 
 
@@ -104,9 +105,9 @@ before every INSERT and UPDATE on this table.
 
 =item * L<delete> (deletes record from database if nothing references it)
 
-=item * L<load_by_aid> (loads a single employee into the object)
+=item * L<load_by_aid> (loads a single activity into the object)
 
-=item * L<load_by_code> (loads a single employee into the object)
+=item * L<load_by_code> (loads a single activity into the object)
 
 =back
 
@@ -120,7 +121,7 @@ functions:
 =back
 
 For basic C<activity> object workflow, see the unit tests in
-C<t/008-activity.t>.
+C<t/109-activity.t>.
 
 
 
@@ -288,7 +289,8 @@ an exact match. Returns a status object.
 =cut
 
 sub load_by_aid {
-    my ( $self, $aid ) = @_;
+    my $self = shift;
+    my ( $aid ) = validate_pos( @_, { type => SCALAR } );
     return $self->_load( aid => $aid );
 }
 
@@ -303,7 +305,8 @@ there before. The code must be an exact match. Returns a status object.
 =cut
 
 sub load_by_code {
-    my ( $self, $code ) = @_;
+    my $self = shift;
+    my ( $code ) = validate_pos( @_, { type => SCALAR } );
     return $self->_load( code => $code );
 }
 
@@ -321,7 +324,12 @@ following PARAMHASHes:
 =cut
 
 sub _load {
-    my ( $self, %ARGS ) = @_;
+    my $self = shift;
+    my %ARGS = validate( @_, {
+          code => { type => SCALAR, optional => 1 },
+          aid => { type => SCALAR, optional => 1 },
+        }
+    );
     my $sql;
     my $dbh = __PARENT__->SUPER::dbh;
     $dbh->ping or die "No dbh";
@@ -358,14 +366,13 @@ The following functions are not object methods.
 
 =head2 aid_by_code
 
-Given a database handle and a code, attempt ot retrieve the
-AID corresponding to the code. Returns AID or undef on failure.
+Given a code, attempt to retrieve the corresponding AID.
+Returns AID or undef on failure.
 
 =cut
 
 sub aid_by_code {
-    my ( $code ) = @_;
-    croak "Must provide code" unless defined $code;
+    my ( $code ) = validate_pos( @_, { type => SCALAR } );
 
     my $dbh = __PACKAGE__->SUPER::dbh;
     die "Problem with database handle" unless $dbh->ping;

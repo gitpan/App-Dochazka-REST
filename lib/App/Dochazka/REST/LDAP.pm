@@ -53,11 +53,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.122
+Version 0.125
 
 =cut
 
-our $VERSION = '0.122';
+our $VERSION = '0.125';
 
 
 
@@ -68,6 +68,16 @@ our $VERSION = '0.122';
 Container for LDAP-related stuff.
 
 =cut
+
+
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT = qw( ldap_exists ldap_auth );
 
 
 
@@ -96,16 +106,14 @@ sub ldap_exists {
     $log->error("$@") unless $ldap;
     return 0 unless $ldap;
 
-    $log->info( "Connected to LDAP server $server" );
-        
-    if ( ! ( $dn = ldap_search( $ldap, 'uid', $nick ) ) ) {
-        if ( ! ( $dn = ldap_search( $ldap, 'cn', $nick ) ) ) {
-            if ( ! ( $dn = ldap_search( $ldap, 'email', $nick ) ) ) {
-                return 0;
-            }
-        }
+    $log->info( "Connected to LDAP server $server to look up $nick" );
+    
+    if ( my $tmp_result = ldap_search( $ldap, $nick ) ) {
+        $dn = $tmp_result;
+        $log->info( "Found employee $nick in LDAP (DN $dn)" );
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 
@@ -117,16 +125,17 @@ the given field (e.g. 'uid', 'cn' etc.).
 =cut
 
 sub ldap_search {
-    my ( $ldap, $field, $nick ) = @_;
-    my $base = $site->DOCHAZKA_LDAP_BASE;
-    my $filter = $site->DOCHAZKA_LDAP_FILTER;
-    die "LDAP Filter invalid or not present" unless defined($filter) and $filter ne "()";
+    my ( $ldap, $nick ) = @_;
+    $nick = $nick || '';
+    my $base = $site->DOCHAZKA_LDAP_BASE || '';
+    my $field = $site->DOCHAZKA_LDAP_NICK_MAPPING || ''; 
+    my $filter = $site->DOCHAZKA_LDAP_FILTER || '';
 
     require Net::LDAP::Filter;
 
     $filter = Net::LDAP::Filter->new( "(&" .
                                            $filter .
-                                           "(uid=$nick)" .
+                                           "($field=$nick)" .
                                            ")"
                                     );
 
@@ -140,7 +149,8 @@ sub ldap_search {
                            filter => $filter
                          );
 
-    $mesg->code && die $mesg->error;
+    # code == 0 is success, code >= 1 is failure
+    die $mesg->error unless $mesg->code == 0;
 
     $count = 0;
     for $entry ($mesg->entries) {

@@ -64,11 +64,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.122
+Version 0.125
 
 =cut
 
-our $VERSION = '0.122';
+our $VERSION = '0.125';
 
 
 
@@ -139,9 +139,8 @@ sub _init_get {
    
     foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
         my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_get';
-        $log->info( "About to run $exp" );
         my $retval = eval $exp;
-        $log->info( "Initialized sub-controllers by executing $exp with return value $retval" );
+        $log->debug( "Initialized GET sub-controllers by executing $exp with return value $retval" );
     }
 }
 
@@ -158,7 +157,7 @@ sub _init_post {
     foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
         my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_post';
         my $retval = eval $exp;
-        $log->info( "Executed $exp with return value $retval" );
+        $log->debug( "Initialized POST sub-controllers by executing $exp with return value $retval" );
     }
 }
 
@@ -213,7 +212,7 @@ sub _get_default {
 #                    link => "$uri/lock",
 #                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
 #                },
-                'siteparam' => {
+                'siteparam/:param' => {
                     link => "$uri/siteparam/:param",
                     description => "Site parameter (a value configurable by the site administrator)",
                     acl_profile => 'admin',

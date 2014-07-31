@@ -45,6 +45,7 @@ use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Activity qw( aid_by_code );
 use Scalar::Util qw( blessed );
+use Test::Fatal;
 use Test::More;
 
 # plan tests

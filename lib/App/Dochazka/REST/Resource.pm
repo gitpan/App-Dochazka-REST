@@ -40,7 +40,7 @@ package App::Dochazka::REST::Resource;
 use strict;
 use warnings;
 
-use App::CELL qw( $CELL $log $site );
+use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
@@ -65,11 +65,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.122
+Version 0.125
 
 =cut
 
-our $VERSION = '0.122';
+our $VERSION = '0.125';
 
 
 
@@ -463,12 +463,12 @@ sub _authenticate {
     }
 
     # check if the employee exists in LDAP
-    if ( App::Dochazka::REST::LDAP::ldap_exists( $nick ) ) {
+    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and ldap_exists( $nick ) ) {
 
         $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
 
         # - authenticate by LDAP bind
-        if ( App::Dochazka::REST::LDAP::ldap_auth( $nick, $password ) ) {
+        if ( ldap_auth( $nick, $password ) ) {
             # successful LDAP auth
             # if the employee doesn't exist in the database, possibly autocreate
             if ( ! nick_exists( $nick ) ) {

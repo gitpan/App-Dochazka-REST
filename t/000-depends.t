@@ -41,6 +41,7 @@ BEGIN {
     use_ok( 'DBD::Pg' );
     use_ok( 'DBI' );
     use_ok( 'JSON' );
+    use_ok( 'Params::Validate' );
     use_ok( 'Path::Router' );
     use_ok( 'Plack::Runner' );
     use_ok( 'Web::Machine' );

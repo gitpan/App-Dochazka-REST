@@ -736,3 +736,17 @@ Revision history for Dochazka-REST
 - another ACL revamp: do the ACL check in Resource.pm->forbidden, eliminate
   boilerplate code in targets
 
+0.123  2014-07-31 15:23 CEST
+- allow site admin to set nick-to-LDAP mapping (DOCHAZKA_LDAP_NICK_MAPPING)
+
+0.124  2014-07-31 15:38 CEST
+- resolve ticket "make LDAP auth switchable so unit testing scripts can
+  disable it" by adding META_DOCHAZKA_UNIT_TESTING meta param and testing
+  for it in Resource.pm
+- LDAP.pm now exports the ldap_exists and ldap_auth functions
+
+0.125  2014-07-31 16:33 CEST
+- t/000-depends.t: add dependency on Params::Validate
+- Build.PL: build_require Test::Fatal, require Params::Validate
+- Model/Activity.pm: add parameter validation code
+

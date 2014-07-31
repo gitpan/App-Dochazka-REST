@@ -49,6 +49,8 @@ use Scalar::Util qw( blessed );
 use Test::JSON;
 use Test::More;
 
+$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+
 # initialize
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
 my $status = $REST->{init_status};

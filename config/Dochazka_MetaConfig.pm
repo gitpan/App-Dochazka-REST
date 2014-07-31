@@ -30,100 +30,24 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 
-# ------------------------
-# ACL module
-# ------------------------
+# -----------------------------------
+# Dochazka-REST
+# -----------------------------------
+# Dochazka_MetaConfig.pm
+#
+# Configuration file for meta params
+# -----------------------------------
 
-package App::Dochazka::REST::Dispatch::ACL;
 
+# META_DOCHAZKA_UNIT_TESTING
+#    we set this to true when we are running unit tests
+set( 'META_DOCHAZKA_UNIT_TESTING', 0 );
+
+
+# -----------------------------------
+# DO NOT EDIT ANYTHING BELOW THIS LINE
+# -----------------------------------
 use strict;
 use warnings;
-
-use App::CELL qw( $CELL $log );
-use Data::Dumper;
-
-
-
-=head1 NAME
-
-App::Dochazka::REST::Dispatch::ACL - ACL module
-
-
-
-
-
-=head1 VERSION
-
-Version 0.125
-
-=cut
-
-our $VERSION = '0.125';
-
-
-
-
-
-=head1 DESCRIPTION
-
-This module provides helper code for ACL checks.
-
-=cut
-
-
-
-
-=head1 EXPORTS
-
-=cut
-
-use Exporter qw( import );
-our @EXPORT_OK = qw( check_acl );
-
-
-
-
-=head1 FUNCTIONS
-
-=head2 check_acl
-
-Compare priv level of resource ($acl) with the priv level of the employee
-($priv). If $priv is at least as high as the $acl, the function returns
-
-    $CELL->status_ok( 'DISPATCH_ACL_CHECK' )
-
-otherwise it returns:
-
-    $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' )
-
-=cut
-
-sub check_acl {
-    my ( $acl, $priv ) = @_;
-
-    my $pass = $CELL->status_ok( 'DISPATCH_ACL_CHECK' );
-    my $fail = $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' );
-
-    if ( ! defined $acl or ! defined $priv ) {
-        $log->err( "Problem with arguments in check_acl" );
-        return $fail;
-    }
-
-    if ( $acl eq 'passerby' ) {
-        return $pass;
-    } elsif ( $acl eq 'inactive' ) {
-        return $pass if $priv eq 'inactive';
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'active' ) {
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'admin' ) {
-        return $pass if $priv eq 'admin';
-    }
-
-    return $fail;
-}
-
 
 1;
