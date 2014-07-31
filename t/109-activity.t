@@ -55,15 +55,8 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and check DBD connection
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # spawn activity object
-my $act = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
-);
+my $act = App::Dochazka::REST::Model::Activity->spawn;
 
 # test existence of initial set of activities
 foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
@@ -80,21 +73,18 @@ foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
 }
 
 # load the work activity
-my $work = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
-);
+my $work = App::Dochazka::REST::Model::Activity->spawn;
 $status = $work->load_by_code( 'wOrK' );
 ok( $status->ok );
 ok( $work->aid > 0 );
 is( $work->code, 'WORK' );
 
 # get AID of 'WORK' using 'aid_by_code'
-my $work_aid = aid_by_code( $dbh, 'WoRk' );
+my $work_aid = aid_by_code( 'WoRk' );
 is( $work_aid, $work->aid );
 
 # insert a bogus activity
 my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
     code => 'boguS',
     long_desc => 'An activity',
     remark => 'ACTIVITY',
@@ -125,9 +115,7 @@ is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
 is( $bogus_act->remark, 'BOGUS ACTIVITY' );
 
 # load it and compare it
-my $ba2 = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
-);
+my $ba2 = App::Dochazka::REST::Model::Activity->spawn;
 ok( blessed( $ba2 ) );
 $status = $ba2->load_by_code( $bogus_act->code );
 ok( $status->ok );

@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::LDAP;
-use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid );
+use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid noof );
 use Carp;
 use Data::Dumper;
 use Data::Structure::Util qw( unbless );
@@ -60,11 +60,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -185,6 +185,10 @@ functions:
 
 =item * L<nick_exists> (given a nick, return true/false)
 
+=item * L<eid_exists> (given an EID, return true/false)
+
+=item * L<noof_employees_by_priv> (given a priv level, return number of employees with that priv level)
+
 =back
 
 For basic C<employee> object workflow, see the unit tests in
@@ -200,12 +204,16 @@ This module provides the following exports:
 
 =item L<nick_exists> - function
 
+=item L<eid_exists> - function
+
+=item L<noof_employees_by_priv> - function
+
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( nick_exists eid_exists );
+our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 
 
@@ -216,15 +224,14 @@ our @EXPORT_OK = qw( nick_exists eid_exists );
 =head2 spawn
 
 Employee constructor. Does not interact with the database directly, but stores
-database handle for later use. Takes PARAMHASH with required parameter 'dbh'
-(database handle). Optional parameter: PARAMHASH containing definitions of
-any of the attributes listed in the 'reset' method.
+database handle for later use. Optional parameter: PARAMHASH containing
+definitions of any of the attributes listed in the 'reset' method.
 
 =cut
 
 BEGIN {
     no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
+    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn;
 }
 
 
@@ -307,10 +314,10 @@ sub priv {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return priv_by_eid( $self->dbh, $self->{eid} );
+        return priv_by_eid( $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return priv_by_eid( $self->dbh, $self->{eid}, $timestamp );
+    return priv_by_eid( $self->{eid}, $timestamp );
 }
 
 
@@ -326,10 +333,10 @@ sub schedule {
     return if ! $self->{eid};
     # no timestamp provided, return current_priv
     if ( ! $timestamp ) { 
-        return schedule_by_eid( $self->dbh, $self->{eid} );
+        return schedule_by_eid( $self->{eid} );
     }
     # timestamp provided, return priv as of that timestamp
-    return schedule_by_eid( $self->dbh, $self->{eid}, $timestamp );
+    return schedule_by_eid( $self->{eid}, $timestamp );
 }
 
 
@@ -486,7 +493,7 @@ sub _load {
     $sql = ($key eq 'nick')
         ? $site->SQL_EMPLOYEE_SELECT_BY_NICK
         : $site->SQL_EMPLOYEE_SELECT_BY_EID;
-    #die "SQL is $sql, key is $key, key value is $ARGS{$key}" unless $ARGS{$key} eq 'root';
+    #die "SQL is $sql, key is $key, key value is $ARGS{$key}"; #unless $ARGS{$key} eq 'root';
 
     # N.B. - the select can only return a single record
     my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$key} );
@@ -625,6 +632,34 @@ sub eid_exists {
        : undef;
 }
 
+
+=head2 noof
+
+Get number of employees. Argument can be one of the following:
+
+    total admin active inactive passerby
+
+=cut
+
+sub noof_employees_by_priv {
+    my ( $priv ) = @_;
+    die "Problem with arguments" unless defined $priv;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    croak( "Bad database handle" ) unless $dbh->ping;
+
+    if ( $priv eq 'total' ) {
+        my $count = noof( 'employees' );
+        return $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], count => $count );
+    }
+
+    return $CELL->status_err( 'DOCHAZKA_INVALID_PRIV', args => [ $priv ] ) unless 
+        grep { $priv eq $_; } qw( admin active inactive passerby );
+
+    my $sql = $site->SQL_EMPLOYEE_COUNT_BY_PRIV_LEVEL;
+    my ( $count ) = $dbh->selectrow_array( $sql, undef, $priv );
+    $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], 
+        count => $count, payload => { 'priv' => $priv, 'count' => $count } );
+}
 
 
 =head1 AUTHOR

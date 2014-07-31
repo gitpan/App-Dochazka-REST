@@ -64,11 +64,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -96,34 +96,58 @@ sub _init_get {
     die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
 
     $router_get->add_route( 'privhistory',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_default,
     );
 
     $router_get->add_route( 'privhistory/help',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_default,
     );
 
     $router_get->add_route( 'privhistory/nick/:nick',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_privhistory_nick,
     );
 
     $router_get->add_route( 'privhistory/nick/:nick/:tsrange',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_privhistory_nick,
     );
 
     $router_get->add_route( 'privhistory/eid/:eid',
+        defaults => {
+            acl_profile => 'admin',
+        },
         target => \&_get_privhistory_eid,
     );
 
     $router_get->add_route( 'privhistory/eid/:eid/:tsrange',
+        defaults => {
+            acl_profile => 'admin',
+        },
         target => \&_get_privhistory_eid,
     );
 
     $router_get->add_route( 'privhistory/current',
+        defaults => {
+            acl_profile => 'active',
+        },
         target => \&_get_privhistory_current,
     );
 
     $router_get->add_route( 'privhistory/current/:tsrange',
+        defaults => {
+            acl_profile => 'active',
+        },
         target => \&_get_privhistory_current,
     );
 
@@ -155,12 +179,6 @@ The following functions implement actions for the various routes.
 sub _get_default {
     my ( %ARGS ) = @_;
 
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'passerby'; # open to all
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
-
     my $uri = $ARGS{'context'}->{'uri'};
     $uri =~ s/\/*$//;
     my $server_status = App::Dochazka::REST::dbh::status;
@@ -173,26 +191,32 @@ sub _get_default {
                 'nick/:nick' => {
                     link => "$uri/privhistory/nick/:nick",
                     description => 'Get entire history of privilege level changes for the employee with the given nick',
+                    acl_profile => 'admin',
                 },
                 'nick/:nick/:tsrange' => {
                     link => "$uri/privhistory/nick/:nick/:tsrange",
                     description => 'Get partial history of privilege level changes for the employee with the given nick (i.e, limit to given tsrange)',
+                    acl_profile => 'admin',
                 },
                 'eid/:eid' => {
                     link => "$uri/privhistory/eid/:eid",
                     description => 'Get entire history of privilege level changes for the employee with the given EID',
+                    acl_profile => 'admin',
                 },
                 'eid/:eid/:tsrange' => {
                     link => "$uri/privhistory/eid/:eid/:tsrange",
                     description => 'Get partial history of privilege level changes for the employee with the given EID (i.e, limit to given tsrange)',
+                    acl_profile => 'admin',
                 },
                 'current' => {
                     link => "$uri/privhistory/current",
                     description => 'Get entire history of privilege level changes for the current employee',
+                    acl_profile => 'active',
                 },
                 'current/:tsrange' => {
                     link => "$uri/privhistory/current/:tsrange",
                     description => 'Get partial history of privilege level changes for the current employee (i.e, limit to given tsrange)',
+                    acl_profile => 'active',
                 },
             },
         },
@@ -203,12 +227,6 @@ sub _get_default {
 sub _get_privhistory_nick {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
-
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'admin';
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
 
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
     my $nick = $ARGS{'context'}->{'mapping'}->{'nick'};
@@ -224,12 +242,6 @@ sub _get_privhistory_eid {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
 
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'admin';
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
-
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
     my $eid = $ARGS{'context'}->{'mapping'}->{'eid'};
 
@@ -244,12 +256,6 @@ sub _get_privhistory_eid {
 sub _get_privhistory_current {
     my ( %ARGS ) = @_;
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
-
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'active';
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
 
     my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
     my $eid = $ARGS{'context'}->{'current'}->{'eid'};

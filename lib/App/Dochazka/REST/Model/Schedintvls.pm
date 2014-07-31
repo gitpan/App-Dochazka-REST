@@ -55,11 +55,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -128,11 +128,7 @@ which is, in turn, called automatically by 'spawn')
 
 sub populate {
     my ( $self ) = @_;
-    #if ( ! $self->dbh->ping ) {
-    #    $CELL->status_crit( 'DOCHAZKA_DB_NOT_ALIVE' );
-    #    croak();
-    #} 
-    my $ss = _next_scratch_sid( $self->dbh );
+    my $ss = _next_scratch_sid();
     $log->debug( "Got next scratch SID: $ss" );
     $self->{scratch_sid} = $ss;
     return;
@@ -189,7 +185,8 @@ sub load {
     my ( $self ) = @_;
 
     # prepare and execute statement
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_SELECT );
     $sth->execute( $self->{scratch_sid} );
 
@@ -220,7 +217,8 @@ Field values are taken from the object. Returns a status object.
 
 sub insert {
     my ( $self ) = @_;
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $status;
 
     # the insert operation needs to take place within a transaction,
@@ -271,7 +269,8 @@ Returns a status object.
 
 sub delete {
     my ( $self ) = @_;
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $status;
 
     $dbh->{AutoCommit} = 0;
@@ -334,7 +333,8 @@ Get next value from the scratch_sid_seq sequence
 =cut
 
 sub _next_scratch_sid {
-    my ( $dbh ) = @_;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     return $dbh->selectrow_array( $site->SQL_SCRATCH_SID, undef );
 }
 

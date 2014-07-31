@@ -63,16 +63,10 @@ if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and ping DBD
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # spawn and insert employee object
-is( noof( $dbh, "employees" ), 2 );
+is( noof( "employees" ), 2 );
 
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
-    dbh => $dbh,
     nick => 'mrsched',
     remark => 'SCHEDULE TESTING OBJECT',
 );
@@ -83,12 +77,10 @@ ok( $emp->eid > 0, "Schedule testing object has an EID" );
 # insert some intervals into the scratch table
 
 # at the beginning, count of schedintvls should be 0
-is( noof( $dbh, 'schedintvls' ), 0 );
+is( noof( 'schedintvls' ), 0 );
 
 # spawn a schedintvls ("scratch schedule") object
-my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn(
-    dbh => $dbh,
-);
+my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn;
 ok( ref($schedintvls), "object is a reference" );
 ok( blessed($schedintvls), "object is a blessed reference" );
 ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" ); 
@@ -112,7 +104,7 @@ ok( $schedintvls->scratch_sid, "OK there is a scratch SID" );
 is( scalar @{ $schedintvls->{intvls} }, 6, "Object now has 6 intervals" );
 
 # after insert, count of schedintvls should be 6
-is( noof( $dbh, 'schedintvls' ), 6 );
+is( noof( 'schedintvls' ), 6 );
 
 # load the schedintvls, translating them as we go
 $status = $schedintvls->load;
@@ -126,7 +118,6 @@ is_valid_json( $schedintvls->json );
 
 # Now we can insert the JSON into the schedules table
 my $schedule = App::Dochazka::REST::Model::Schedule->spawn(
-    dbh => $dbh,
     schedule => $schedintvls->json,
     remark => 'TESTING',
 );
@@ -140,11 +131,10 @@ is( $schedule->remark, 'TESTING' );
 $status = $schedintvls->delete;
 ok( $status->ok, "scratch intervals deleted" );
 like( $status->text, qr/6 record/, "Six records deleted" );
-is( noof( $dbh, 'schedintvls' ), 0 );
+is( noof( 'schedintvls' ), 0 );
 
 # Make a bogus schedintvls object and attempt to delete it
 my $bogus_intvls = App::Dochazka::REST::Model::Schedintvls->spawn(
-    dbh => $dbh,
 );
 $status = $bogus_intvls->delete;
 is( $status->level, 'WARN', "Could not delete bogus intervals" );
@@ -161,9 +151,8 @@ is( $schedule->{sid}, $sid_copy );    # SID is unchanged
 
 # attempt to insert the same schedule string in a completely 
 # new schedule object
-is( noof( $dbh, 'schedules' ), 1, "schedules row count is 1" );
+is( noof( 'schedules' ), 1, "schedules row count is 1" );
 my $schedule2 = App::Dochazka::REST::Model::Schedule->spawn(
-    dbh => $dbh,
     schedule => $sched_copy,
     remark => 'DUPLICATE',
 );
@@ -172,18 +161,17 @@ $status = $schedule2->insert;
 ok( $schedule2->sid > 0, "SID was assigned" );
 ok( $status->ok, "Schedule insert OK" );
 is( $schedule2->sid, $sid_copy, "But SID is the same as before" );
-is( noof( $dbh, 'schedules' ), 1, "schedules row count is still 1" );
+is( noof( 'schedules' ), 1, "schedules row count is still 1" );
 
 # tests for get_json function
-my $json = get_json( $dbh, $sid_copy );
+my $json = get_json( $sid_copy );
 is_valid_json( $json );
-is( get_json( $dbh, 994), undef, "Non-existent SID" );
+is( get_json( 994), undef, "Non-existent SID" );
 
 # Now that we finally have the schedule safely in the database,
 # we can assign it to the employee (Mr. Sched) by inserting a record 
 # in the schedhistory table
 my $schedhistory = App::Dochazka::REST::Model::Schedhistory->spawn(
-    dbh => $dbh,
     eid => $emp->{eid},
     sid => $schedule->{sid},
     effective => $today,
@@ -206,20 +194,16 @@ is( $schedhistory->eid, $emp->{eid} );
 is( $schedhistory->sid, $schedule->{sid} );
 is( $schedhistory->effective, $today_ts );
 is( $schedhistory->remark, 'TESTING' );
-is( noof( $dbh, 'schedhistory' ), 1 );
+is( noof( 'schedhistory' ), 1 );
 
 # and now Mr. Sched's employee object should contain the schedule
-my $mrsched = App::Dochazka::REST::Model::Employee->spawn(
-    dbh => $dbh,
-);
+my $mrsched = App::Dochazka::REST::Model::Employee->spawn;
 $status = $mrsched->load_by_eid( $emp->{eid} );
 ok( $status->ok );
 is_valid_json( $mrsched->{schedule} );
 
 # try to load the same schedhistory record into an empty object
-my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn(
-    dbh => $dbh,
-);
+my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn;
 ok( blessed( $sh2 ) );
 $status = undef;
 $status = $sh2->load( $emp->eid ); # get the current record
@@ -253,15 +237,15 @@ is( $sh2->remark, undef );
 
 # CLEANUP
 # 1. delete the schedhistory record
-is( noof( $dbh, 'schedhistory' ), 1 );
+is( noof( 'schedhistory' ), 1 );
 $sh2->{shid} = $shid_copy;
 $status = $sh2->delete;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );
-is( noof( $dbh, 'schedhistory' ), 0 );
+is( noof( 'schedhistory' ), 0 );
 
 # 2. delete the schedule
-is( noof( $dbh, 'schedules' ), 1 );
+is( noof( 'schedules' ), 1 );
 $schedule->reset;
 $status = $schedule->load_by_sid( $sid_copy );
 ok( $status->ok );
@@ -269,12 +253,12 @@ ok( $status->ok );
 $status = $schedule->delete;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );
-is( noof( $dbh, 'schedules' ), 0 );
+is( noof( 'schedules' ), 0 );
 
 # 3. delete the employee (Mr. Sched)
-is( noof( $dbh, 'employees' ), 3 );
+is( noof( 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( 'employees' ), 2 );
 
 done_testing;

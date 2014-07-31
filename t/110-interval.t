@@ -58,33 +58,23 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and verify DBD connection
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # spawn interval object
-my $int = App::Dochazka::REST::Model::Interval->spawn(
-    dbh => $dbh,
-);
+my $int = App::Dochazka::REST::Model::Interval->spawn;
 ok( blessed( $int ) );
 
 # to insert an interval, we need an employee and an activity
 
 # insert Mr. Sched
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
-    dbh => $dbh,
     nick => 'mrsched',
 );
 $status = $emp->insert;
 ok( $status->ok );
 ok( $emp->eid > 0 );
-is( noof( $dbh, 'employees'), 3 );
+is( noof( 'employees'), 3 );
 
 # load 'WORK'
-my $work = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
-);
+my $work = App::Dochazka::REST::Model::Activity->spawn;
 $status = $work->load_by_code( 'work' );
 ok( $status->ok );
 ok( $work->aid > 0 );
@@ -106,21 +96,21 @@ ok( $status->ok );
 ok( $int->iid > 0 );
 is( $int->eid, $emp->eid );
 is( $int->aid, $work->aid );
-ok( tsrange_equal( $dbh, $int->intvl, $intvl ) );
+ok( tsrange_equal( $int->intvl, $intvl ) );
 is( $int->long_desc, 'Pencil pushing' );
 is( $int->remark, 'TEST INTERVAL' );
 
 # CLEANUP:
 # 1. delete the interval
-is( noof( $dbh, 'intervals' ), 1 );
+is( noof( 'intervals' ), 1 );
 $status = $int->delete;
 ok( $status->ok );
-is( noof( $dbh, 'intervals' ), 0 );
+is( noof( 'intervals' ), 0 );
 
 # 2. delete Mr. Sched
-is( noof( $dbh, 'employees' ), 3 );
+is( noof( 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( 'employees' ), 2 );
 
 done_testing;

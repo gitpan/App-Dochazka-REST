@@ -54,8 +54,4 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 done_testing;

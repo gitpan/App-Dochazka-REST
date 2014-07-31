@@ -113,4 +113,44 @@ is( $res->code, 200 );
 is_valid_json( $res->content );
 like( $res->content, qr/Root Immutable/ );
 
+# get total employee count as root
+$res = $test->request( req_root GET => '/employee/count' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_COUNT_EMPLOYEES/ );
+
+# get total employee count as demo
+$res = $test->request( req_demo GET => '/employee/count' );
+is( $res->code, 403 );
+
+# get admin employee count as root
+$res = $test->request( req_root GET => '/employee/count/admin' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_COUNT_EMPLOYEES/ );
+
+# get admin employee count as demo
+$res = $test->request( req_demo GET => '/employee/count/admin' );
+is( $res->code, 403 );
+
+# get inactive employee count as root
+$res = $test->request( req_root GET => '/employee/count/inactive' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DISPATCH_COUNT_EMPLOYEES/ );
+
+# get inactive employee count as demo
+$res = $test->request( req_demo GET => '/employee/count/inactive' );
+is( $res->code, 403 );
+
+# get non-existent privilege employee count as root
+$res = $test->request( req_root GET => '/employee/count/inactivepeeplz' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+like( $res->content, qr/DOCHAZKA_INVALID_PRIV/ );
+
+# get inactive employee count as demo
+$res = $test->request( req_demo GET => '/employee/count/inactivepeeplz' );
+is( $res->code, 403 );
+
 done_testing;

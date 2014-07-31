@@ -39,6 +39,7 @@ use DBI;
 use Time::Piece;
 use Time::Seconds;
 
+use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -51,11 +52,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -127,8 +128,11 @@ SQL statement:
 =cut
 
 sub split_tsrange {
-    my ( $dbh, $tsr ) = @_;
+    my ( $tsr ) = @_;
 
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
+    
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))',
         undef,
@@ -150,7 +154,10 @@ by running it through the database in the SQL statement:
 =cut
 
 sub canonicalize_ts {
-    my ( $dbh, $ts ) = @_;
+    my ( $ts ) = @_;
+
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
 
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS timestamp)',
@@ -187,8 +194,11 @@ the database and return the result (true or false).
 =cut
 
 sub tsrange_equal {
-    my ( $dbh, $tr1, $tr2 ) = @_;
+    my ( $tr1, $tr2 ) = @_;
 
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
+    
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS tsrange) = CAST( ? AS tsrange )',
         undef,

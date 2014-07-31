@@ -717,3 +717,22 @@ Revision history for Dochazka-REST
 - Dispatch/ACL.pm: put ACL check code into a separate module
 - Test.pm: put some common testing code into a separate module
 
+0.118  2014-07-30 17:04 CEST
+- resolve two tickets re: "get database handle from parent and eliminate it
+  from function/method calls"
+
+0.119  2014-07-31 02:25 CEST
+- revamp ACL model: ACL profile of resource is now in the 'defaults'
+  attribute of the route object. ACL check reduced to four lines of
+  boilerplate code that are included in each target.
+
+0.120  2014-07-31 03:33 CEST
+- add 'employee/count' and 'employee/count/:priv' resources
+
+0.121  2014-07-31 09:06 CEST
+- Resource.pm: add log messages to _authenticate routine
+
+0.122  2014-07-31 09:27 CEST
+- another ACL revamp: do the ACL check in Resource.pm->forbidden, eliminate
+  boilerplate code in targets
+

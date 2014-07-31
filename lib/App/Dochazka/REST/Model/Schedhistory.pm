@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -225,7 +225,8 @@ Returns a status object.
 
 sub load {
     my ( $self, $eid, $ts ) = @_;
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my @attrs = ( 'shid', 'eid', 'sid', 'effective', 'remark' );
     my ( $sql, $result );
     if ( $ts ) {

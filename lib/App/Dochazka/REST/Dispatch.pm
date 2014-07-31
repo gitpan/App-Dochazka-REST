@@ -64,11 +64,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -105,22 +105,35 @@ sub _init_get {
     die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
 
     $router_get->add_route( '',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_default,
     );
 
     $router_get->add_route( 'help',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_default,
     );
 
     $router_get->add_route( 'version',
+        defaults => {
+            acl_profile => 'passerby',
+        },
         target => \&_get_default,
     );
    
     $router_get->add_route( 'forbidden',
+        # special case: ACL profile is undefined; ACL check will always fail
         target => \&_get_forbidden,
     );
    
     $router_get->add_route( 'siteparam/:param',
+        defaults => {
+            acl_profile => 'admin',
+        },
         target => \&_get_site_param,
     );
    
@@ -161,12 +174,6 @@ The following functions implement actions for the various controllers.
 sub _get_default {
     my ( %ARGS ) = @_;
 
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'passerby'; # this function is available to all
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
-    
     my $uri = $ARGS{'context'}->{'uri'};
     $uri =~ s/\/*$//;
     my $server_status = App::Dochazka::REST::dbh::status;
@@ -179,10 +186,12 @@ sub _get_default {
                 'employee' => {
                     link => "$uri/employee",
                     description => 'Employee (i.e. a user of Dochazka)',
+                    acl_profile => 'passerby',
                 },
                 'privhistory' => {
                     link => "$uri/privhistory",
                     description => "Privilege history (changes to an employee's privilege level over time)",
+                    acl_profile => 'passerby',
                 },
 #                'schedhistory' => {
 #                    link => "$uri/schedhistory",
@@ -205,8 +214,9 @@ sub _get_default {
 #                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
 #                },
                 'siteparam' => {
-                    link => "$uri/siteparam",
+                    link => "$uri/siteparam/:param",
                     description => "Site parameter (a value configurable by the site administrator)",
+                    acl_profile => 'admin',
                 },
             },
         },
@@ -218,12 +228,6 @@ sub _get_default {
 sub _get_site_param {
     my ( %ARGS ) = @_;
 
-    # ACL check
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        my $acl = 'admin'; # this function is available to admins only
-        return check_acl( $acl, $ARGS{'aclpriv'} );
-    }
-    
     # generate content
     my ( $param, $value, $status );
     $param = $ARGS{'context'}->{'mapping'}->{'param'};
@@ -245,17 +249,6 @@ sub _get_site_param {
 }
 
 
-sub _get_forbidden {
-    my ( %ARGS ) = @_;
-
-    # ACL check 
-    if ( exists $ARGS{'acleid'} and exists $ARGS{'aclpriv'} ) {
-        # this is a special case: "always forbidden no matter what" -- 
-        # useful for testing
-        return $CELL->status_err( 'DISPATCH_FORBIDDEN' );
-    }
-
-    die "Das ist streng verboten";
-}
+sub _get_forbidden { die "Das ist streng verboten"; }
 
 1;

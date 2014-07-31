@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -315,20 +315,20 @@ whatever was there before. The search key (aid or code) must be an exact
 match: this function returns only 1 or 0 records. Takes one of the two
 following PARAMHASHes:
 
-    dbh => $dbh, code => $code
-    dbh => $dbh, aid => $aid
+    code => $code
+    aid => $aid
 
 =cut
 
 sub _load {
     my ( $self, %ARGS ) = @_;
     my $sql;
-    my $dbh = $self->dbh;
+    my $dbh = __PARENT__->SUPER::dbh;
     $dbh->ping or die "No dbh";
     $self->reset; # reset object to primal state
-    my ( $spec ) = keys %ARGS;
+    my ( $key ) = keys %ARGS;
 
-    if ( $spec eq 'code' ) {
+    if ( $key eq 'code' ) {
         $sql = $site->SQL_ACTIVITY_SELECT_BY_CODE;
     } else {
         $sql = $site->SQL_ACTIVITY_SELECT_BY_AID;
@@ -336,7 +336,7 @@ sub _load {
 
     # DBI incantations
     # N.B. - the select can only return a single record
-    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$spec} );
+    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$key} );
     if ( defined( $newself ) ) {
         foreach my $key ( keys %{ $newself } ) {
             $self->{$key} = $newself->{$key};
@@ -364,12 +364,13 @@ AID corresponding to the code. Returns AID or undef on failure.
 =cut
 
 sub aid_by_code {
-    my ( $dbh, $code ) = @_;
-    croak "Must provide database handle and code" 
-        if ! defined($dbh) or ! defined( $code );
-    my $act = __PACKAGE__->spawn(
-        dbh => $dbh,
-    );
+    my ( $code ) = @_;
+    croak "Must provide code" unless defined $code;
+
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
+
+    my $act = __PACKAGE__->spawn;
     my $status = $act->load_by_code( $code );
     return $act->{aid} if $status->ok;
     return;

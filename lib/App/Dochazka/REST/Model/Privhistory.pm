@@ -54,11 +54,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -300,7 +300,8 @@ and bind parameters given in the arguments.
 
 sub _load {
     my ( $self, $sql, @bind_params ) = @_;
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $result = $dbh->selectrow_hashref( $sql, undef, @bind_params );
     if ( defined $result ) {
         map { $self->{$_} = $result->{$_}; } keys %$result;

@@ -43,6 +43,7 @@ use warnings;
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
 use Data::Dumper;
@@ -64,11 +65,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -326,23 +327,33 @@ sub forbidden {
     # test path for a match
     if ( my $match = $router->match( $path ) ) {
         my $route = $match->route;
+
+	# Path matches, so we now know exactly which resource the user is
+	# asking for.  That means we also know the ACL profile of that
+	# resource. And, since the user has already been authenticate, we know
+	# who she is, too. 
+        my $acl_profile = $route->defaults->{'acl_profile'};
+        my $acl_priv = $self->context->{'current'}->{'priv'};
+
+        # We are ready to run the ACL check
+        my $acl_status = check_acl( $acl_profile, $acl_priv );
+        return 1 unless $acl_status->ok;
+        # ACL check passed
+
+        my $uri = $site->DOCHAZKA_URI
+            ? $site->DOCHAZKA_URI
+            : $self->request->base->as_string;
+
         $self->_push_onto_context( { 
             'target' => $route->target,
             'mapping' => $match->mapping, 
-            'uri' => $self->request->base->as_string,
+            'uri' => $uri,
         } );
-        # target is executed twice: this is the first time, when we
-        # send it 'acleid' and 'aclpriv', which indicates to the target
-        # that we want to get the ACL status, which is indicated by the
-        # status level (OK/NOT_OK)
-        my $acl_status = $route->target->( 
-            acleid => $self->context->{'current'}->{'eid'},
-            aclpriv => $self->context->{'current'}->{'priv'},
-        );
-        return 1 unless $acl_status->ok; # fail ACL check
+        return 0; # pass ACL check
+    } else {
+        # if the path doesn't match, we pass the request on to resource_exists
+        return 0; 
     }
-    return 0; # pass ACL check
-
 }
 
 
@@ -446,7 +457,7 @@ sub _authenticate {
     if ( $nick ) {
         $log->notice( "Login attempt from $nick" );
     } else {
-        $log->notice( "Login attempt from (anonymous)" );
+        $log->notice( "Login attempt from (anonymous) -- defaulting to demo/demo" );
         $nick = 'demo'; 
         $password = 'demo'; 
     }
@@ -454,28 +465,36 @@ sub _authenticate {
     # check if the employee exists in LDAP
     if ( App::Dochazka::REST::LDAP::ldap_exists( $nick ) ) {
 
-        # if the employee doesn't exist in the database, possibly autocreate
-        if ( ! nick_exists( $nick ) ) {
-            if ( $site->DOCHAZKA_LDAP_AUTOCREATE ) {
-                my $emp = App::Dochazka::REST::Model::Employee->spawn(
-                    nick => $nick,
-                );
-                $status = $emp->insert;
-                die "Could not create $nick as new employee" unless $status->ok;
-            } else {
-                return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
-            }
-        }
-
-        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
-        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+        $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
 
         # - authenticate by LDAP bind
         if ( App::Dochazka::REST::LDAP::ldap_auth( $nick, $password ) ) {
-            return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
-        } else {
-            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+            # successful LDAP auth
+            # if the employee doesn't exist in the database, possibly autocreate
+            if ( ! nick_exists( $nick ) ) {
+                $log->info( "There is no employee $nick in the database: auto-creating" );
+                if ( $site->DOCHAZKA_LDAP_AUTOCREATE ) {
+                    my $emp = App::Dochazka::REST::Model::Employee->spawn(
+                        nick => $nick,
+                        remark => 'LDAP autocreate',
+                    );
+                    $status = $emp->insert;
+                    if ( $status->not_ok ) {
+                        $log->crit("Could not create $nick as new employee");
+                        return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+                    }
+                    $log->notice( "Auto-created employee $nick, who was authenticated via LDAP" );
+                } else {
+                    $log->notice( "Authentication attempt from LDAP user $nick failed because the user is not in the database and DOCHAZKA_LDAP_AUTOCREATE is not enabled" );
+                    return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+                }
+            }
         }
+
+        # load the employee object
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
+        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+        return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
     }
 
     # if not, authenticate against the password stored in the employee object.
@@ -485,7 +504,11 @@ sub _authenticate {
 
         # - check if this employee exists in database
         my $emp = nick_exists( $nick );
-        return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' ) unless $emp->isa( 'App::Dochazka::REST::Model::Employee' );
+
+        if ( ! defined( $emp ) or ! $emp->isa( 'App::Dochazka::REST::Model::Employee' ) ) {
+            $log->notice( "Rejecting login attempt from unknown user $nick" );
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH');
+        }
 
         # - the password might be empty
         $password = '' unless defined( $password );
@@ -494,8 +517,10 @@ sub _authenticate {
 
         # - check password against passhash
         if ( $password eq $passhash ) {
+            $log->notice( "Internal auth successful for employee $nick" );
             return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
         } else {
+            $log->info( "Internal auth failed for known employee $nick (mistyped password?)" );
             return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
         }
     }

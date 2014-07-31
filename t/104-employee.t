@@ -53,11 +53,6 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# test database handle
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # spawn an empty employee object
 my $emp = App::Dochazka::REST::Model::Employee->spawn;
 ok( blessed($emp), "object is blessed" );
@@ -176,7 +171,7 @@ is( $emp->priv, $emp->{priv}, "accessor: priv" );
 is( $emp->priv, "passerby", "accessor: priv" );
 
 # Employees table should have three records (root, demo, Mrs. Fu, and Mr. Fu)
-is( noof( $dbh, 'employees' ), 4 );
+is( noof( 'employees' ), 4 );
 
 # Expurgate Mr. Fu
 $status = $emp->load_by_nick( "mrfu" );
@@ -199,6 +194,6 @@ $status = $emp->delete;
 ok( $status->ok );
 
 # Employees table should now have two records (root, demo)
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( 'employees' ), 2 );
 
 done_testing;

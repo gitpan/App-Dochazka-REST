@@ -56,11 +56,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -115,7 +115,8 @@ received from the database. Returns a status object. Call example:
 
 sub cud {
     my ( $blessed, $sql, @attr ) = @_;
-    my $dbh = $blessed->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $status;
     return $CELL->status_err('DOCHAZKA_DB_NOT_ALIVE', args => [ 'cud' ] ) unless $dbh->ping;
 
@@ -169,8 +170,10 @@ On failure, returns undef.
 =cut
 
 sub noof {
-    my ( $dbh, $table ) = @_;
+    my ( $table ) = @_;
     my $result;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
 
     LUSTRATE: {
         my $hr = {};
@@ -199,8 +202,8 @@ from the database.
 =cut
 
 sub priv_by_eid {
-    my ( $dbh, $eid, $ts ) = @_;
-    return _st_by_eid( $dbh, 'priv', $eid, $ts );
+    my ( $eid, $ts ) = @_;
+    return _st_by_eid( 'priv', $eid, $ts );
 }
 
 
@@ -214,8 +217,8 @@ database.
 =cut
 
 sub schedule_by_eid {
-    my ( $dbh, $eid, $ts ) = @_;
-    return _st_by_eid( $dbh, 'schedule', $eid, $ts );
+    my ( $eid, $ts ) = @_;
+    return _st_by_eid( 'schedule', $eid, $ts );
 }
 
 
@@ -226,7 +229,9 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 =cut
 
 sub _st_by_eid {
-    my ( $dbh, $st, $eid, $ts ) = @_;
+    my ( $st, $eid, $ts ) = @_;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my $sql;
     if ( $ts ) {
         # timestamp given
@@ -273,9 +278,7 @@ sub make_spawn {
 
 =head2 make_reset
 
-Given a list of attributes, returns a ready-made 'reset' method. The 'dbh'
-attribute is required, but need not be included on existing objects
-that already have them.
+Given a list of attributes, returns a ready-made 'reset' method. 
 
 =cut
 

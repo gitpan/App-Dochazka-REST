@@ -57,14 +57,8 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and ping the database just to be sure
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
-        dbh => $dbh,
         nick => 'mrprivhistory',
    );
 $status = $emp->insert;
@@ -76,7 +70,6 @@ my $ins_priv = 'active';
 my $ins_effective = $today_ts;
 my $ins_remark = 'TESTING';
 my $priv = App::Dochazka::REST::Model::Privhistory->spawn(
-              dbh => $dbh,
               eid => $ins_eid,
               priv => $ins_priv,
               effective => $ins_effective,
@@ -98,9 +91,7 @@ is( $priv->effective, $ins_effective );
 is( $priv->remark, $ins_remark );
 
 # spawn a fresh object and try it again
-my $priv2 = App::Dochazka::REST::Model::Privhistory->spawn(
-              dbh => $dbh,
-);
+my $priv2 = App::Dochazka::REST::Model::Privhistory->spawn;
 $status = $priv2->load( $emp->eid );
 ok( $status->ok, "Load OK" );
 is( $priv->eid, $ins_eid );
@@ -123,7 +114,7 @@ ok( $status->ok, "Load OK" );
 #diag( Dumper( $priv ) );
 
 # Count of privhistory records should be 2
-is( noof( $dbh, "privhistory" ), 2 );
+is( noof(  "privhistory" ), 2 );
 
 # test get_privhistory
 $status = get_privhistory( $emp->eid, "[$today_ts, $tomorrow_ts)" );
@@ -138,7 +129,6 @@ is( $status->code, 'DOCHAZKA_DBI_ERR', "backwards tsrange triggers DBI error" );
 
 # add another record within the range
 my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
-              dbh => $dbh,
               eid => $ins_eid,
               priv => 'passerby',
               effective => "$today 02:00",
@@ -169,14 +159,14 @@ foreach my $priv ( @$ph ) {
 
 # After deleting all the records we inserted, there should still be
 # one left (root's)
-is( noof( $dbh, "privhistory" ), 1 );
+is( noof( "privhistory" ), 1 );
 
 # Total number of employees should now be 2 (root, demo and Mr. Privhistory)
-is( noof( $dbh, 'employees' ), 3 );
+is( noof( 'employees' ), 3 );
 
 # Delete Mr. Privhistory himself, too, to clean up
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( 'employees' ), 2 );
 
 done_testing;

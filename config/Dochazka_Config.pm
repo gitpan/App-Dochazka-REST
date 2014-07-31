@@ -41,7 +41,11 @@
 
 # DOCHAZKA_URI
 #    the bare URI where the server listens (no trailing '/')
-set( 'DOCHAZKA_URI', 'http://dochazka.site' );
+#    ordinarily, this is obtained from the HTTP request itself, but
+#    sometimes (e.g. reverse proxy) it might not be correct -- if you
+#    are having this problem, you can override the auto-generated URI by
+#    setting this param in the site configuration
+#set( 'DOCHAZKA_URI', 'http://dochazka.site' );
 
 # DOCHAZKA_DOCUMENTATION_URI
 set( 'DOCHAZKA_DOCUMENTATION_URI', 'https://metacpan.org/pod/App::Dochazka::REST' );

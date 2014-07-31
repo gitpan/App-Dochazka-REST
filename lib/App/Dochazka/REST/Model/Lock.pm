@@ -53,11 +53,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -189,7 +189,8 @@ whatever was there before.  Returns a status object.
 
 sub load_by_lid {
     my ( $self, $lid ) = @_;
-    my $dbh = $self->dbh;
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    die "Problem with database handle" unless $dbh->ping;
     my @attrs = ( 'lid', 'eid', 'intvl', 'remark' );
     my $sql = $site->SQL_LOCK_SELECT_BY_LID;
     my ( $result ) = $dbh->selectrow_hashref( $sql, undef, $lid );

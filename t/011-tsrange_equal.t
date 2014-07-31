@@ -59,18 +59,14 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 my $intvl1 = '[2014-07-15 08:00, 2014-07-15 12:00)';
-ok( tsrange_equal( $dbh, $intvl1, '[2014-07-15 8:0, 2014-07-15 12:0)' ) );
-ok( ! tsrange_equal( $dbh, $intvl1, '[2014-07-15 8:01, 2014-07-15 12:0)' ) );
-ok( ! tsrange_equal( $dbh, $intvl1, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
+ok( tsrange_equal( $intvl1, '[2014-07-15 8:0, 2014-07-15 12:0)' ) );
+ok( ! tsrange_equal( $intvl1, '[2014-07-15 8:01, 2014-07-15 12:0)' ) );
+ok( ! tsrange_equal( $intvl1, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
 my $intvl2 = '["2014-07-15 08:00", "2014-07-15 12:00")';
-ok( tsrange_equal( $dbh, $intvl1, $intvl2) );
-ok( tsrange_equal( $dbh, $intvl2, '[2014-07-15 8:0   , "2014-07-15 12:0")' ) );
-ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:01, 2014-07-15 12:00)' ) );
-ok( ! tsrange_equal( $dbh, $intvl2, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
+ok( tsrange_equal( $intvl1, $intvl2) );
+ok( tsrange_equal( $intvl2, '[2014-07-15 8:0   , "2014-07-15 12:0")' ) );
+ok( ! tsrange_equal( $intvl2, '[2014-07-15 08:01, 2014-07-15 12:00)' ) );
+ok( ! tsrange_equal( $intvl2, '[2014-07-15 08:00, 2014-07-15 12:00]' ) );
 
 done_testing;

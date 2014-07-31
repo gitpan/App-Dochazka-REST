@@ -59,34 +59,25 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and verify DBD connection
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # to insert a lock, we need an employee
 
 # insert Mr. Sched
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
-    dbh => $dbh,
     nick => 'mrsched',
 );
 $status = $emp->insert;
 ok( $status->ok );
 ok( $emp->eid > 0 );
-is( noof( $dbh, 'employees'), 3 );
+is( noof( 'employees'), 3 );
 
 # load 'WORK'
-my $work = App::Dochazka::REST::Model::Activity->spawn(
-    dbh => $dbh,
-);
+my $work = App::Dochazka::REST::Model::Activity->spawn;
 $status = $work->load_by_code( 'work' );
 ok( $status->ok );
 ok( $work->aid > 0 );
 
 # spawn and insert a work interval
 my $int = App::Dochazka::REST::Model::Interval->spawn(
-    dbh => $dbh,
     eid => $emp->eid,
     aid => $work->aid,
     intvl => "[$today 08:00, $today 12:00)",
@@ -101,7 +92,6 @@ ok( $status->ok );
 
 # spawn a lock object
 my $lock = App::Dochazka::REST::Model::Lock->spawn(
-    dbh => $dbh,
     eid => $emp->eid,
     intvl => "[$today 00:00, $today 24:00)",
     remark => 'TESTING',
@@ -110,27 +100,27 @@ ok( blessed( $lock ) );
 #diag( Dumper( $lock ) );
 
 # insert the lock object
-is( noof( $dbh, 'locks' ), 0 );
+is( noof( 'locks' ), 0 );
 $status = $lock->insert;
-is( noof( $dbh, 'locks' ), 1 );
+is( noof( 'locks' ), 1 );
 
 
 # CLEANUP:
 # 1. delete the lock
-is( noof( $dbh, 'locks' ), 1 );
+is( noof( 'locks' ), 1 );
 $status = $lock->delete;
-is( noof( $dbh, 'locks' ), 0 );
+is( noof( 'locks' ), 0 );
 
 # 2. delete the interval
-is( noof( $dbh, 'intervals' ), 1 );
+is( noof( 'intervals' ), 1 );
 $status = $int->delete;
 ok( $status->ok );
-is( noof( $dbh, 'intervals' ), 0 );
+is( noof( 'intervals' ), 0 );
 
 # 3. delete Mr. Sched
-is( noof( $dbh, 'employees' ), 3 );
+is( noof( 'employees' ), 3 );
 $status = $emp->delete;
 ok( $status->ok );
-is( noof( $dbh, 'employees' ), 2 );
+is( noof( 'employees' ), 2 );
 
 done_testing;

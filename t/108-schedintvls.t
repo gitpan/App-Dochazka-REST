@@ -58,18 +58,13 @@ if ( $REST->{init_status}->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-my $dbh = $REST->{dbh};
-my $status;
-
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # spawn a schedintvls object
-my $sto = App::Dochazka::REST::Model::Schedintvls->spawn(
-    dbh => $dbh,
-);
+my $sto = App::Dochazka::REST::Model::Schedintvls->spawn;
 ok( blessed $sto );
 ok( $sto->scratch_sid > 0 );
+
+# initialize status variable
+my $status;
 
 # attempt to insert bogus intervals individually
 my $bogus_intvls = [
@@ -91,7 +86,7 @@ map {
     } @$bogus_intvls;
 
 # check that no records made it into the database
-is( noof( $dbh, 'schedintvls' ), 0 );
+is( noof( 'schedintvls' ), 0 );
 
 # attempt to slip in a bogus interval by hiding it among normal intervals
 $bogus_intvls = [
@@ -115,7 +110,7 @@ map {
         ];
         $status = $sto->insert;
         is( $status->level, 'ERR' );
-        is( noof( $dbh, 'schedintvls' ), 0 );
+        is( noof( 'schedintvls' ), 0 );
      } @$bogus_intvls;
 
 # CLEANUP: none as this unit test doesn't change the database

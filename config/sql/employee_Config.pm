@@ -96,6 +96,13 @@ set( 'SQL_EMPLOYEE_DELETE', q/
       RETURNING  eid, fullname, nick, email, passhash, salt, remark
       / );
 
+#
+set( 'SQL_EMPLOYEE_COUNT_BY_PRIV_LEVEL', q/
+      WITH emps_with_privs AS (
+          SELECT eid, current_priv(eid) AS priv FROM employees
+      ) SELECT count(*) FROM emps_with_privs WHERE priv=?
+      / );
+
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

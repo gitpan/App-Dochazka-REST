@@ -39,7 +39,8 @@ package App::Dochazka::REST::Dispatch::ACL;
 use strict;
 use warnings;
 
-use App::CELL qw( $CELL );
+use App::CELL qw( $CELL $log );
+use Data::Dumper;
 
 
 
@@ -53,11 +54,11 @@ App::Dochazka::REST::Dispatch::ACL - ACL module
 
 =head1 VERSION
 
-Version 0.117
+Version 0.122
 
 =cut
 
-our $VERSION = '0.117';
+our $VERSION = '0.122';
 
 
 
@@ -99,10 +100,14 @@ otherwise it returns:
 
 sub check_acl {
     my ( $acl, $priv ) = @_;
-    die unless defined $acl and defined $priv;
 
     my $pass = $CELL->status_ok( 'DISPATCH_ACL_CHECK' );
     my $fail = $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' );
+
+    if ( ! defined $acl or ! defined $priv ) {
+        $log->err( "Problem with arguments in check_acl" );
+        return $fail;
+    }
 
     if ( $acl eq 'passerby' ) {
         return $pass;
