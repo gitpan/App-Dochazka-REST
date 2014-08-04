@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.134
+Version 0.135
 
 =cut
 
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 
@@ -103,11 +103,14 @@ sub _get_nick {
     my $tsrange = $context->{'mapping'}->{'tsrange'};
     my $nick = $context->{'mapping'}->{'nick'};
 
-    # load EID from nick, display error if EID doesn't exist
+    # display error if nick doesn't exist
     my $emp = nick_exists( $nick );
     return $CELL->status_err( 'DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ] ) if not defined( $emp );
-    return $emp if $emp->isa( 'App::CELL::Status' );
-    return get_privhistory( $emp->eid, $tsrange );
+    return $emp if $emp->isa( 'App::CELL::Status' ); # DBI error
+
+    defined $tsrange
+        ? get_privhistory( nick => $nick, tsrange => $tsrange )
+        : get_privhistory( nick => $nick );
 }
 
 sub _get_eid {
@@ -117,12 +120,14 @@ sub _get_eid {
     my $tsrange = $context->{'mapping'}->{'tsrange'};
     my $eid = $context->{'mapping'}->{'eid'};
 
-    # load nick from EID, display error if nick doesn't exist
-    
+    # display error if nick doesn't exist
     my $emp = eid_exists( $eid );
     return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] ) if not defined( $emp );
-    return $emp if $emp->isa( 'App::CELL::Status' );
-    return get_privhistory( $eid, $tsrange );
+    return $emp if $emp->isa( 'App::CELL::Status' ); # DBI error
+
+    defined $tsrange
+        ? get_privhistory( eid => $eid, tsrange => $tsrange )
+        : get_privhistory( eid => $eid );
 }
 
 sub _get_current {
@@ -131,8 +136,11 @@ sub _get_current {
 
     my $tsrange = $context->{'mapping'}->{'tsrange'};
     my $eid = $context->{'current'}->{'eid'};
+    my $nick = $context->{'current'}->{'nick'};
     
-    return get_privhistory( $eid, $tsrange );
+    defined $tsrange
+        ? get_privhistory( eid => $eid, nick => $nick, tsrange => $tsrange )
+        : get_privhistory( eid => $eid, nick => $nick );
 }
 
 1;

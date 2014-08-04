@@ -55,11 +55,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.134
+Version 0.135
 
 =cut
 
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 
@@ -351,22 +351,39 @@ empty. If there is a DBI error, the payload will be undefined.
 =cut
 
 sub get_privhistory {
-    my ( $eid, $tsr ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    $tsr = '[,)' if not $tsr;
-    my $status;
-    my $counter = 0;
-    my $result = { eid => $eid, privhistory => [] };
+    validate_pos( @_, 1, 1, 0, 0, 0, 0 );
+    my %ARGS = validate( @_, { 
+        eid => { type => SCALAR, optional => 1 },
+        nick => { type => SCALAR, optional => 1 },
+        tsrange => { type => SCALAR, optional => 1 },
+    } );
 
+    my $tsr = ( exists $ARGS{'tsrange'} )
+        ? $ARGS{'tsrange'}
+        : '[,)';
+        
+    my ( $sql, $sk, $status, $result );
+    if ( exists $ARGS{'nick'} ) {
+        $sql = $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_NICK;
+        $result->{'nick'} = $ARGS{'nick'};
+        $sk = $ARGS{'nick'};
+    }
+    if ( exists $ARGS{'eid'} ) {
+        $sql = $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_EID;
+        $result->{'eid'} = $ARGS{'eid'};
+        $sk = $ARGS{'eid'};
+    }
+    die "AAAAAAAAAAAHHHHH! Engulfed by the abyss" unless $sk and $sql and $tsr;
+
+    my $dbh = __PACKAGE__->SUPER::dbh;
+    my $counter = 0;
     $dbh->{RaiseError} = 1;
     try {
-        my $sth = $dbh->prepare( $site->SQL_PRIVHISTORY_SELECT_RANGE );
-        $sth->execute( $eid, $tsr );
+        my $sth = $dbh->prepare( $sql );
+        $sth->execute( $sk, $tsr );
         while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
             $counter += 1;
-            my $ph = __PACKAGE__->spawn;
-            $ph->reset( %$tmpres );
-            push @{ $result->{'privhistory'} }, $ph;
+            push @{ $result->{'privhistory'} }, $tmpres;
         }
     } catch {
         my $arg = $dbh->err
@@ -380,8 +397,9 @@ sub get_privhistory {
         $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
             [ $counter ], payload => $result, count => $counter );
     } else {
-        $status = $CELL->status_warn( 'DISPATCH_PRIVHISTORY_EMPTY', 
-            args => [ $eid ], payload => $result, count => $counter );
+        $result->{'privhistory'} = [];
+        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+            payload => $result, count => $counter );
     }
     $dbh->{RaiseError} = 0;
     return $status;

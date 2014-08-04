@@ -62,7 +62,7 @@ $meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
 my $test = Plack::Test->create( $app );
 ok( blessed $test );
 
-my ( $res, $json );
+my $res;
 
 # 1. the very basic-est request
 $res = $test->request( req_demo GET => '/' );
@@ -130,5 +130,25 @@ is( $status->code, 'DISPATCH_SITE_NOT_DEFINED' );
 $res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
+
+# 5. /employee
+$res = $test->request( req_demo GET => '/employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# 6. /privhistory
+$res = $test->request( req_demo GET => '/privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
 done_testing;

@@ -57,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.134
+Version 0.135
 
 =cut
 
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 
@@ -298,7 +298,7 @@ sub make_spawn {
     return sub {
         # process arguments
         my ( $class, @ARGS ) = @_;
-        croak "Odd number of arguments in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
+        croak "Odd number of arguments (" . scalar @ARGS . ") in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
         my %ARGS = @ARGS;
 
         # bless, reset, return

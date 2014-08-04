@@ -82,12 +82,21 @@ set( 'SQL_PRIVHISTORY_SELECT_BY_PHID', q/
       WHERE phid = ? 
       / );
 
-# SQL_PRIVHISTORY_SELECT_RANGE
+# SQL_PRIVHISTORY_SELECT_RANGE_BY_EID
 #     SQL to select a range of privhistory records
-set( 'SQL_PRIVHISTORY_SELECT_RANGE', q/
+set( 'SQL_PRIVHISTORY_SELECT_RANGE_BY_EID', q/
       SELECT phid, eid, priv, effective, remark FROM privhistory 
       WHERE eid = ? AND effective <@ CAST( ? AS tsrange )
       ORDER BY effective
+      / );
+
+# SQL_PRIVHISTORY_SELECT_RANGE_BY_NICK
+#     SQL to select a range of privhistory records
+set( 'SQL_PRIVHISTORY_SELECT_RANGE_BY_NICK', q/
+      SELECT ph.phid AS phid, ph.eid AS eid, ph.priv AS priv, ph.effective AS effective, ph.remark AS remark 
+      FROM privhistory ph, employees em
+      WHERE ph.eid = em.eid AND em.nick = ? AND ph.effective <@ CAST( ? AS tsrange )
+      ORDER BY ph.effective
       / );
 
 # -----------------------------------

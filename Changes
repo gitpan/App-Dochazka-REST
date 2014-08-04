@@ -803,3 +803,11 @@ Revision history for Dochazka-REST
 - t/330-dispatch.t: add a bunch of tests that examine the HTTP responses
   returned when various resources are requested
 
+0.135  2014-08-04 15:55 CEST
+- t/330-dispatch.t: fill in missing tests of HTTP response content
+- t/331-dispatch-employee.t: fill in missing tests of HTTP response content
+- t/332-dispatch-privhistory.t: fill in missing tests of HTTP response content
+- Dispatch/Privhistory.t: refactor targets so they make more sense
+- Model/Privhistory.t: work on get_privhistory routine
+- t/105-privhistory.t: update to reflect current code 
+

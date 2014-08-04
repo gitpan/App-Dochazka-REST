@@ -41,7 +41,7 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_root req_demo );
+use App::Dochazka::REST::Test qw( req_root req_demo status_from_json );
 use Data::Dumper;
 use HTTP::Request;
 use Plack::Test;
@@ -63,22 +63,185 @@ my $app = $REST->{'app'};
 my $test = Plack::Test->create( $app );
 ok( blessed $test );
 
-# 'privhistory' resource
-my $res = $test->request( req_demo GET => '/privhistory' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
+my $res;
 
-$res = $test->request( req_root GET => '/privhistory' );
+# 1. privhistory/help as demo
+$res = $test->request( req_demo GET => '/privhistory/help' );
 is( $res->code, 200 );
-is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+is( scalar keys $status->payload->{'resources'}, 1 );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
-# 'privhistory/current' resource - auth fail
+# 1. privhistory/help as root
+$res = $test->request( req_root GET => '/privhistory/help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( scalar keys $status->payload->{'resources'} >= 6 );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/current'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+
+# 2. 'privhistory/current' resource - auth fail
 $res = $test->request( req_demo GET => '/privhistory/current' );
 is( $res->code, 403 );
 
+# 2. 'privhistory/current' resource as root
 $res = $test->request( req_root GET => '/privhistory/current' );
 is( $res->code, 200 );
-is_valid_json( $res->content );
-like( $res->content, qr/DISPATCH_RECORDS_FOUND/ );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 3. 'privhistory/current/:tsrange' resource
+$res = $test->request( req_demo GET => '/privhistory/current/[,)' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/current/[,)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 3. 'privhistory/current/:tsrange' resource with invalid tsrange
+$res = $test->request( req_root GET => '/privhistory/current/[,sdf)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+
+# 4. 'privhistory/nick/:nick'  with non-existent nick
+$res = $test->request( req_demo GET => '/privhistory/nick/asdf' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/nick/asdf' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, "DISPATCH_NICK_DOES_NOT_EXIST" );
+
+# 5. 'privhistory/nick/root'
+$res = $test->request( req_demo GET => '/privhistory/nick/root' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/nick/root' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'nick'} );
+is( $status->payload->{'nick'}, 'root' );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 5. 'privhistory/nick/root/:tsrange' with privhistory record in range
+$res = $test->request( req_demo GET => '/privhistory/nick/root/[999-12-31 23:59, 1000-01-01 00:01)' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/nick/root/[999-12-31 23:59, 1000-01-01 00:01)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'nick'} );
+is( $status->payload->{'nick'}, 'root' );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 5. 'privhistory/nick/root/:tsrange' -- empty range
+$res = $test->request( req_demo GET => '/privhistory/nick/root/[1999-12-31 23:59, 2000-01-01 00:01)' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/nick/root/[1999-12-31 23:59, 2000-01-01 00:01)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_NO_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'nick'} );
+is( $status->payload->{'nick'}, 'root' );
+ok( defined $status->payload->{'privhistory'} );
+is_deeply( $status->payload->{'privhistory'}, [] );
+
+# 6. 'privhistory/eid/$eid_of_root'
+$res = $test->request( req_demo GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 6. 'privhistory/eid/1/:tsrange' with privhistory record in range
+$res = $test->request( req_demo GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+    '/[999-12-31 23:59, 1000-01-01 00:01)' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+    '/[999-12-31 23:59, 1000-01-01 00:01)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'} );
+is( scalar @{ $status->payload->{'privhistory'} }, 1 );
+is( $status->payload->{'privhistory'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
+
+# 5. 'privhistory/nick/root/:tsrange' -- empty range
+$res = $test->request( req_demo GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+    '/[1999-12-31 23:59, 2000-01-01 00:01)' );
+is( $res->code, 403 );
+$res = $test->request( req_root GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+    '/[1999-12-31 23:59, 2000-01-01 00:01)' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, "DISPATCH_NO_RECORDS_FOUND" );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( defined $status->payload->{'privhistory'} );
+is_deeply( $status->payload->{'privhistory'}, [] );
 
 done_testing;
