@@ -37,11 +37,12 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::LDAP;
-use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid schedule_by_eid noof );
+use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid schedule_by_eid noof );
 use Carp;
 use Data::Dumper;
 use Data::Structure::Util qw( unbless );
 use DBI qw(:sql_types);
+use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 use Storable qw( dclone );
 use Try::Tiny;
@@ -60,11 +61,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -238,8 +239,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -255,9 +255,7 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of employees table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
@@ -266,10 +264,7 @@ BEGIN {
         'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' 
     ) {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -310,14 +305,11 @@ N.B.: for this method to work, the 'eid' attribute must be populated
 =cut
 
 sub priv {
-    my ( $self, $timestamp ) = @_;
-    return if ! $self->{eid};
-    # no timestamp provided, return current_priv
-    if ( ! $timestamp ) { 
-        return priv_by_eid( $self->{eid} );
-    }
-    # timestamp provided, return priv as of that timestamp
-    return priv_by_eid( $self->{eid}, $timestamp );
+    my $self = shift;
+    my ( $timestamp ) = validate_pos( @_, { type => SCALAR, optional => 1 } );
+    $timestamp 
+        ? priv_by_eid( $self->eid, $timestamp )
+        : priv_by_eid( $self->eid );
 }
 
 
@@ -329,14 +321,11 @@ N.B.: for this method to work, the 'eid' attribute must be populated
 =cut
 
 sub schedule {
-    my ( $self, $timestamp ) = @_;
-    return if ! $self->{eid};
-    # no timestamp provided, return current_priv
-    if ( ! $timestamp ) { 
-        return schedule_by_eid( $self->{eid} );
-    }
-    # timestamp provided, return priv as of that timestamp
-    return schedule_by_eid( $self->{eid}, $timestamp );
+    my $self = shift;
+    my ( $timestamp ) = validate_pos( @_, { type => SCALAR, optional => 1 } );
+    $timestamp 
+        ? schedule_by_eid( $self->eid, $timestamp )
+        : schedule_by_eid( $self->eid );
 }
 
 
@@ -352,9 +341,9 @@ sub insert {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_EMPLOYEE_INSERT,
-        ('fullname', 'nick', 'email', 'passhash', 'salt', 'remark'),
+        object => $self,
+        sql => $site->SQL_EMPLOYEE_INSERT,
+        attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
     );
 
     return $status;
@@ -376,9 +365,9 @@ sub update {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_EMPLOYEE_UPDATE,
-        ('eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark'),
+        object => $self,
+        sql => $site->SQL_EMPLOYEE_UPDATE,
+        attrs => [ 'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
     );
 
     return $status;
@@ -398,9 +387,9 @@ sub delete {
     my ( $self ) = @_; 
 
     my $status = cud(
-        $self,
-        $site->SQL_EMPLOYEE_DELETE,
-        ( 'eid' ),
+        object => $self,
+        sql => $site->SQL_EMPLOYEE_DELETE,
+        attrs => [ 'eid' ],
     );
     $self->reset( eid => $self->eid ) if $status->ok;
 
@@ -409,100 +398,46 @@ sub delete {
 
 
 
-=head2 load_by_nick
-
-Attempts to load employee from database, by the nick provided in the
-argument list, which must be an exact match. If the employee is found, it
-is loaded into a temporary hash. If called as a class method, a new
-employee object is spawned and populated with the values in the temporary
-hash. If called on an existing object, overwrites whatever might have been
-there before. 
-
-In general, this function returns the same status object as it gets
-from L<_load>.
-
-=cut
-
-sub load_by_nick {
-    my ( $self, $nick ) = @_;
-    die "Bad arguments" unless defined( $self );
- 
-    # if called as a class method, spawn a new object
-    $self = __PACKAGE__->spawn unless blessed $self;
-
-    # attempt to load into hashref
-    my $status = _load( nick => $nick );
-    return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
-
-    # record was found and is in the payload
-    $self->reset( %{ $status->payload } );
-    $status->payload( $self );
-    return $status;
-}
-
-
 =head2 load_by_eid
 
-Analogous method to L<"load_by_nick">.
+Analogous method to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 
 =cut
 
 sub load_by_eid {
-    my ( $self, $eid ) = @_;
-    die "Bad arguments" unless defined( $self );
+    # get and check parameters
+    my $self = shift;
+    die "Not a method call" unless $self->isa( __PACKAGE__ );
+    my ( $eid ) = validate_pos( @_, { type => SCALAR } );
 
-    # if called as a class method, spawn a new object
-    $self = __PACKAGE__->spawn unless blessed $self;
-    die unless $self->isa( __PACKAGE__ );
-
-    # attempt to load into hashref
-    my $status = _load( eid => $eid );
-    return $status unless $status->code eq 'DISPATCH_RECORDS_FOUND';
-
-    # record was found and is in the payload
-    $self->reset( %{ $status->payload } );
-    $status->payload( $self );
-    return $status;
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_EMPLOYEE_SELECT_BY_EID,
+        keys => [ $eid ],
+    );
 }
 
 
+=head2 load_by_nick
 
-=head3 _load
-
-Fetches employee from database, by eid or nick, into a hashref. The search key
-(eid or nick) must be an exact match: this function returns only 1 or 0
-records. Takes one of the two following PARAMHASHes:
-
-    nick => $nick
-    eid => $eid
-
-Returns one of three possible status objects:
-
-   success: level OK, code DISPATCH_RECORDS_FOUND, hashref in payload
-   failure: level OK, code DISPATCH_NO_RECORDS_FOUND
-   DBI err: level ERR, code DOCHAZKA_DBI_ERR
+Analogous method to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 
 =cut
 
-sub _load {
-    my ( %ARGS ) = @_;
-    my $sql;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    my ( $key ) = keys %ARGS;
+sub load_by_nick {
+    # get and check parameters
+    my $self = shift;
+    die "Not a method call" unless $self->isa( __PACKAGE__ );
+    my ( $nick ) = validate_pos( @_, { type => SCALAR } );
 
-    $sql = ($key eq 'nick')
-        ? $site->SQL_EMPLOYEE_SELECT_BY_NICK
-        : $site->SQL_EMPLOYEE_SELECT_BY_EID;
-    #die "SQL is $sql, key is $key, key value is $ARGS{$key}"; #unless $ARGS{$key} eq 'root';
-
-    # N.B. - the select can only return a single record
-    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$key} );
-    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] ) 
-        if $dbh->err;
-    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
-        payload => $newself, count => 1 ) if defined $newself;
-    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_EMPLOYEE_SELECT_BY_NICK,
+        keys => [ $nick ], 
+    );
 }
+
+
 
 
 =head1 FUNCTIONS
@@ -519,17 +454,16 @@ expurgated employee objects).
 =cut
 
 sub select_multiple_by_nick {
-    my ( $class, $sk ) = @_;        # sk means "search key"
-    my $status;
+    my $class = shift;
+    # sk means "search key"
+    my ( $sk ) = validate_pos( @_, { type => SCALAR, default => '%' } );
 
     # get database handle from parent
     my $dbh = __PACKAGE__->SUPER::dbh;
-    croak( "Bad database handle" ) unless $dbh->ping;
 
-    # no undefined search key
-    $sk = $sk || '%'; 
-    
+    my $status = {};
     my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
+
     $dbh->{RaiseError} = 1;
     try {
         local $SIG{__WARN__} = sub {
@@ -551,10 +485,12 @@ sub select_multiple_by_nick {
         #$log->info( Dumper( $result ) );
         if ( $counter > 0 ) { 
             $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND',
-                args => [ $counter ], payload => $result, count => $counter );
+                args => [ $counter ], payload => { 'result_set' => $result , 
+                count => $counter, search_key => $sk } );
         } else {
             $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
-                count => $counter );
+                payload => { 'result_set' => [], count => $counter, 
+                search_key => $sk } );
         }   
     } catch {
         $status => $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef );  
@@ -645,7 +581,6 @@ sub noof_employees_by_priv {
     my ( $priv ) = @_;
     die "Problem with arguments" unless defined $priv;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    croak( "Bad database handle" ) unless $dbh->ping;
 
     if ( $priv eq 'total' ) {
         my $count = noof( 'employees' );

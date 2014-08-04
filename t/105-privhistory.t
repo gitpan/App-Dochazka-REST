@@ -82,35 +82,37 @@ ok( $status->ok, "Post-insert status ok" );
 ok( $priv->phid > 0, "INSERT assigned an phid" );
 
 # get the entire privhistory record just inserted
-$priv->reset;
-$status = $priv->load( $emp->eid );
-ok( $status->ok, "Load OK" );
+$status = $priv->load_by_eid( $emp->eid );
+ok( $status->ok, "No DBI error" );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
+$priv->reset( $status->payload );
 is( $priv->eid, $ins_eid );
 is( $priv->priv, $ins_priv );
 is( $priv->effective, $ins_effective );
 is( $priv->remark, $ins_remark );
 
 # spawn a fresh object and try it again
-my $priv2 = App::Dochazka::REST::Model::Privhistory->spawn;
-$status = $priv2->load( $emp->eid );
-ok( $status->ok, "Load OK" );
-is( $priv->eid, $ins_eid );
-is( $priv->priv, $ins_priv );
-is( $priv->effective, $ins_effective );
-is( $priv->remark, $ins_remark );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid );
+ok( $status->ok, "No DBI error" );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
+my $priv2 = $status->payload;
+is( $priv2->eid, $ins_eid );
+is( $priv2->priv, $ins_priv );
+is( $priv2->effective, $ins_effective );
+is( $priv2->remark, $ins_remark );
 
 # get Mr. Priv History's priv level as of yesterday
-$priv->reset;
-$status = $priv->load( $emp->eid, $yesterday_ts );
-ok( $status->not_ok, "This shouldn't return any rows" );
-is( $status->level, 'WARN', "It should also trigger a warning" );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid, $yesterday_ts );
+ok( $status->ok, "No DBI error" );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Shouldn't return any rows" );
 is( $emp->priv( $yesterday_ts ), 'passerby' );
 is( $emp->priv( $today_ts ), 'active' );
 
 # Get Mr. Privhistory's record again
-$priv->reset;
-$status = $priv->load( $emp->eid );
-ok( $status->ok, "Load OK" );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid );
+ok( $status->ok, "No DBI error" );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
+$priv->reset( $status->payload );
 #diag( Dumper( $priv ) );
 
 # Count of privhistory records should be 2
@@ -154,7 +156,7 @@ foreach my $priv ( @$ph ) {
     ok( $status->ok, "DELETE OK" );
     $priv->reset;
     $status = $priv->load_by_phid( $phid );
-    is( $status->level, 'WARN', "No records" );
+    is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 }
 
 # After deleting all the records we inserted, there should still be

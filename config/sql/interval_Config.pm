@@ -41,7 +41,7 @@
 # 
 set( 'SQL_INTERVAL_SELECT_BY_IID', q/
       SELECT iid, eid, aid, intvl, long_desc, remark
-      FROM activities WHERE iid = ?
+      FROM intervals WHERE iid = ?
       / );
 
 #

@@ -39,42 +39,23 @@ use strict;
 use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
-use App::CELL qw( $meta $site );
+use App::CELL qw( $log $meta $site );
+use App::CELL::Status;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Resource;
+use App::Dochazka::REST::Test qw( req_json req_html req_bad_creds );
 use Data::Dumper;
-use HTTP::Request;
+use JSON;
 use Plack::Test;
 use Scalar::Util qw( blessed );
+use Test::Fatal;
 use Test::JSON;
 use Test::More;
 
-sub req_json {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'application/json' );
-    return $r;
-}
-
-sub req_html {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'text/html' );
-    return $r;
-}
-
-sub req_bad_creds {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpibGJvc3Q=' );
-    return $r;
-}
-
+$log->info( "Entering t/301-resource.t" );
 
 # initialize 
-my $REST = App::Dochazka::REST->init( site => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( site => '/etc/dochazka', verbose => 1, debug_mode => 1 );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) { 
     plan skip_all => "not configured or server not running";
@@ -84,13 +65,13 @@ $meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
-ok( blessed $test );
+isa_ok( $test, 'Plack::Test::MockHTTP' );
+
+my ( $res, $json );
 
 # the very basic-est request (200)
-my $res = $test->request( req_json GET => '/' );
+$res = $test->request( req_json GET => '/' );
 is( $res->code, 200 );
-is_valid_json( $res->content );
-like( $res->content, qr/App::Dochazka::REST/ );
 
 # a too-long request (414)
 $res = $test->request( req_json GET => '/' x 1001 );
@@ -113,9 +94,31 @@ $res = $test->request( req_json GET => '/forbidden' );
 is( $res->code, 403 );
 is( $res->content, 'Forbidden' );
 
-# request for non-existent resource
+# request for non-existent resource (404)
 $res = $test->request( req_json GET => '/HEE HAW!!!/non-existent/resource' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
+
+# test argument validation in 'router' method
+like( exception { App::Dochazka::REST::Resource::router( 'DUMMY2' ); },
+      qr/did not pass regex check/ );
+like( exception { App::Dochazka::REST::Resource::router( 'POST', ( 3..12 ) ); },
+      qr/but 1 was expected/ );
+like( exception { App::Dochazka::REST::Resource::router(); },
+      qr/0 parameters were passed.+but 1 was expected/ );
+
+# test argument validation in '_push_onto_context' method
+like( exception { App::Dochazka::REST::Resource::_push_onto_context( undef, 'DUMMY2' ); },
+      qr/not one of the allowed types: hashref/ );
+like( exception { App::Dochazka::REST::Resource::_push_onto_context( undef, {}, ( 3..12 ) ); },
+      qr/but 1 was expected/ );
+like( exception { App::Dochazka::REST::Resource::_push_onto_context(); },
+      qr/0 parameters were passed.+but 1 was expected/ );
+
+# test if we can get the context
+my $resource_self = bless {}, 'App::Dochazka::REST::Resource';
+is( $resource_self->context, undef );
+$resource_self->context( { 'bubba' => 'BAAAA' } );
+is( $resource_self->context->{'bubba'}, 'BAAAA' );
 
 done_testing;

@@ -36,11 +36,12 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::Model::Shared qw( cud priv_by_eid );
+use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid );
 use Carp;
 use Data::Dumper;
 use DBI;
 use Params::Validate qw{:all};
+use Scalar::Util qw( blessed );
 
 use parent 'App::Dochazka::REST::dbh';
 
@@ -55,11 +56,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -105,9 +106,9 @@ before every INSERT and UPDATE on this table.
 
 =item * L<delete> (deletes record from database if nothing references it)
 
-=item * L<load_by_aid> (loads a single activity into the object)
+=item * L<load_by_aid> (loads a single activity into an object)
 
-=item * L<load_by_code> (loads a single activity into the object)
+=item * L<load_by_code> (loads a single activity into an object)
 
 =back
 
@@ -161,8 +162,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -177,9 +177,7 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of employees table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
@@ -188,10 +186,7 @@ BEGIN {
         'aid', 'code', 'long_desc', 'remark',
     ) {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -224,9 +219,9 @@ sub insert {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_ACTIVITY_INSERT,
-        ( 'code', 'long_desc', 'remark' ),
+        object => $self,
+        sql => $site->SQL_ACTIVITY_INSERT,
+        attrs => [ 'code', 'long_desc', 'remark' ],
     );
 
     return $status;
@@ -248,9 +243,9 @@ sub update {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_ACTIVITY_UPDATE,
-        ( 'code', 'long_desc', 'remark', 'aid'),
+        object => $self,
+        sql => $site->SQL_ACTIVITY_UPDATE,
+        attrs => [ 'code', 'long_desc', 'remark', 'aid' ],
     );
 
     return $status;
@@ -270,9 +265,9 @@ sub delete {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_ACTIVITY_DELETE,
-        ( 'aid' ),
+        object => $self,
+        sql => $site->SQL_ACTIVITY_DELETE,
+        attrs => [ 'aid' ],
     );
     $self->reset( aid => $self->{aid} ) if $status->ok;
 
@@ -282,81 +277,49 @@ sub delete {
 
 =head2 load_by_aid
 
-Instance method. Loads activity from database, by AID, into existing
-object, overwriting whatever was there before. The AID value given must be
-an exact match. Returns a status object.
+Loads activity from database, by the AID provided in the argument list,
+into a newly-spawned object. The code must be an exact match.  Returns a
+status object: if the object is loaded, the code will be
+'DISPATCH_RECORDS_FOUND' and the object will be in the payload; if 
+the AID is not found in the database, the code will be
+'DISPATCH_NO_RECORDS_FOUND'. A non-OK status indicates a DBI error.
 
 =cut
 
 sub load_by_aid {
+    # get and check parameters
     my $self = shift;
+    die "Not a method call" unless $self->isa( __PACKAGE__ );
     my ( $aid ) = validate_pos( @_, { type => SCALAR } );
-    return $self->_load( aid => $aid );
-}
 
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_ACTIVITY_SELECT_BY_AID,
+        keys => [ $aid ],
+    );
+}
 
 
 =head2 load_by_code
 
-Instance method. Loads activity from database, by the code provided in the
-argument list, into existing object, overwriting whatever might have been
-there before. The code must be an exact match. Returns a status object.
+Analogous method to L<"load_by_aid">.
 
 =cut
 
 sub load_by_code {
+    # get and check parameters
     my $self = shift;
+    die "Not a method call" unless $self->isa( __PACKAGE__ );
     my ( $code ) = validate_pos( @_, { type => SCALAR } );
-    return $self->_load( code => $code );
-}
 
-
-=head3 _load
-
-Load activity, by aid or code, into an existing object, overwriting
-whatever was there before. The search key (aid or code) must be an exact
-match: this function returns only 1 or 0 records. Takes one of the two
-following PARAMHASHes:
-
-    code => $code
-    aid => $aid
-
-=cut
-
-sub _load {
-    my $self = shift;
-    my %ARGS = validate( @_, {
-          code => { type => SCALAR, optional => 1 },
-          aid => { type => SCALAR, optional => 1 },
-        }
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_ACTIVITY_SELECT_BY_CODE,
+        keys => [ $code ],
     );
-    my $sql;
-    my $dbh = __PARENT__->SUPER::dbh;
-    $dbh->ping or die "No dbh";
-    $self->reset; # reset object to primal state
-    my ( $key ) = keys %ARGS;
-
-    if ( $key eq 'code' ) {
-        $sql = $site->SQL_ACTIVITY_SELECT_BY_CODE;
-    } else {
-        $sql = $site->SQL_ACTIVITY_SELECT_BY_AID;
-    }
-
-    # DBI incantations
-    # N.B. - the select can only return a single record
-    my $newself = $dbh->selectrow_hashref( $sql, {}, $ARGS{$key} );
-    if ( defined( $newself ) ) {
-        foreach my $key ( keys %{ $newself } ) {
-            $self->{$key} = $newself->{$key};
-        }
-        return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
-    } elsif ( ! defined( $dbh->err ) ) {
-        # nothing found
-        return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
-    }
-    # DBI error
-    return $CELL->status_err( $dbh->errstr );
 }
+
+
 
 
 =head1 FUNCTIONS
@@ -374,12 +337,8 @@ Returns AID or undef on failure.
 sub aid_by_code {
     my ( $code ) = validate_pos( @_, { type => SCALAR } );
 
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-
-    my $act = __PACKAGE__->spawn;
-    my $status = $act->load_by_code( $code );
-    return $act->{aid} if $status->ok;
+    my $status = __PACKAGE__->load_by_code( $code );
+    return $status->payload->{'aid'} if $status->code eq 'DISPATCH_RECORDS_FOUND';
     return;
 }
 

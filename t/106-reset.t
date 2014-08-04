@@ -42,6 +42,7 @@ use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Shared qw( noof );
+use Test::Fatal;
 use Test::More;
 
 # plan tests
@@ -54,6 +55,10 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
+# attempt to spawn a hooligan
+like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sneaking in' ); },
+      qr/not listed in the validation options: hooligan/ );
+
 # insert a testing employee
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
         nick => 'missreset',
@@ -62,7 +67,6 @@ my $emp = App::Dochazka::REST::Model::Employee->spawn(
         passhash => 'foo',
         salt => 'bar',
         remark => 'why me?',
-        hooligan => 'sneaking in',
    );
 is( $emp->nick, 'missreset' );
 is( $emp->fullname, 'Miss Reset Machine');

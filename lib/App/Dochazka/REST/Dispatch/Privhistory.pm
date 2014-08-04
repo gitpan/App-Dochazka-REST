@@ -42,11 +42,12 @@ use warnings;
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
+use App::Dochazka::REST::Dispatch::Shared;
 use App::Dochazka::REST::Model::Employee qw( eid_exists nick_exists );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Carp;
 use Data::Dumper;
-use Path::Router;
+use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 
 use parent 'App::Dochazka::REST::Dispatch';
@@ -64,11 +65,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -82,154 +83,25 @@ Controller/dispatcher module for the 'privhistory' resource.
 
 
 
-=head1 FUNCTIONS
-
-=head2 _init_get
-
-Adds employee-related routes to C<$router_get> (router for GET requests).
-
-=cut
-
-sub _init_get {
-
-    my $router_get = __PACKAGE__->SUPER::router( 'GET' );
-    die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
-
-    $router_get->add_route( 'privhistory',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_default,
-    );
-
-    $router_get->add_route( 'privhistory/help',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_default,
-    );
-
-    $router_get->add_route( 'privhistory/nick/:nick',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_privhistory_nick,
-    );
-
-    $router_get->add_route( 'privhistory/nick/:nick/:tsrange',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_privhistory_nick,
-    );
-
-    $router_get->add_route( 'privhistory/eid/:eid',
-        defaults => {
-            acl_profile => 'admin',
-        },
-        target => \&_get_privhistory_eid,
-    );
-
-    $router_get->add_route( 'privhistory/eid/:eid/:tsrange',
-        defaults => {
-            acl_profile => 'admin',
-        },
-        target => \&_get_privhistory_eid,
-    );
-
-    $router_get->add_route( 'privhistory/current',
-        defaults => {
-            acl_profile => 'active',
-        },
-        target => \&_get_privhistory_current,
-    );
-
-    $router_get->add_route( 'privhistory/current/:tsrange',
-        defaults => {
-            acl_profile => 'active',
-        },
-        target => \&_get_privhistory_current,
-    );
-
-    return "Privhistory GET router initialization complete";   
-}
-
-
-=head2 _init_post
-
-Adds employee-related routes to C<$router_post> (router for POST requests).
-
-=cut
-
-sub _init_post {
-    my $router_post = __PACKAGE__->SUPER::router( 'POST' );
-    return "Employee POST router initialization complete";   
-}
-
-
-
-
 =head1 TARGET FUNCTIONS
 
-The following functions implement actions for the various routes.
+The following functions implement targets for the various routes.
 
 =cut
 
-    
-sub _get_default {
-    my ( %ARGS ) = @_;
-
-    my $uri = $ARGS{'context'}->{'uri'};
-    $uri =~ s/\/*$//;
-    my $server_status = App::Dochazka::REST::dbh::status;
-    return $CELL->status_ok(
-        'DISPATCH_EMPLOYEE_DEFAULT',
-        args => [ $VERSION, $server_status ],
-        payload => {
-            documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
-            resources => {
-                'nick/:nick' => {
-                    link => "$uri/privhistory/nick/:nick",
-                    description => 'Get entire history of privilege level changes for the employee with the given nick',
-                    acl_profile => 'admin',
-                },
-                'nick/:nick/:tsrange' => {
-                    link => "$uri/privhistory/nick/:nick/:tsrange",
-                    description => 'Get partial history of privilege level changes for the employee with the given nick (i.e, limit to given tsrange)',
-                    acl_profile => 'admin',
-                },
-                'eid/:eid' => {
-                    link => "$uri/privhistory/eid/:eid",
-                    description => 'Get entire history of privilege level changes for the employee with the given EID',
-                    acl_profile => 'admin',
-                },
-                'eid/:eid/:tsrange' => {
-                    link => "$uri/privhistory/eid/:eid/:tsrange",
-                    description => 'Get partial history of privilege level changes for the employee with the given EID (i.e, limit to given tsrange)',
-                    acl_profile => 'admin',
-                },
-                'current' => {
-                    link => "$uri/privhistory/current",
-                    description => 'Get entire history of privilege level changes for the current employee',
-                    acl_profile => 'active',
-                },
-                'current/:tsrange' => {
-                    link => "$uri/privhistory/current/:tsrange",
-                    description => 'Get partial history of privilege level changes for the current employee (i.e, limit to given tsrange)',
-                    acl_profile => 'active',
-                },
-            },
-        },
-    );
+BEGIN {    
+    no strict 'refs';
+    *{"_get_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_get_default( 'DISPATCH_HELP_PRIVLEVEL_GET' );
 }
 
 
-sub _get_privhistory_nick {
-    my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
+sub _get_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
 
-    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
-    my $nick = $ARGS{'context'}->{'mapping'}->{'nick'};
+    my $tsrange = $context->{'mapping'}->{'tsrange'};
+    my $nick = $context->{'mapping'}->{'nick'};
 
     # load EID from nick, display error if EID doesn't exist
     my $emp = nick_exists( $nick );
@@ -238,12 +110,12 @@ sub _get_privhistory_nick {
     return get_privhistory( $emp->eid, $tsrange );
 }
 
-sub _get_privhistory_eid {
-    my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
+sub _get_eid {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
 
-    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
-    my $eid = $ARGS{'context'}->{'mapping'}->{'eid'};
+    my $tsrange = $context->{'mapping'}->{'tsrange'};
+    my $eid = $context->{'mapping'}->{'eid'};
 
     # load nick from EID, display error if nick doesn't exist
     
@@ -253,13 +125,12 @@ sub _get_privhistory_eid {
     return get_privhistory( $eid, $tsrange );
 }
 
-sub _get_privhistory_current {
-    my ( %ARGS ) = @_;
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_privhistory_current" ); 
+sub _get_current {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_current" ); 
 
-    my $tsrange = $ARGS{'context'}->{'mapping'}->{'tsrange'};
-    my $eid = $ARGS{'context'}->{'current'}->{'eid'};
-    my $nick = $ARGS{'context'}->{'current'}->{'nick'};
+    my $tsrange = $context->{'mapping'}->{'tsrange'};
+    my $eid = $context->{'current'}->{'eid'};
     
     return get_privhistory( $eid, $tsrange );
 }

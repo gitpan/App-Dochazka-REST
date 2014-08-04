@@ -41,6 +41,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $log $site );
+use Params::Validate qw( :all );
 
 
 =head1 NAME
@@ -53,11 +54,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -92,24 +93,24 @@ Any errors in communication with the LDAP server are written to the log.
 
 =cut
 
+# $ldap and $dn are used by both 'ldap_exists' and 'ldap_search'
 my ( $ldap, $dn );
+
 sub ldap_exists {
-    my ( $nick ) = @_;
-    my $server = $site->DOCHAZKA_LDAP_SERVER;
-    return 0 unless $nick;
+    my ( $nick ) = validate_pos( @_, { type => SCALAR } );
 
     return 0 unless $site->DOCHAZKA_LDAP;
 
     require Net::LDAP; 
 
+    my $server = $site->DOCHAZKA_LDAP_SERVER;
     $ldap = Net::LDAP->new( $server );
     $log->error("$@") unless $ldap;
     return 0 unless $ldap;
 
     $log->info( "Connected to LDAP server $server to look up $nick" );
     
-    if ( my $tmp_result = ldap_search( $ldap, $nick ) ) {
-        $dn = $tmp_result;
+    if ( $dn = ldap_search( $ldap, $nick ) ) {
         $log->info( "Found employee $nick in LDAP (DN $dn)" );
         return 1;
     }
@@ -161,7 +162,7 @@ sub ldap_search {
         }
     }
     return $dn if $count > 0;
-    return 0;
+    return;
 }
 
 

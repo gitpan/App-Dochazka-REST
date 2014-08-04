@@ -69,14 +69,15 @@ my $emp = App::Dochazka::REST::Model::Employee->spawn(
     nick => 'mrsched',
 );
 $status = $emp->insert;
+diag( $status->text ) unless $status->ok;
 ok( $status->ok );
 ok( $emp->eid > 0 );
 is( noof( 'employees'), 3 );
 
 # load 'WORK'
-my $work = App::Dochazka::REST::Model::Activity->spawn;
-$status = $work->load_by_code( 'work' );
-ok( $status->ok );
+$status = App::Dochazka::REST::Model::Activity->load_by_code( 'work' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+my $work = $status->payload;
 ok( $work->aid > 0 );
 
 # Load up the object
@@ -86,11 +87,14 @@ my $intvl = "[$today 08:00, $today 12:00)";
 $int->{intvl} = $intvl;
 $int->{long_desc} = 'Pencil pushing';
 $int->{remark} = 'TEST INTERVAL';
+is( $int->iid, undef );
 
 # Insert the interval
 $status = $int->insert;
 diag( $status->code . " " . $status->text ) unless $status->ok;
 ok( $status->ok );
+ok( $int->iid > 0 );
+my $saved_iid = $int->iid;
 
 # test accessors
 ok( $int->iid > 0 );
@@ -99,6 +103,14 @@ is( $int->aid, $work->aid );
 ok( tsrange_equal( $int->intvl, $intvl ) );
 is( $int->long_desc, 'Pencil pushing' );
 is( $int->remark, 'TEST INTERVAL' );
+
+# load_by_iid
+$status = App::Dochazka::REST::Model::Interval->load_by_iid( $saved_iid );
+diag( $status->text ) unless $status->ok;
+ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+my $newint = $status->payload;
+is( $newint->long_desc, "Pencil pushing" );
 
 # CLEANUP:
 # 1. delete the interval

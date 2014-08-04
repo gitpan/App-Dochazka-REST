@@ -3,6 +3,7 @@ bin/dochazka-rest
 Build.PL
 Changes
 config/dispatch/dispatch_Config.pm
+config/dispatch/dispatch_GET_Config.pm
 config/dispatch/dispatch_Message_en.conf
 config/Dochazka_Config.pm
 config/Dochazka_Message_en.conf
@@ -21,8 +22,8 @@ lib/App/Dochazka/REST/Dispatch.pm
 lib/App/Dochazka/REST/Dispatch/ACL.pm
 lib/App/Dochazka/REST/Dispatch/Employee.pm
 lib/App/Dochazka/REST/Dispatch/Privhistory.pm
+lib/App/Dochazka/REST/Dispatch/Shared.pm
 lib/App/Dochazka/REST/LDAP.pm
-lib/App/Dochazka/REST/Model/.Employee.pm.swp
 lib/App/Dochazka/REST/Model/Activity.pm
 lib/App/Dochazka/REST/Model/Employee.pm
 lib/App/Dochazka/REST/Model/Interval.pm
@@ -45,6 +46,7 @@ t/000-depends.t
 t/001-init.t
 t/002-root.t
 t/003-current_priv.t
+t/004-shared-paramvalid.t
 t/011-tsrange_equal.t
 t/104-employee.t
 t/105-privhistory.t

@@ -52,11 +52,11 @@ App::Dochazka::REST::dbh - database handle module (parent of data model classes)
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -95,7 +95,10 @@ Something like an instance method, to be accessed via inheritance.
 
 =cut
 
-sub dbh { $dbh; }
+sub dbh { 
+    #die "Bad database handle" unless $dbh->ping;
+    $dbh; 
+}
 
 
 =head2 status

@@ -38,8 +38,9 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
+use Params::Validate qw( :all );
 use Try::Tiny;
 
 use parent 'App::Dochazka::REST::dbh';
@@ -55,11 +56,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -271,8 +272,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -286,19 +286,14 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of Schedule table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
 BEGIN {
     foreach my $subname ( 'sid', 'schedule', 'remark' ) {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -329,7 +324,6 @@ sub insert {
     my ( $self ) = @_;
 
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
 
     # if the exact same schedule is already in the database, we
     # don't insert it again
@@ -341,9 +335,9 @@ sub insert {
 
     # no exact match found, insert a new record
     my $status = cud(
-        $self,
-        $site->SQL_SCHEDULE_INSERT,
-        ( 'schedule', 'remark' ),
+        object => $self,
+        sql => $site->SQL_SCHEDULE_INSERT,
+        attrs => [ 'schedule', 'remark' ],
     );
     $log->info( "Inserted new schedule with SID" . $self->{sid} ) if $status->ok;
 
@@ -369,9 +363,9 @@ sub delete {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_SCHEDULE_DELETE,
-        ( 'sid' ),
+        object => $self,
+        sql => $site->SQL_SCHEDULE_DELETE,
+        attrs => [ 'sid' ],
     );
     $self->reset( sid => $self->{sid} ) if $status->ok;
 
@@ -381,36 +375,19 @@ sub delete {
 
 =head2 load_by_sid
 
-Given a SID, load the schedule into the object. Returns a status value.
+Analogous function to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 
 =cut
 
 sub load_by_sid {
-    my ( $self, $sid ) = @_;
-    my $status;
+    my $self = shift;
+    my ( $sid ) = validate_pos( @_, { type => SCALAR } );
 
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-
-    $dbh->{RaiseError} = 1;
-    try {
-        my $results = $dbh->selectrow_hashref( 
-            $site->SQL_SCHEDULE_SELECT,
-            undef,
-            $sid 
-        );
-        if ( $results ) {
-            map { $self->{$_} = $results->{$_}; } ( 'sid', 'schedule', 'remark' );
-            $status = $CELL->status_ok( 'DOCHAZKA_RECORDS_FETCHED', 1);
-        } else {
-            $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_FETCHED', 0 );
-        }
-    } catch {
-        $status = $CELL->status_err( $dbh->errstr );
-    };
-    $dbh->{RaiseError} = 0;
-
-    return $status;
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_SCHEDULE_SELECT_BY_SID,
+        keys => [ $sid ],
+    );
 }
 
 
@@ -419,8 +396,8 @@ sub load_by_sid {
 
 =head2 get_json
 
-Given a database handle and a SID, queries the database for the JSON
-string associated with the SID. Returns undef if not found.
+Given a SID, queries the database for the JSON string associated with the SID.
+Returns undef if not found.
 
 =cut
 
@@ -429,9 +406,8 @@ sub get_json {
     die "Problem with arguments in get_json" if not defined $sid;
 
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
 
-    my ( $json) = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
+    my ( $json ) = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
                                          undef,
                                          $sid );
     return $json;

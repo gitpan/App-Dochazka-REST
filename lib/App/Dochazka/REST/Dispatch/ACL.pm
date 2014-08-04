@@ -54,11 +54,11 @@ App::Dochazka::REST::Dispatch::ACL - ACL module
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 

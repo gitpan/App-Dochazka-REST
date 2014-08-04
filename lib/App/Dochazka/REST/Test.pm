@@ -41,6 +41,8 @@ use warnings;
 
 use App::CELL qw( $CELL );
 use HTTP::Request;
+use JSON;
+use Test::JSON;
 
 
 
@@ -54,11 +56,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -78,7 +80,8 @@ This module provides helper code for unit tests.
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( req_root req_demo );
+our @EXPORT_OK = qw( req_root req_demo req_json req_html req_bad_creds
+status_from_json );
 
 
 
@@ -87,7 +90,7 @@ our @EXPORT_OK = qw( req_root req_demo );
 
 =head2 req_root
 
-Make an HTTP request as 'root' (admin priv)
+Construct an HTTP request as 'root' (admin priv)
 
 =cut
 
@@ -103,7 +106,7 @@ sub req_root {
 
 =head2 req_demo
 
-Make an HTTP request as 'demo' (passerby priv)
+Construct an HTTP request as 'demo' (passerby priv)
 
 =cut
 
@@ -113,6 +116,64 @@ sub req_demo {
     $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
     $r->header( 'Accept' => 'application/json' );
     return $r;
+}
+
+
+=head2 req_json
+
+Construct an HTTP request for JSON as 'demo' (passerby priv)
+
+=cut
+
+sub req_json {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'application/json' );
+    return $r;
+}
+
+
+=head2 req_html
+
+Construct an HTTP request for HTML as 'demo' (passerby priv)
+
+=cut
+
+sub req_html {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
+    $r->header( 'Accept' => 'text/html' );
+    return $r;
+}
+
+
+=head2 req_bad_creds
+
+Construct an HTTP request with improper credentials
+
+=cut
+
+sub req_bad_creds {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic ZGVtbzpibGJvc3Q=' );
+    return $r;
+}
+
+
+=head2 status_from_json
+
+Given a JSON string, check if it is valid JSON, blindly convert it into a
+Perl hashref, bless it into 'App::CELL::Status', and send it back to caller.
+
+=cut
+
+sub status_from_json {
+    my ( $json ) = @_;
+    is_valid_json( $json );
+    bless from_json( $json ), 'App::CELL::Status';
 }
 
 1;

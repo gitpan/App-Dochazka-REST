@@ -43,6 +43,7 @@ use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee qw( nick_exists eid_exists );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use Scalar::Util qw( blessed );
+use Test::Fatal;
 use Test::More;
 
 plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
@@ -53,24 +54,95 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
+# test some wrong _load function calls
+#like( exception { App::Dochazka::REST::Model::Employee::_load( 'eid' => 1, 'nick' => 'hooligan' ); },
+#      qr/4 parameters were passed.+but 2 were expected/ );
+#like( exception { App::Dochazka::REST::Model::Employee->_load( 'hooligan' ); },
+#      qr/not listed in the validation options: App::Dochazka::REST::Model::Employee/ );
+#like( exception { App::Dochazka::REST::Model::Employee::_load( ( 1..2 ) ); },
+#      qr/not listed in the validation options/ );
+#like( exception { App::Dochazka::REST::Model::Employee::_load( 'hooligan' => 'sneaking in' ); },
+#      qr/not listed in the validation options: hooligan/ );
+
+# attempt to spawn a hooligan
+like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sneaking in' ); }, 
+      qr/not listed in the validation options: hooligan/ );
+
 # spawn an empty employee object
 my $emp = App::Dochazka::REST::Model::Employee->spawn;
-ok( blessed($emp), "object is blessed" );
+ok( ref $emp, "object is a reference" );
+ok( blessed $emp, "object is a blessed reference" );
+
+# try to reset in a hooligan-ish manner
+like( exception { $emp->reset( 'hooligan' => 'sneaking in' ); }, 
+      qr/not listed in the validation options: hooligan/ );
 
 # attempt to load a non-existent nick into the object
 $status = $emp->load_by_nick( 'mrfu' ); 
 ok( $status->ok );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Mr. Fu's nick doesn't exist" );
 is( $status->{'count'}, 0, "Mr. Fu's nick doesn't exist" );
+ok( ! ref $status->payload );
+
+# do the same, but as a class method
+$status = App::Dochazka::REST::Model::Employee->load_by_nick( 'mrfu' ); 
+ok( $status->ok );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Mr. Fu's nick doesn't exist" );
+is( $status->{'count'}, 0, "Mr. Fu's nick doesn't exist" );
+ok( ! ref $status->payload );
 
 # (root employee is created at dbinit time)
+
 # attempt to load root by nick and test accessors
 $status = $emp->load_by_nick( 'root' ); 
-diag( $status->text ) unless $status->ok;
-ok( $status->ok, "Root employee loaded into object" );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
+$emp->reset( $status->payload );
 is( $emp->remark, 'dbinit' );
 is( $emp->nick, 'root' );
 is( $emp->eid, 1 );
+is( $emp->priv, 'admin' );
+is( $emp->schedule, '{}' );
+is( $emp->email, 'root@site.org' );
+is( $emp->fullname, 'Root Immutable' );
+my $eid_of_root = $emp->eid;
+
+# attempt to load root by EID and test accessors
+$status = $emp->load_by_eid( $eid_of_root ); 
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
+$emp = $status->payload;
+is( $emp->remark, 'dbinit' );
+is( $emp->nick, 'root' );
+is( $emp->eid, $eid_of_root );
+is( $emp->priv, 'admin' );
+is( $emp->schedule, '{}' );
+is( $emp->email, 'root@site.org' );
+is( $emp->fullname, 'Root Immutable' );
+
+# do the same, but use class method 
+
+$status = App::Dochazka::REST::Model::Employee->load_by_nick( 'root' ); 
+diag( $status->text ) unless $status->ok;
+ok( $status->ok, "Root employee loaded into object" );
+ok( ref $status->payload );
+isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
+$emp = $status->payload;
+is( $emp->remark, 'dbinit' );
+is( $emp->nick, 'root' );
+is( $emp->eid, $eid_of_root );
+is( $emp->priv, 'admin' );
+is( $emp->schedule, '{}' );
+is( $emp->email, 'root@site.org' );
+is( $emp->fullname, 'Root Immutable' );
+
+$status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_root ); 
+diag( $status->text ) unless $status->ok;
+ok( $status->ok, "Root employee loaded into object" );
+ok( ref $status->payload );
+isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
+$emp = $status->payload;
+is( $emp->remark, 'dbinit' );
+is( $emp->nick, 'root' );
+is( $emp->eid, $eid_of_root );
 is( $emp->priv, 'admin' );
 is( $emp->schedule, '{}' );
 is( $emp->email, 'root@site.org' );
@@ -104,10 +176,9 @@ ok( ! nick_exists( 'fandango' ) );
 ok( ! eid_exists( 1341 ) ); 
 
 # spawn another object
-my $emp2 = App::Dochazka::REST::Model::Employee->spawn;
-$status = $emp2->load_by_eid( $eid_of_mrfu );
-#diag( Dumper( $status ) );
-ok( $status->ok, "load_by_eid returned OK status" );
+$status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_mrfu );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "load_by_eid returned OK status" );
+my $emp2 = $status->payload;
 is( $emp2->{eid}, $eid_of_mrfu, "EID matches that of Mr. Fu" );
 is( $emp2->{nick}, 'mrfu', "Nick should be mrfu" );
 
@@ -149,11 +220,13 @@ is( $status->{'count'}, 0 );
 
 # load Mrs. Fu
 $status = $emp->load_by_nick( 'mrsfu' );
-ok( $status->ok, "Nick mrsfu exists" );
+is( $status->code, 'DISPATCH_RECORDS_FOUND', "Nick mrsfu exists" );
+$emp = $status->payload;
 is( $emp->nick, 'mrsfu', "Mrs. Fu's nick is the right string" );
 
 # update Mrs. Fu
-$emp->{fullname} = "Mrs. Fu that's Ma'am to you";
+$emp->fullname( "Mrs. Fu that's Ma'am to you" );
+is( $emp->fullname, "Mrs. Fu that's Ma'am to you" );
 $status = $emp->update;
 ok( $status->ok, "UPDATE status is OK" );
 is( $emp->{fullname}, "Mrs. Fu that's Ma'am to you", "Fullname updated" );
@@ -175,7 +248,8 @@ is( noof( 'employees' ), 4 );
 
 # Expurgate Mr. Fu
 $status = $emp->load_by_nick( "mrfu" );
-ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+$emp = $status->payload;
 my $fu_eid = $emp->eid;
 my $fu_nick = $emp->nick;
 my $expurgated_fu = $emp->expurgate;
@@ -186,10 +260,14 @@ is( $expurgated_fu->{nick}, $fu_nick );
 # delete Mr. and Mrs. Fu
 $status = $emp->load_by_nick( "mrsfu" );
 ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+$emp = $status->payload;
 $status = $emp->delete;
 ok( $status->ok );
 $status = $emp->load_by_nick( "mrfu" );
 ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+$emp = $status->payload;
 $status = $emp->delete;
 ok( $status->ok );
 

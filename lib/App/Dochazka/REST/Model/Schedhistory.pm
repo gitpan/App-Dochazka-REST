@@ -38,8 +38,9 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
+use Params::Validate qw( :all );
 
 use parent 'App::Dochazka::REST::dbh';
 
@@ -53,11 +54,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -111,7 +112,9 @@ See also L<When history changes take effect>.
 
 =item * basic accessors (L<shid>, L<eid>, L<sid>, L<effective>, L<remark>)
 
-=item * L<load> method (load schedhistory record from EID and optional timestamp)
+=item * L<load_by_eid> method (load schedhistory record from EID and optional timestamp)
+
+=item * L<load_by_shid> method (load schedhistory record by its SHID)
 
 =item * L<insert> method (straightforward)
 
@@ -157,8 +160,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -173,19 +175,14 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of Schedhistory table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
 BEGIN {
     foreach my $subname ( 'shid', 'eid', 'sid', 'effective', 'remark') {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -215,40 +212,55 @@ Accessor method.
 
 
 
-=head2 load
+=head2 load_by_eid
 
-Instance method. Given an EID, and, optionally, a timestamp, loads a single
-Schedhistory record into the object, rewriting whatever was there before.
-Returns a status object.
+Class method. Given an EID, and, optionally, a timestamp, attempt to 
+look it up in the database. Generate a status object: if a schedhistory 
+record is found, it will be in the payload and the code will be
+'DISPATCH_RECORDS_FOUND'.
 
 =cut
 
-sub load {
-    my ( $self, $eid, $ts ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-    my @attrs = ( 'shid', 'eid', 'sid', 'effective', 'remark' );
-    my ( $sql, $result );
+sub load_by_eid {
+    my $self = shift;
+    my ( $eid, $ts ) = validate_pos( @_, 
+        { type => SCALAR },                # EID
+        { type => SCALAR, optional => 1 }, # optional timestamp
+    );
+
     if ( $ts ) {
-        # timestamp given
-        $sql = $site->SQL_SCHEDHISTORY_SELECT_ARBITRARY;
-        $result = $dbh->selectrow_hashref( $sql, undef, $eid, $ts );
-    } else {
-        # no timestamp - use 'now'
-        $sql = $site->SQL_SCHEDHISTORY_SELECT_CURRENT;
-        $result = $dbh->selectrow_hashref( $sql, undef, $eid );
+        return load(
+            class => __PACKAGE__,
+            sql => $site->SQL_SCHEDHISTORY_SELECT_ARBITRARY,
+            keys => [ $eid, $ts ],
+        );
     }
-    if ( defined $result ) {
-        map { $self->{$_} = $result->{$_}; } keys %$result;
-        return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
-    } elsif ( ! defined( $dbh->err ) ) {
-        # nothing found
-        return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
-    }
-    # DBI error
-    return $CELL->status_err( $dbh->errstr );
+
+    return load(
+        class => __PACKAGE__,
+        sql => $site->SQL_SCHEDHISTORY_SELECT_CURRENT,
+        keys => [ $eid ],
+    );
 }
     
+
+
+=head2 load_by_shid
+
+Given a shid, load a single schedhistory record.
+
+=cut
+
+sub load_by_shid {
+    my $self = shift;
+    my ( $shid ) = validate_pos( @_, { type => SCALAR } );
+
+    return load(
+        class => __PACKAGE__,
+        sql => $site->SQL_SCHEDHISTORY_SELECT_BY_SHID,
+        keys => [ $shid ],
+    );
+}
 
 
 =head2 insert
@@ -258,14 +270,13 @@ Field values are taken from the object. Returns a status object.
 
 =cut
 
-# FIXME: use cud
 sub insert {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_SCHEDHISTORY_INSERT,
-        ( 'eid', 'sid', 'effective', 'remark' ),
+        object => $self,
+        sql => $site->SQL_SCHEDHISTORY_INSERT,
+        attrs => [ 'eid', 'sid', 'effective', 'remark' ],
     );
 
     return $status;
@@ -288,9 +299,9 @@ sub delete {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_SCHEDHISTORY_DELETE,
-        ( 'shid' ),
+        object => $self,
+        sql => $site->SQL_SCHEDHISTORY_DELETE,
+        attrs => [ 'shid' ],
     );
     $self->reset( 'shid' => $self->{shid} ) if $status->ok;
 

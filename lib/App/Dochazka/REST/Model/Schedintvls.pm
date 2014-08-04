@@ -55,11 +55,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -138,19 +138,14 @@ sub populate {
 
 =head2 Accessor methods
 
-Special accessors that do not necessarily correspond to columns in the database
-table. These functions return whatever value happens to be associated with the
-object, with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
 BEGIN {
     foreach my $subname ( 'scratch_sid', 'intvls', 'schedule' ) {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -186,7 +181,6 @@ sub load {
 
     # prepare and execute statement
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_SELECT );
     $sth->execute( $self->{scratch_sid} );
 
@@ -218,7 +212,6 @@ Field values are taken from the object. Returns a status object.
 sub insert {
     my ( $self ) = @_;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     my $status;
 
     # the insert operation needs to take place within a transaction,
@@ -270,7 +263,6 @@ Returns a status object.
 sub delete {
     my ( $self ) = @_;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     my $status;
 
     $dbh->{AutoCommit} = 0;
@@ -334,7 +326,6 @@ Get next value from the scratch_sid_seq sequence
 
 sub _next_scratch_sid {
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     return $dbh->selectrow_array( $site->SQL_SCRATCH_SID, undef );
 }
 

@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.125
+    Version 0.134
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -73,22 +73,20 @@ REST INTERFACE
     nefarious activities, the server may be set up to accept HTTPS requests
     only. These are then decrypted to make HTTP requests. This document
     ignores this important implementation detail. If this bothers you, you
-    can treat 'HTTP' as an abbreviation for 'HTTP and/or HTTPS'.)
-
-    Incoming HTTP requests are handled by App::Dochazka::REST::Resource,
-    which inherits from Web::Machine::Resource. The latter uses Plack to
-    implement a PSGI-compliant stack.
+    can treat 'HTTP' as an abbreviation for 'HTTP and/or HTTPS'.) f Incoming
+    HTTP requests are handled by App::Dochazka::REST::Resource, which
+    inherits from Web::Machine::Resource. The latter uses Plack to implement
+    a PSGI-compliant stack.
 
     Web::Machine uses a "state-machine" approach to implementing the HTTP
-    1.1 standard. The request is processed by running it through the state
-    machine: the request goes in, and the response comes out. Each "cog" of
-    the state machine is a Web::Machine::Resource method that can be
-    overrided by a child module. In our case, this module is
-    App::Dochazka::REST::Resource, and the methods it overrides can be seen
-    in its source code.
+    1.1 standard. Incoming HTTP requests are processed by running them
+    through a state machine: the request goes in, and the response comes
+    out. Each "cog" of the state machine is a Web::Machine::Resource method
+    that can be overrided by a child module. In our case, this module is
+    App::Dochazka::REST::Resource.
 
-    The behavior of the resulting web server can be summarized, in a
-    hand-wavingly way, as follows:
+    The behavior of the resulting web server can be characterized as
+    follows:
 
     * UTF-8 assumed
         The server assumes all incoming requests are encoded in UTF-8, and
@@ -137,7 +135,9 @@ REST INTERFACE
         check, only to be caught by the Test for resource existence.
 
     * Response generation
-        # FIXME need some verbiage here
+        The Test for resource existence is the last test. If the request
+        passes it, a '200 OK' response is generated with an appropriate
+        entity body.
 
 DATA MODEL
     This section describes the `App::Dochazka::REST' data model.

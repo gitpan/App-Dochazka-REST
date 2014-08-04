@@ -47,3 +47,4 @@ set( 'DISPATCH_CONTROLLERS', [
 #    'Schedhistory', 'Schedule', 'Activity', 'Interval', 'Lock',
 ] );
 
+1;

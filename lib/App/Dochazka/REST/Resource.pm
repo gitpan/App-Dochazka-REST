@@ -43,13 +43,18 @@ use warnings;
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
+use App::Dochazka::REST::Dispatch::Employee;
+use App::Dochazka::REST::Dispatch::Privhistory;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
+use Carp;
 use Data::Dumper;
 use Data::Structure::Util qw( unbless );
 use Encode qw( decode_utf8 );
 use JSON;
+use Params::Validate qw(:all);
+use Path::Router;
 use Web::Machine::Util qw( create_header );
 
 # methods/attributes not defined in this module will be inherited from:
@@ -65,11 +70,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -135,7 +140,9 @@ sub content_types_provided { [
 
 =head2 render_html
 
-Whip out some HTML to educate passersby.
+Normally, clients will communicate with the server via 'render_json', but 
+humans need HTML. This method takes the server's JSON response and wraps
+it up in a nice package.
 
 =cut
 
@@ -157,14 +164,12 @@ sub render_html {
 
 =head2 render_json
 
-Encode the context as a JSON string.
+Encode the context as a JSON string. Wrapper for '_make_json', which is also
+used in 'render_html'.
 
 =cut
 
-sub render_json { 
-    my ( $self ) = @_;
-    $self->_make_json;
-}
+sub render_json { ( shift )->_make_json; }
 
 
 
@@ -180,37 +185,6 @@ sub context {
     $self->{'context'} = shift if @_;
     $self->{'context'};
 }
-
-
-=head2 router
-
-Accessor. Takes one parameter -- the method. Returns the router instance for that method.
-
-=cut
-
-sub router {
-    my ( $self, $method ) = @_;
-    die "No method" unless defined $method;
-    $method = lc $method;
-    return $self->_router_get if $method eq 'get';
-    return $self->_router_post if $method eq 'post';
-    die "Bad method $method";
-}
-
-
-sub _router_get {
-    my $self = shift;
-    $router_get = shift if @_;
-    $router_get;
-}
-
-
-sub _router_post {
-    my $self = shift;
-    $router_post = shift if @_;
-    $router_post;
-}
-
 
 
 =head2 charsets_provided
@@ -252,7 +226,7 @@ Is the URI too long?
 sub uri_too_long {
     my ( $self, $uri ) = @_;
 
-    return length $uri > $site->DOCHAZKA_URI_MAX_LENGTH
+    return ( length $uri > $site->DOCHAZKA_URI_MAX_LENGTH )
         ? 1
         : 0;
 }
@@ -312,12 +286,14 @@ action.
 
 sub forbidden {
     my ( $self ) = @_;
-    my $method = lc $self->request->method;
-    die "Bad method $method" unless $method eq 'get';
-    my $router = $self->router( $method );
-    App::Dochazka::REST::Dispatch->init( $method ) unless $router;
-    $router = $self->router( $method );
-    die "Problem with router" unless $router->isa( 'Path::Router' );
+
+    # determine method
+    my $method = uc $self->request->method;
+    die "Bad method $method" unless $method =~ m/^(GET)|(POST)$/;
+
+    # get router for this method (and initialize it if necessary)
+    my $router = router( $method );
+    $router = init_router( $method ) unless defined $router and $router->isa( 'Path::Router' );
 
     # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
     # In order to process them, they must first be "decoded" into Perl characters.
@@ -345,6 +321,7 @@ sub forbidden {
             : $self->request->base->as_string;
 
         $self->_push_onto_context( { 
+            'acl_priv' => $acl_priv,
             'target' => $route->target,
             'mapping' => $match->mapping, 
             'uri' => $uri,
@@ -372,25 +349,21 @@ sub resource_exists {
     # mapping in the PARAMHASH
     if ( exists $self->context->{'target'} and exists $self->context->{'mapping'} ) {
 
+        $log->debug( "Request for resource " . $self->context->{'path'} );
+
         my $target = $self->context->{'target'};
 
 	# Get rid of the target CODEREF now that we're done with it, so it
 	# doesn't trigger an error later, when we convert the context to JSON.
-        delete $self->context->{'target'};
+        #delete $self->context->{'target'};
 
-        # This is the second time we execute the target (first was in 'forbidden'
-        # to get the ACL status. This time, instead of ACL data we send the 
-	# entire request context. We send the entire context because, at this
-	# point, we don't know exactly which items from the context the
-	# target will need.
-        my $status = &$target( 'context' => $self->context, );
-
-        # 'expurgate' the status to get rid of unnecessary ballast
-        my $entity = $status->expurgate;
+        # This is where we actually execute the target, sending it the
+        # entire context as an argument.
+        my $status = &$target( $self->context );
 
 	# The target returns a status object, but this time we simply push that
 	# object onto the context (after "expurgating", or "unblessing", it).
-        $self->_push_onto_context( { 'entity' => $entity } );
+        $self->_push_onto_context( { 'entity' => $status->expurgate } );
 
 	# Returning 1 here signals that the request was processed successfully
 	# (200 OK) and everything needed to construct the response is in the
@@ -415,7 +388,8 @@ on in the course of processing the request.
 =cut
 
 sub _push_onto_context {
-    my ( $self, $hr ) = @_;
+    my $self = shift;
+    my ( $hr ) = validate_pos( @_, { type => HASHREF } );
 
     my $context = $self->context;
     foreach my $key ( keys %$hr ) {
@@ -526,5 +500,70 @@ sub _authenticate {
     }
 }            
 
+
+=head2 router
+
+Takes one parameter -- an HTTP method (e.g. 'GET', 'POST'). Returns
+the router instance for that method, which is stored in a package
+variable.
+
+=cut
+
+sub router {
+    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)/ } );
+    return $router_get if $method eq 'GET';
+    return $router_post if $method eq 'POST';
+
+    # We should never reach this point
+    croak "AAAAAAAAAAAAHHHH!!!! Engulfed by the abyss";
+}
+
+
+
+=head2 init_router
+
+Takes HTTP method and initializes the corresponding router.
+
+=cut
+
+sub init_router {
+    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)/ } );    	
+    return _init_get() if $method eq 'GET';
+    return _init_post() if $method eq 'POST';
+    # never reach this point
+    die "AAAAAAAAAAAHHH! Engulfed by the abyss";
+}
+
+
+# initialization routine for GET router
+sub _init_get {
+    $router_get = Path::Router->new;
+    die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
+    _populate_router( $router_get, $site->DISPATCH_RESOURCES_GET );
+    $router_get;
+}
+
+
+# initialization routine for POST router
+sub _init_post {
+    $router_post = Path::Router->new;
+    die "Bad router" unless $router_post->isa( 'Path::Router' );
+    _populate_router( $router_post, $site->DISPATCH_RESOURCES_POST );
+    $router_post;
+}
+
+sub _populate_router {
+    my ( $router, $resources ) = @_;
+    foreach my $key ( keys %$resources ) {
+        no strict 'refs';
+        $router_get->add_route( $key,
+            defaults => {
+                acl_profile => $resources->{$key}->{'acl_profile'},
+            },
+            target => \&{ $resources->{$key}->{'target'} },
+        );
+    }
+    return;
+}
 
 1;

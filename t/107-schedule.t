@@ -197,17 +197,22 @@ is( $schedhistory->remark, 'TESTING' );
 is( noof( 'schedhistory' ), 1 );
 
 # and now Mr. Sched's employee object should contain the schedule
-my $mrsched = App::Dochazka::REST::Model::Employee->spawn;
-$status = $mrsched->load_by_eid( $emp->{eid} );
-ok( $status->ok );
+$status = App::Dochazka::REST::Model::Employee->load_by_eid( $emp->{eid} );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+my $mrsched = $status->payload;
 is_valid_json( $mrsched->{schedule} );
 
 # try to load the same schedhistory record into an empty object
 my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn;
 ok( blessed( $sh2 ) );
 $status = undef;
-$status = $sh2->load( $emp->eid ); # get the current record
+$status = $sh2->load_by_eid( $emp->eid ); # get the current record
 ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, 1 );
+ok( ref $status->payload );
+ok( $status->payload->isa( 'App::Dochazka::REST::Model::Schedhistory' ) );
+$sh2->reset( $status->payload );
 is( $sh2->shid, $schedhistory->shid );
 is( $sh2->eid, $schedhistory->eid);
 is( $sh2->sid, $schedhistory->sid);
@@ -216,8 +221,12 @@ is( $sh2->remark, $schedhistory->remark);
 # 
 # Tomorrow this same schedhistory record will still be valid
 $sh2->reset;
-$status = $sh2->load( $emp->eid, $tomorrow );
+$status = $sh2->load_by_eid( $emp->eid, $tomorrow );
 ok( $status->ok );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( ref $status->payload );
+ok( $status->payload->isa( 'App::Dochazka::REST::Model::Schedhistory' ) );
+$sh2->reset( $status->payload );
 is( $sh2->shid, $schedhistory->shid );
 my $shid_copy = $sh2->shid;
 is( $sh2->eid, $schedhistory->eid);
@@ -227,8 +236,9 @@ is( $sh2->remark, $schedhistory->remark);
 
 # but it wasn't valid yesterday
 $sh2->reset;
-$status = $sh2->load( $emp->eid, $yesterday );
-ok( $status->not_ok );
+$status = $sh2->load_by_eid( $emp->eid, $yesterday );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 is( $sh2->shid, undef );
 is( $sh2->eid, undef );
 is( $sh2->sid, undef );
@@ -246,10 +256,9 @@ is( noof( 'schedhistory' ), 0 );
 
 # 2. delete the schedule
 is( noof( 'schedules' ), 1 );
-$schedule->reset;
 $status = $schedule->load_by_sid( $sid_copy );
-ok( $status->ok );
-#diag( Dumper( $schedule ) );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+$schedule = $status->payload;
 $status = $schedule->delete;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );

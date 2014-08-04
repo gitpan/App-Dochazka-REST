@@ -40,6 +40,7 @@ use App::CELL::Util qw( stringify_args );
 use Carp;
 use Data::Dumper;
 use DBI;
+use Params::Validate qw( :all );
 use Try::Tiny;
 
 use parent 'App::Dochazka::REST::dbh';
@@ -56,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -80,6 +81,8 @@ This module provides the following exports:
 
 =over 
 
+=item * C<load> (Load/Fetch/Retrieve -- single-record only)
+
 =item * C<cud> (Create, Update, Delete -- for single-record statements only)
 
 =item * C<noof> (get total number of records in a data model table)
@@ -93,12 +96,48 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( cud noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( load cud noof priv_by_eid schedule_by_eid );
 
 
 
 
 =head1 FUNCTIONS
+
+
+=head2 load
+
+Load a database record into a hashref based on a search key. Must be specifically
+enabled for the class/table in question. The search key must be an exact match:
+this function returns only 1 or 0 records. Call, e.g., like this:
+
+    my $status = load( 
+        class => __PACKAGE__, 
+        sql => $site->DOCHAZKA_ 
+        key => 44 
+    ); 
+
+=cut
+
+sub load {
+    # get and verify arguments
+    my %ARGS = validate( @_, { 
+        class => { type => SCALAR }, 
+        sql => { type => SCALAR }, 
+        keys => { type => ARRAYREF }, 
+    } );
+
+    # consult the database; N.B. - select may only return a single record
+    my $dbh = __PARENT__->SUPER::dbh;
+
+    my $hr = $dbh->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
+    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
+        if $dbh->err;
+
+    # report the result
+    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
+        payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
+    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
+}
 
 
 =head2 cud
@@ -109,16 +148,19 @@ reference (activity object or employee object), a SQL statement, and a list of
 attributes. Overwrites attributes in the object with the RETURNING list values
 received from the database. Returns a status object. Call example:
 
-    $status = cud( $self, $sql, @attr );
+    $status = cud( object => $self, sql => $sql, attrs => [ @attr ] );
 
 =cut
 
 sub cud {
-    my ( $blessed, $sql, @attr ) = @_;
+    my %ARGS = validate( @_, {
+        object => { can => [ qw( insert delete ) ] }, 
+        sql => { type => SCALAR }, 
+        attrs => { type => ARRAYREF } 
+    } );
+
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     my $status;
-    return $CELL->status_err('DOCHAZKA_DB_NOT_ALIVE', args => [ 'cud' ] ) unless $dbh->ping;
 
     # DBI incantations
     $dbh->{AutoCommit} = 0;
@@ -128,16 +170,16 @@ sub cud {
         local $SIG{__WARN__} = sub {
                 die @_;
             };
-        my $sth = $dbh->prepare( $sql );
+        my $sth = $dbh->prepare( $ARGS{'sql'} );
         my $counter = 0;
         map {
                $counter += 1;
-               $sth->bind_param( $counter, $blessed->{$_} );
-            } @attr;
+               $sth->bind_param( $counter, $ARGS{'object'}->{$_} );
+            } @{ $ARGS{'attrs'} };
         $sth->execute;
         my $rh = $sth->fetchrow_hashref;
         # populate object with all RETURNING fields 
-        map { $blessed->{$_} = $rh->{$_}; } ( keys %$rh );
+        map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
         $dbh->commit;
     } catch {
         my $errmsg = $_;
@@ -170,23 +212,14 @@ On failure, returns undef.
 =cut
 
 sub noof {
-    my ( $table ) = @_;
-    my $result;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
+    my ( $table ) = validate_pos( @_, { type => SCALAR } );
 
-    LUSTRATE: {
-        my $hr = {};
-        foreach my $key ( qw( activities employees intervals locks
-            privhistory schedhistory schedintvls schedules ) )
-        {
-            $hr->{$key} = '' if $key eq $table;
-        }
-        last LUSTRATE if exists( $hr->{$table} );
-        return undef;
-    }
-    
-    ( $result ) = $dbh->selectrow_array( "SELECT count(*) FROM $table" );
+    return unless grep { $table eq $_; } qw( activities employees intervals locks
+            privhistory schedhistory schedintvls schedules );
+
+    my $dbh = __PACKAGE__->SUPER::dbh;
+
+    my ( $result ) = $dbh->selectrow_array( "SELECT count(*) FROM $table" );
     return $result;
 }
 
@@ -194,30 +227,31 @@ sub noof {
 
 =head2 priv_by_eid
 
-Given a database handle, an EID, and, optionally, a timestamp, returns the
-employee's priv level as of that timestamp, or as of "now" if no timestamp was
-given. The priv level will default to 'passerby' if it can't be determined
-from the database.
+Given an EID, and, optionally, a timestamp, returns the employee's priv
+level as of that timestamp, or as of "now" if no timestamp was given. The
+priv level will default to 'passerby' if it can't be determined from the
+database.
 
 =cut
 
 sub priv_by_eid {
-    my ( $eid, $ts ) = @_;
+    my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
+        { type => SCALAR, optional => 1 } );
     return _st_by_eid( 'priv', $eid, $ts );
 }
 
 
 =head2 schedule_by_eid
 
-Given a database handle, an EID, and, optionally, a timestamp, returns the
-employee's schedule as of that timestamp, or as of "now" if no timestamp was
-given. The schedule will default to '{}' if it can't be determined from the
-database.
+Given an EID, and, optionally, a timestamp, returns the employee's schedule
+as of that timestamp, or as of "now" if no timestamp was given. The
+schedule will default to '{}' if it can't be determined from the database.
 
 =cut
 
 sub schedule_by_eid {
-    my ( $eid, $ts ) = @_;
+    my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
+        { type => SCALAR, optional => 1 } );
     return _st_by_eid( 'schedule', $eid, $ts );
 }
 
@@ -231,7 +265,6 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 sub _st_by_eid {
     my ( $st, $eid, $ts ) = @_;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
     my $sql;
     if ( $ts ) {
         # timestamp given
@@ -283,15 +316,23 @@ Given a list of attributes, returns a ready-made 'reset' method.
 =cut
 
 sub make_reset {
-    my ( @attr ) = @_;
+
+    # take a list consisting of the names of attributes that the 'reset'
+    # method will accept -- these must all be scalars
+    my ( @attr ) = validate_pos( @_, map { { type => SCALAR }; } @_ );
+
+    # construct the validation specification for the 'reset' routine:
+    # 1. 'reset' will take named parameters _only_
+    # 2. only the values from @attr will be accepted as parameters
+    # 3. all parameters are optional
+    my $val_spec;
+    map { $val_spec->{$_} = 0; } @attr;
+    
     return sub {
         # process arguments
-        my ( $self, @ARGS ) = @_;
-        croak "Odd number of arguments (" . scalar @ARGS . ") in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
-        my %ARGS = @ARGS;
-
-        # re-initialize object attributes
-        map { $self->{$_} = undef; } @attr;
+        my $self = shift;
+        confess "Not an instance method call" unless ref $self;
+        my %ARGS = validate( @_, $val_spec ) if @_ and defined $_[0];
 
         # set attributes to run-time values sent in argument list
         map { $self->{$_} = $ARGS{$_}; } @attr;
@@ -299,10 +340,28 @@ sub make_reset {
         # run the populate function, if any
         $self->populate() if $self->can( 'populate' );
 
-        # return a reasonable value for the context
+        # return an appropriate throw-away value
         return;
     }
 }
+
+
+=head2 make_accessor
+
+Returns a ready-made accessor.
+
+=cut
+
+sub make_accessor {
+    my ( $subname ) = @_;
+    sub {
+        my $self = shift;
+        validate_pos( @_, { type => SCALAR, optional => 1 } );
+        $self->{$subname} = shift if @_;
+        return $self->{$subname};
+    };
+}
+
 
 
 

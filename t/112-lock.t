@@ -71,9 +71,9 @@ ok( $emp->eid > 0 );
 is( noof( 'employees'), 3 );
 
 # load 'WORK'
-my $work = App::Dochazka::REST::Model::Activity->spawn;
-$status = $work->load_by_code( 'work' );
-ok( $status->ok );
+$status = App::Dochazka::REST::Model::Activity->load_by_code( 'work' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+my $work = $status->payload;
 ok( $work->aid > 0 );
 
 # spawn and insert a work interval

@@ -38,8 +38,9 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
+use Params::Validate qw( :all );
 
 use parent 'App::Dochazka::REST::dbh';
 
@@ -54,11 +55,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -159,8 +160,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -175,19 +175,14 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of schedintvl table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
 BEGIN {
     foreach my $subname ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ) {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -224,30 +219,21 @@ Accessor method.
 
 =head2 load_by_iid
 
-Instance method. Given an IID, loads a single interval into the
-object, rewriting whatever was there before.  Returns a status object.
+Boilerplate.
 
 =cut
 
 sub load_by_iid {
-    my ( $self, $iid ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-    my @attrs = ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' );
-    my $sql = $site->SQL_INTERVAL_SELECT_BY_IID;
-    my ( $result ) = $dbh->selectrow_hashref( $sql, undef, $iid );
-    if ( defined $result ) {
-        map { $self->{$_} = $result->{$_}; } keys %$result;
-        return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
-    } elsif ( ! defined( $dbh->err ) ) {
-        # nothing found
-        return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
-    }
-    # DBI error
-    return $CELL->status_err( $dbh->errstr );
+    my $self = shift;
+    my ( $iid ) = validate_pos( @_, { type => SCALAR } );
+
+    return load( 
+        class => __PACKAGE__, 
+        sql => $site->SQL_INTERVAL_SELECT_BY_IID,
+        keys => [ $iid ],
+    );
 }
     
-
 
 =head2 insert
 
@@ -260,9 +246,9 @@ sub insert {
     my ( $self ) = @_;
 
     my $status = cud( 
-        $self,
-        $site->SQL_INTERVAL_INSERT,
-        ( 'eid', 'aid', 'intvl', 'long_desc', 'remark' ),
+        object => $self,
+        sql => $site->SQL_INTERVAL_INSERT,
+        attrs => [ 'eid', 'aid', 'intvl', 'long_desc', 'remark' ],
     );
 
     return $status;
@@ -280,9 +266,9 @@ sub update {
     my ( $self ) = @_;
 
     my $status = cud( 
-        $self,
-        $site->SQL_INTERVAL_UPDATE,
-        ( 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ),
+        object => $self,
+        sql => $site->SQL_INTERVAL_UPDATE,
+        attrs => [ 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ],
     );
 
     return $status;
@@ -300,9 +286,9 @@ sub delete {
     my ( $self ) = @_;
 
     my $status = cud( 
-        $self,
-        $site->SQL_INTERVAL_DELETE,
-        ( 'iid' ),
+        object => $self,
+        sql => $site->SQL_INTERVAL_DELETE,
+        attrs => [ 'iid' ],
     );
     $self->reset( iid => $self->{iid} ) if $status->ok;
 

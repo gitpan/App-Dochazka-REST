@@ -85,9 +85,9 @@ set( 'SQL_SCHEDULE_INSERT', q/
       RETURNING sid, schedule, remark
       / );
 
-# SQL_SCHEDULE_SELECT
+# SQL_SCHEDULE_SELECT_BY_SID
 #     SQL query to retrieve entire row given a SID
-set( 'SQL_SCHEDULE_SELECT', q/
+set( 'SQL_SCHEDULE_SELECT_BY_SID', q/
       SELECT sid, schedule, remark FROM schedules WHERE sid = ? 
       / );
 
@@ -144,6 +144,13 @@ set( 'SQL_SCHEDHISTORY_SELECT_CURRENT', q/
       WHERE eid = ? and effective <= CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE )
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY
+      / );
+
+# SQL_SCHEDHISTORY_SELECT_BY_SHID
+#     SQL to select a schedhistory record by its shid
+set( 'SQL_SCHEDHISTORY_SELECT_BY_SHID', q/
+      SELECT shid, eid, sid, effective, remark FROM schedhistory
+      WHERE shid = ? 
       / );
 
 # -----------------------------------

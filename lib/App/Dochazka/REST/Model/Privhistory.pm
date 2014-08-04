@@ -38,8 +38,9 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( cud );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
+use Params::Validate qw( :all );
 use Try::Tiny;
 
 use parent 'App::Dochazka::REST::dbh';
@@ -54,11 +55,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
@@ -190,8 +191,7 @@ BEGIN {
 
 =head2 reset
 
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
+Boilerplate.
 
 =cut
 
@@ -206,19 +206,14 @@ BEGIN {
 
 =head2 Accessor methods
 
-Basic accessor methods for all the fields of privhistory table. These
-functions return whatever value happens to be associated with the object,
-with no guarantee that it matches the database.
+Boilerplate.
 
 =cut
 
 BEGIN {
     foreach my $subname ( 'phid', 'eid', 'priv', 'effective', 'remark') {
         no strict 'refs';
-        *{"$subname"} = sub { 
-            my ( $self ) = @_; 
-            return $self->{$subname};
-        }   
+        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
     }   
 }
 
@@ -248,72 +243,52 @@ Accessor method.
 
 
 
-=head2 load
+=head2 load_by_eid
 
-Instance method. Loads the privhistory record determining an employee's privilege
-level at a given point in time. Takes an EID, and, optionally, a timestamp. If
-no timestamp is given, it defaults to "now". A single privhistory record is loaded
-into the object, rewriting whatever was there before. Returns a status object:
-'OK' means "record fetched", 'WARN' means "query succeeded, but no record fetched",
-and 'ERR' means "DBI error".
+Supposed to be a class method, but in reality we just don't care what the first
+argument is.
 
 =cut
 
-sub load {
-    my ( $self, $eid, $ts ) = @_;
-    my ( $sql, @bind_params );
+sub load_by_eid {
+    shift; # discard the first argument
+    my ( $eid, $ts ) = validate_pos( @_,
+        { type => SCALAR },                # EID
+        { type => SCALAR, optional => 1 }, # timestamp
+    );
+  
     if ( $ts ) {
-        # timestamp given
-        $sql = $site->SQL_PRIVHISTORY_SELECT_ARBITRARY;
-        @bind_params = ( $eid, $ts );
-    } else {
-        # no timestamp - use 'now'
-        $sql = $site->SQL_PRIVHISTORY_SELECT_CURRENT;
-        @bind_params = ( $eid );
+        return load(
+            class => __PACKAGE__,
+            sql => $site->SQL_PRIVHISTORY_SELECT_ARBITRARY,
+            keys => [ $eid, $ts ],
+        );
     }
-    return $self->_load( $sql, @bind_params );
+
+    return load(
+        class => __PACKAGE__,
+        sql => $site->SQL_PRIVHISTORY_SELECT_CURRENT,
+        keys => [ $eid ],
+    );
 }
 
 
 =head2 load_by_phid
 
-Instance method. Loads a privhistory record by its 'phid'. General behavior is the
-same as for the 'load' method, above.
+Class method.
 
 =cut
 
 sub load_by_phid {
-    my ( $self, $phid ) = @_;
-    my $sql = $site->SQL_PRIVHISTORY_SELECT_BY_PHID;
-    my @bind_params = ( $phid );
-    return $self->_load( $sql, @bind_params );
+    my $self = shift;
+    my ( $phid ) = validate_pos( @_, { type => SCALAR } );
+
+    return load(
+        class => __PACKAGE__,
+        sql => $site->SQL_PRIVHISTORY_SELECT_BY_PHID,
+        keys => [ $phid ],
+    );
 }
-
-
-
-=head2 _load
-
-Instance method. Loads a single privhistory record based on the SQL statement
-and bind parameters given in the arguments.
-
-=cut
-
-sub _load {
-    my ( $self, $sql, @bind_params ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-    my $result = $dbh->selectrow_hashref( $sql, undef, @bind_params );
-    if ( defined $result ) {
-        map { $self->{$_} = $result->{$_}; } keys %$result;
-        return $CELL->status_ok('DOCHAZKA_RECORDS_FETCHED', args => [1] );
-    } elsif ( ! defined( $dbh->err ) ) {
-        # nothing found
-        return $CELL->status_warn('DOCHAZKA_RECORDS_FETCHED', args => [0] );
-    }
-    # DBI error
-    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] );
-}
-    
 
 
 =head2 insert
@@ -327,9 +302,9 @@ sub insert {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_PRIVHISTORY_INSERT,
-        ( 'eid', 'priv', 'effective', 'remark' ),
+        object => $self,
+        sql => $site->SQL_PRIVHISTORY_INSERT,
+        attrs => [ 'eid', 'priv', 'effective', 'remark' ],
     );
 
     return $status;
@@ -352,9 +327,9 @@ sub delete {
     my ( $self ) = @_;
 
     my $status = cud(
-        $self,
-        $site->SQL_PRIVHISTORY_DELETE,
-        ( 'phid' ),
+        object => $self,
+        sql => $site->SQL_PRIVHISTORY_DELETE,
+        attrs => [ 'phid' ],
     );
     $self->reset( 'phid' => $self->{phid} ) if $status->ok;
 
@@ -378,7 +353,6 @@ empty. If there is a DBI error, the payload will be undefined.
 sub get_privhistory {
     my ( $eid, $tsr ) = @_;
     my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Bad database handle" unless $dbh->ping;
     $tsr = '[,)' if not $tsr;
     my $status;
     my $counter = 0;
@@ -390,9 +364,7 @@ sub get_privhistory {
         $sth->execute( $eid, $tsr );
         while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
             $counter += 1;
-            my $ph = __PACKAGE__->spawn(
-                dbh => $dbh,
-            );
+            my $ph = __PACKAGE__->spawn;
             $ph->reset( %$tmpres );
             push @{ $result->{'privhistory'} }, $ph;
         }

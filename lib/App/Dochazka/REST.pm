@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 =head2 Development status
@@ -159,20 +159,18 @@ activities, the server may be set up to accept HTTPS requests only. These are
 then decrypted to make HTTP requests. This document ignores this important
 implementation detail. If this bothers you, you can treat 'HTTP' as an
 abbreviation for 'HTTP and/or HTTPS'.)
-
+f
 Incoming HTTP requests are handled by L<App::Dochazka::REST::Resource>,
 which inherits from L<Web::Machine::Resource>. The latter uses L<Plack> to
 implement a PSGI-compliant stack.
 
 L<Web::Machine> uses a "state-machine" approach to implementing the HTTP 1.1
-standard. The request is processed by running it through the state machine: the
-request goes in, and the response comes out. Each "cog" of the state machine
-is a L<Web::Machine::Resource> method that can be overrided by a child module.
-In our case, this module is L<App::Dochazka::REST::Resource>, and the methods
-it overrides can be seen in its source code.
+standard. Incoming HTTP requests are processed by running them through a state
+machine: the request goes in, and the response comes out. Each "cog" of the
+state machine is a L<Web::Machine::Resource> method that can be overrided by a
+child module. In our case, this module is L<App::Dochazka::REST::Resource>.
 
-The behavior of the resulting web server can be summarized, in a hand-wavingly
-way, as follows:
+The behavior of the resulting web server can be characterized as follows:
 
 =over
 
@@ -223,7 +221,8 @@ the ACL check, only to be caught by the Test for resource existence.
 
 =item * B<Response generation> 
 
-# FIXME need some verbiage here
+The Test for resource existence is the last test. If the request passes it,
+a '200 OK' response is generated with an appropriate entity body.
 
 =back
 
@@ -745,7 +744,8 @@ sub init_no_db {
 
     # * set up logging
     return $CELL->status_not_ok( "DOCHAZKA_APPNAME not set!" ) if not $site->DOCHAZKA_APPNAME;
-    $log->init( ident => $site->DOCHAZKA_APPNAME );    
+    my $debug_mode = $ARGS{'debug_mode'} || 0;
+    $log->init( ident => $site->DOCHAZKA_APPNAME, debug_mode => $debug_mode );
     $log->info( "Initializing " . $site->DOCHAZKA_APPNAME );
 
     return $CELL->status_ok;

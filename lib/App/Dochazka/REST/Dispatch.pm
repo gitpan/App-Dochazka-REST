@@ -46,7 +46,7 @@ use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Privhistory;
 use Carp;
 use Data::Dumper;
-use Path::Router;
+use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 
 use parent 'App::Dochazka::REST::Resource';
@@ -64,172 +64,39 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.125
+Version 0.134
 
 =cut
 
-our $VERSION = '0.125';
+our $VERSION = '0.134';
 
 
 
 
 =head1 DESCRIPTION
 
-This module contains functions that deal with path dispatch, or path routing --
-i.e. processing the "path" from the HTTP request. 
+This is the top-level controller module: i.e., it contains top-level dispatch targets.
 
 
 
 
-=head1 FUNCTIONS
-
-
-=head2 init
-
-Takes method and runs the router initialization routine for that method.
+=head1 TARGETS
 
 =cut
 
-sub init {
-    my ( $class, $method ) = @_;
-    die "Method not defined" unless defined $method;
-    $method = uc $method;
-    return _init_get() if $method eq 'GET';
-    return _init_post() if $method eq 'POST';
-}
-
-
-sub _init_get {
-
-    my $router_get = __PACKAGE__->SUPER::_router_get( Path::Router->new );
-    die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
-
-    $router_get->add_route( '',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_default,
-    );
-
-    $router_get->add_route( 'help',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_default,
-    );
-
-    $router_get->add_route( 'version',
-        defaults => {
-            acl_profile => 'passerby',
-        },
-        target => \&_get_default,
-    );
-   
-    $router_get->add_route( 'forbidden',
-        # special case: ACL profile is undefined; ACL check will always fail
-        target => \&_get_forbidden,
-    );
-   
-    $router_get->add_route( 'siteparam/:param',
-        defaults => {
-            acl_profile => 'admin',
-        },
-        target => \&_get_site_param,
-    );
-   
-    foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
-        my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_get';
-        my $retval = eval $exp;
-        $log->debug( "Initialized GET sub-controllers by executing $exp with return value $retval" );
-    }
-}
-
-
-sub _init_post {
-   
-    my $router_post = __PACKAGE__->SUPER::_router_post( Path::Router->new );
-    die "Bad router" unless $router_post->isa( 'Path::Router' );
-
-    $router_post->add_route( '',
-        ( target => \&_post_default, )
-    );
-
-    foreach my $controller ( @{ $site->DISPATCH_CONTROLLERS } ) {
-        my $exp = 'App::Dochazka::REST::Dispatch::' . $controller . '->_init_post';
-        my $retval = eval $exp;
-        $log->debug( "Initialized POST sub-controllers by executing $exp with return value $retval" );
-    }
-}
-
-
-
-=head1 ACTION FUNCTIONS
-
-The following functions implement actions for the various controllers.
-
-=cut
-
-
-sub _get_default {
-    my ( %ARGS ) = @_;
-
-    my $uri = $ARGS{'context'}->{'uri'};
-    $uri =~ s/\/*$//;
-    my $server_status = App::Dochazka::REST::dbh::status;
-    my $status = $CELL->status_ok( 
-        'DISPATCH_DEFAULT', 
-        args => [ $VERSION, $server_status ],
-        payload => { 
-            documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
-            resources => {
-                'employee' => {
-                    link => "$uri/employee",
-                    description => 'Employee (i.e. a user of Dochazka)',
-                    acl_profile => 'passerby',
-                },
-                'privhistory' => {
-                    link => "$uri/privhistory",
-                    description => "Privilege history (changes to an employee's privilege level over time)",
-                    acl_profile => 'passerby',
-                },
-#                'schedhistory' => {
-#                    link => "$uri/schedhistory",
-#                    description => "Schedule history (changes to an employee's schedule over time)",
-#                },
-#                'schedule' => {
-#                    link => "$uri/schedule",
-#                    description => "Schedule (expected weekly work hours of an employee or employees)",
-#                },
-#                'activity' => {
-#                    link => "$uri/activity",
-#                    description => "Activity (a way in which employees can spend their time)",
-#                },
-#                'interval' => {
-#                    link => "$uri/interval",
-#                    description => "Interval (a period of time during which an employee did something)",
-#                },
-#                'lock' => {
-#                    link => "$uri/lock",
-#                    description => "Lock (a period of time over which it is not possible to create, update, or delete intervals)",
-#                },
-                'siteparam/:param' => {
-                    link => "$uri/siteparam/:param",
-                    description => "Site parameter (a value configurable by the site administrator)",
-                    acl_profile => 'admin',
-                },
-            },
-        },
-    );
-    return $status;
+BEGIN {
+    no strict 'refs';
+    *{"_get_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_get_default( 'DISPATCH_HELP_TOPLEVEL_GET' );
 }
 
 
 sub _get_site_param {
-    my ( %ARGS ) = @_;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     # generate content
     my ( $param, $value, $status );
-    $param = $ARGS{'context'}->{'mapping'}->{'param'};
+    $param = $context->{'mapping'}->{'param'};
     {
         no strict 'refs';
         $value = $site->$param;

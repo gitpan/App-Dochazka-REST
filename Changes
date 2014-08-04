@@ -750,3 +750,56 @@ Revision history for Dochazka-REST
 - Build.PL: build_require Test::Fatal, require Params::Validate
 - Model/Activity.pm: add parameter validation code
 
+0.126  2014-08-01 13:23 CEST
+- Model/Activity.pm: load_by_code, load_by_aid, _load now use "best practices"
+  established in Model/Employee.pm
+- start adding parameter validation code using Param::Validate
+- start adding unit tests for the new parameter validation code
+
+0.127  2014-08-01 17:07 CEST
+- cleanup, validate parameters, add some tests that call functions with
+  invalid parameters
+
+0.128  2014-08-01 18:21 CEST
+- Model/Activity.pm, Model/Shared.pm: moved '_load' to shared so code can
+  be re-used
+
+0.129  2014-08-01 18:54 CEST
+- Model/Employee.pm: use the new Shared.pm->load routine
+- Model/Activity.pm, Model/Employee.pm: eliminate deprecated _load routines
+- t/: update tests to current state
+
+0.130  2014-08-01 19:09 CEST
+- Model/Schedule.pm, Model/Shared.pm: use shared 'load' routine for schedules
+- t/: update tests to current state
+
+0.131  2014-08-02 16:34 CEST
+- Shared.pm: modify 'cud' and 'load' so they take named parameters, add
+  parameter validation, add a 'make_accessor' routine
+- t/004-shared-paramvalid.t: elicit lots of fatal errors from Model/Shared.pm
+- Model/: remove all database ping checks (replaced by a single line in
+  dbh.pm), adapt all calls to 'cud' and 'load', replace a lot of spaghetti code
+  with boilerplate
+- t/: adapt tests to current state
+
+0.132  2014-08-02 23:51 CEST
+- dynamically generate routers and default targets from site configuration in
+  dispatch_GET_Config.pm (WIP)
+
+0.133  2014-08-04 10:29 CEST
+- dynamic generation of resources now works, in a global sense, but some 
+  individual resources are broken
+
+0.134  2014-08-04 12:12 CEST
+- REST.pm: enable setting of 'debug_mode' in init routine
+- Model/Employee.pm: 'select_multiple_by_nick' always return payload with
+  result_set and search_key, even when result_set is empty
+- Dispatch/Employee.pm: simplify target routines
+- Dispatch/Shared.pm: fix bug in make_get_default that was causing empty
+  resource list when generating HTTP request via Plack::Test
+- add some calls to $log->debug
+- Test.pm: add 'status_from_json' method to facilitate testing of HTTP
+  response
+- t/330-dispatch.t: add a bunch of tests that examine the HTTP responses
+  returned when various resources are requested
+
