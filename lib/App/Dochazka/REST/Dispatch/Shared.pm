@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.140
+Version 0.141
 
 =cut
 
-our $VERSION = '0.140';
+our $VERSION = '0.141';
 
 
 
@@ -125,6 +125,7 @@ sub make_default {
             args => [ $VERSION, $server_status ],
             payload => { 
                 documentation => $site->DOCHAZKA_DOCUMENTATION_URI,
+                method => $context->{'method'},
                 resources => $resources,
             },
         );

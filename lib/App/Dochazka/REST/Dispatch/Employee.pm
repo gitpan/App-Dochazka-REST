@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.140
+Version 0.141
 
 =cut
 
-our $VERSION = '0.140';
+our $VERSION = '0.141';
 
 
 
@@ -95,6 +95,8 @@ BEGIN {
         App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_GET' );
     *{"_post_default"} =
         App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_POST' );
+    *{"_put_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_PUT' );
 }
 
 

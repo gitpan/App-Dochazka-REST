@@ -62,9 +62,9 @@ set( 'DISPATCH_HELP_EMPLOYEE_GET', [
     'employee/count/:priv',
 ] );
 
-# DISPATCH_HELP_PRIVLEVEL_GET
+# DISPATCH_HELP_PRIVHISTORY_GET
 #    GET resources - privlevel
-set( 'DISPATCH_HELP_PRIVLEVEL_GET', [
+set( 'DISPATCH_HELP_PRIVHISTORY_GET', [
     'privhistory/help',
     'privhistory/nick/:nick',
     'privhistory/nick/:nick/:tsrange',

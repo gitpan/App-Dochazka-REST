@@ -55,11 +55,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.140
+Version 0.141
 
 =cut
 
-our $VERSION = '0.140';
+our $VERSION = '0.141';
 
 
 

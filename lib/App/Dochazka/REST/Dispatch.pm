@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.140
+Version 0.141
 
 =cut
 
-our $VERSION = '0.140';
+our $VERSION = '0.141';
 
 
 
@@ -91,6 +91,8 @@ BEGIN {
         App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_GET' );
     *{"_post_default"} = 
         App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_POST' );
+    *{"_put_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_PUT' );
 }
 
 
@@ -129,6 +131,19 @@ sub _post_echo {
             : from_json( $context->{'request_body'} )
     );
 }
+
+# just put the request body in the payload
+sub _put_echo {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    # return a suitable payload, even if the request body is empty
+    return $CELL->status_ok( 'DISPATCH_PUT_ECHO', payload => 
+        ( not defined $context->{'request_body'} or $context->{'request_body'} eq '' )
+            ? undef
+            : from_json( $context->{'request_body'} )
+    );
+}
+
 
 sub _get_forbidden { die "Das ist streng verboten"; }
 

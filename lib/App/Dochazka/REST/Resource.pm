@@ -72,11 +72,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.140
+Version 0.141
 
 =cut
 
-our $VERSION = '0.140';
+our $VERSION = '0.141';
 
 
 
@@ -121,6 +121,8 @@ my $JSON = JSON->new->allow_nonref->pretty;
 my $router_get;
 # a package variable to store Path::Router instance for POST requests
 my $router_post;
+# a package variable to store Path::Router instance for PUT requests
+my $router_put;
 
 
 =head1 METHODS
@@ -129,26 +131,38 @@ my $router_post;
 =head2 content_types_provided
 
 L<Web::Machine> calls this routine to determine how to generate the response
-body. It says: "generate responses in JSON using the 'render' method".
+body.
 
 =cut
  
 sub content_types_provided { [
-    { 'text/html' => 'render_html' },
-    { 'application/json' => 'render_json' },
+    { 'text/html' => '_render_response_html' },
+    { 'application/json' => '_render_response_json' },
+] }
+
+
+=head2 content_types_accepted
+
+L<Web::Machine> calls this routine to determine how to handle the request
+body.
+
+=cut
+ 
+sub content_types_accepted { [
+    { 'application/json' => '_handle_request_json' },
 ] }
 
 
 
-=head2 render_html
+=head2 _render_response_html
 
-Normally, clients will communicate with the server via 'render_json', but 
-humans need HTML. This method takes the server's JSON response and wraps
-it up in a nice package.
+Normally, clients will communicate with the server via
+'_render_response_json', but humans need HTML. This method takes the
+server's JSON response and wraps it up in a nice package.
 
 =cut
 
-sub render_html { 
+sub _render_response_html { 
     my ( $self ) = @_;
     
     my $msgobj = $CELL->msg( 
@@ -159,20 +173,35 @@ sub render_html {
     );
     $msgobj
         ? $msgobj->text
-        : '<html><body><h1>Internal Error</h1><p>See Resource.pm->render_html</p></body></html>';
+        : '<html><body><h1>Internal Error</h1><p>See Resource.pm->_render_response_html</p></body></html>';
 }
 
 
 
-=head2 render_json
+=head2 _render_response_json
 
 Encode the context as a JSON string. Wrapper for '_make_json', which is also
-used in 'render_html'.
+used in '_render_response_html'.
 
 =cut
 
-sub render_json { ( shift )->_make_json; }
+sub _render_response_json { ( shift )->_make_json; }
 
+
+
+=head2 _handle_request_json
+
+PUT requests may contain a request body. This is the "handler
+function" where we process those requests.
+
+=cut
+
+sub _handle_request_json {
+    my $self = shift;
+    $self->response->header('Content-Type' => 'application/json' );
+    $self->response->body( $self->_make_json );
+    return 1;
+}
 
 
 =head2 context
@@ -215,7 +244,7 @@ Determines which HTTP methods we recognize.
 
 =cut
 
-sub allowed_methods { return [ 'GET', 'POST', ]; }
+sub allowed_methods { return [ 'GET', 'POST', 'PUT', ]; }
 
 
 
@@ -291,7 +320,7 @@ sub forbidden {
 
     # determine method
     my $method = uc $self->request->method;
-    die "Bad method $method" unless $method =~ m/^(GET)|(POST)$/;
+    die "Bad method $method" unless $method =~ m/^(GET)|(POST)|(PUT)$/;
 
     # get router for this method (and initialize it if necessary)
     my $router = router( $method );
@@ -330,7 +359,7 @@ sub forbidden {
             'method' => $method,
         } );
 
-        if ( $method eq 'POST' ) {
+        if ( $method =~ qr/(POST)|(PUT)/ ) {
             # push the request body onto the context
             $self->_push_onto_context( {
                 'request_body' => decode_utf8( $self->request->content ),
@@ -452,7 +481,7 @@ sub malformed_request {
 
 =head2 process_post
 
-Where POST (and PUT?) requests are processed.
+Where POST requests are processed.
 
 =cut
 
@@ -595,9 +624,10 @@ variable.
 =cut
 
 sub router {
-    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)/ } );
+    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)|(PUT)/ } );
     return $router_get if $method eq 'GET';
     return $router_post if $method eq 'POST';
+    return $router_put if $method eq 'PUT';
 
     # We should never reach this point
     croak "AAAAAAAAAAAAHHHH!!!! Engulfed by the abyss";
@@ -612,9 +642,10 @@ Takes HTTP method and initializes the corresponding router.
 =cut
 
 sub init_router {
-    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)/ } );    	
+    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)|(PUT)/ } );    	
     return _init_get() if $method eq 'GET';
     return _init_post() if $method eq 'POST';
+    return _init_put() if $method eq 'PUT';
     # never reach this point
     die "AAAAAAAAAAAHHH! Engulfed by the abyss";
 }
@@ -635,6 +666,14 @@ sub _init_post {
     die "Bad router" unless $router_post->isa( 'Path::Router' );
     _populate_router( $router_post, $site->DISPATCH_RESOURCES_POST );
     $router_post;
+}
+
+# initialization routine for PUT router
+sub _init_put {
+    $router_put = Path::Router->new;
+    die "Bad router" unless $router_put->isa( 'Path::Router' );
+    _populate_router( $router_put, $site->DISPATCH_RESOURCES_PUT );
+    $router_put;
 }
 
 sub _populate_router {

@@ -840,3 +840,6 @@ Revision history for Dochazka-REST
 - Resource.pm: implement 'known_content_type' and 'malformed_request'
   routines
 
+0.141  2014-08-05 15:52 CEST
+- implement basic handling of PUT requests
+

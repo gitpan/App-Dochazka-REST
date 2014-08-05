@@ -29,87 +29,60 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
+#
+# test path dispatch
+#
 
-# ------------------------
-# Database handle module
-# ------------------------
-
-package App::Dochazka::REST::dbh;
-
+#!perl
+use 5.012;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
+#use App::CELL::Test::LogToFile;
+use App::CELL qw( $meta $site );
+use App::Dochazka::REST;
+use App::Dochazka::REST::Test qw( req_json_demo status_from_json );
+use Data::Dumper;
+use JSON;
+use Plack::Test;
+use Scalar::Util qw( blessed );
+use Test::JSON;
+use Test::More;
 
-
-
-=head1 NAME
-
-App::Dochazka::REST::dbh - database handle module (parent of data model classes)
-
-
-
-
-
-=head1 VERSION
-
-Version 0.141
-
-=cut
-
-our $VERSION = '0.141';
-
-
-
-
-
-=head1 DESCRIPTION
-
-This module is the parent of all the data model classes. Its sole purpose is to
-transparently provide the data model classes with a database handle.
-
-=cut
-
-
-
-our $dbh;
-
-
-=head1 METHODS
-
-=head2 init
-
-Something like a constructor.
-
-=cut
-
-sub init {
-    my ( $class, $recvd_dbh ) = @_;
-    $dbh = $recvd_dbh;
-    return;
+# initialize, connect to database, and set up a testing plan
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $status = $REST->{init_status};
+if ( $status->not_ok ) {
+    plan skip_all => "not configured or server not running";
 }
+my $app = $REST->{'app'};
+$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+
+# instantiate Plack::Test object
+my $test = Plack::Test->create( $app );
+ok( blessed $test );
+
+my $res;
+
+# 1. the very basic-est request
+$res = $test->request( req_json_demo PUT => '/privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+
+# 2. 'privhistory/help' -- the same as 1.
+$res = $test->request( req_json_demo PUT => '/privhistory/help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
 
-=head2 dbh
-
-Something like an instance method, to be accessed via inheritance.
-
-=cut
-
-sub dbh { 
-    #die "Bad database handle" unless $dbh->ping;
-    $dbh; 
-}
-
-
-=head2 status
-
-Report whether the database server is up or down.
-
-=cut
-
-sub status {
-    return $dbh->ping ? "UP" : "DOWN" if defined $dbh;
-    return "DOWN";
-}
-   
-1;
+done_testing;

@@ -33,15 +33,15 @@
 # -----------------------------------
 # Dochazka-REST
 # -----------------------------------
-# dispatch_POST_Config.pm
+# dispatch_PUT_Config.pm
 #
-# Path dispatch configuration file for POST resources
+# Path dispatch configuration file for PUT resources
 # -----------------------------------
 
 
-# DISPATCH_HELP_TOPLEVEL_POST
-#    POST resources - top level 
-set( 'DISPATCH_HELP_TOPLEVEL_POST', [
+# DISPATCH_HELP_TOPLEVEL_PUT
+#    PUT resources - top level 
+set( 'DISPATCH_HELP_TOPLEVEL_PUT', [
     'help', 
     'echo',
     'forbidden', 
@@ -49,78 +49,78 @@ set( 'DISPATCH_HELP_TOPLEVEL_POST', [
     'privhistory',
 ] );
 
-# DISPATCH_HELP_EMPLOYEE_POST
-#    POST resources - employee
-set( 'DISPATCH_HELP_EMPLOYEE_POST', [
+# DISPATCH_HELP_EMPLOYEE_PUT
+#    PUT resources - employee
+set( 'DISPATCH_HELP_EMPLOYEE_PUT', [
     'employee/help',
 ] );
 
-# DISPATCH_HELP_PRIVHISTORY_POST
-#    POST resources - privhistory
-set( 'DISPATCH_HELP_PRIVHISTORY_POST', [
+# DISPATCH_HELP_PRIVHISTORY_PUT
+#    PUT resources - privhistory
+set( 'DISPATCH_HELP_PRIVHISTORY_PUT', [
     'privhistory/help',
 ] );
 
-# DISPATCH_RESOURCES_POST
-#    POST resources - Dispatch/Employee.pm
-set( 'DISPATCH_RESOURCES_POST', {
+# DISPATCH_RESOURCES_PUT
+#    PUT resources - Dispatch/Employee.pm
+set( 'DISPATCH_RESOURCES_PUT', {
 
     #
-    # TOP-LEVEL POST RESOURCES
+    # TOP-LEVEL PUT RESOURCES
     #
     '' => 
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::_put_default', 
       description => 'Display available top-level resources',
     },
     'echo' =>
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::_post_echo', 
+      target => 'App::Dochazka::REST::Dispatch::_put_echo', 
       description => 'Echo the request body',
     },
     'forbidden' =>
     { 
-      target => 'App::Dochazka::REST::Dispatch::_post_forbidden',
+      target => 'App::Dochazka::REST::Dispatch::_put_forbidden',
       description => 'Das ist streng verboten',
     },
     'help' => 
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::_put_default', 
       description => 'Display available top-level resources',
     },
     
     # 
-    # EMPLOYEE POST RESOURCES
+    # EMPLOYEE PUT RESOURCES
     #
     'employee' =>
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::Employee::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
       description => 'Display employee resources',
     },
     'employee/help' =>
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::Employee::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
       description => 'Display employee resources',
     },
 
     # 
-    # PRIVHISTORY POST RESOURCES
+    # PRIVHISTORY PUT RESOURCES
     #
     'privhistory' =>
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::Privhistory::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::Privhistory::_put_default', 
       description => 'Display privhistory resources',
     },
     'privhistory/help' =>
     { 
       acl_profile => 'passerby', 
-      target => 'App::Dochazka::REST::Dispatch::Privhistory::_post_default', 
+      target => 'App::Dochazka::REST::Dispatch::Privhistory::_put_default', 
       description => 'Display privhistory resources',
     },
 
