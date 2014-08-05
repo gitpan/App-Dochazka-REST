@@ -46,6 +46,7 @@ use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Privhistory;
 use Carp;
 use Data::Dumper;
+use JSON;
 use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 
@@ -64,11 +65,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 
@@ -87,7 +88,9 @@ This is the top-level controller module: i.e., it contains top-level dispatch ta
 BEGIN {
     no strict 'refs';
     *{"_get_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_get_default( 'DISPATCH_HELP_TOPLEVEL_GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_GET' );
+    *{"_post_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_POST' );
 }
 
 
@@ -115,6 +118,20 @@ sub _get_site_param {
 }
 
 
+# just put the request body in the payload
+sub _post_echo {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    # return a suitable payload, even if the request body is empty
+    return $CELL->status_ok( 'DISPATCH_POST_ECHO', payload => 
+        ( not defined $context->{'request_body'} or $context->{'request_body'} eq '' )
+            ? undef
+            : from_json( $context->{'request_body'} )
+    );
+}
+
 sub _get_forbidden { die "Das ist streng verboten"; }
+
+sub _post_forbidden { die "Das ist streng verboten"; }
 
 1;

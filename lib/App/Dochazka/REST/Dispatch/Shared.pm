@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 
@@ -77,19 +77,22 @@ This module provides code that is shared within the various dispatch modules.
 =head1 FUNCTIONS
 
 
-=head2 make_get_default
+=head2 make_default
 
 Every top-level resource has a '_get_default' target. Here is the code for that.
 
 =cut
 
-sub make_get_default {
+sub make_default {
     no strict 'refs';
     my ( $site_param ) = validate_pos( @_, { type => SCALAR } );
     return sub {
         my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
         # initialize local variables that we will need
+        my $resource_defs_spec = 'DISPATCH_RESOURCES_' . uc $context->{'method'};
+        my $resource_defs = $site->$resource_defs_spec;
+        
         my $prlist = $site->$site_param; # 'prlist' is "Permitted Resources List"
         $log->debug( "Permitted resource list from \$site->$site_param" );
         my $server_status = App::Dochazka::REST::dbh::status;
@@ -107,7 +110,7 @@ sub make_get_default {
         $log->debug( "Permitted Resource List: " . Dumper( $prlist ) );
         foreach my $entry ( @$prlist ) {
             # include resource in help list only if current employee is authorized to access it
-            my $rspec = $site->DISPATCH_RESOURCES_GET->{$entry};
+            my $rspec = $resource_defs->{ $entry };
             if ( defined $rspec->{'acl_profile'} and exists $acls->{ $rspec->{'acl_profile'} } ) {
                 $resources->{ $entry } = {
                     link => "$uri/$entry",

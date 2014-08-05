@@ -55,6 +55,8 @@ use Encode qw( decode_utf8 );
 use JSON;
 use Params::Validate qw(:all);
 use Path::Router;
+use Scalar::Util qw( blessed );
+use Try::Tiny;
 use Web::Machine::Util qw( create_header );
 
 # methods/attributes not defined in this module will be inherited from:
@@ -70,11 +72,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 
@@ -213,7 +215,7 @@ Determines which HTTP methods we recognize.
 
 =cut
 
-sub allowed_methods { return [ 'GET' ]; }
+sub allowed_methods { return [ 'GET', 'POST', ]; }
 
 
 
@@ -325,7 +327,16 @@ sub forbidden {
             'target' => $route->target,
             'mapping' => $match->mapping, 
             'uri' => $uri,
+            'method' => $method,
         } );
+
+        if ( $method eq 'POST' ) {
+            # push the request body onto the context
+            $self->_push_onto_context( {
+                'request_body' => decode_utf8( $self->request->content ),
+            } );
+        }
+
         return 0; # pass ACL check
     } else {
         # if the path doesn't match, we pass the request on to resource_exists
@@ -365,9 +376,8 @@ sub resource_exists {
 	# object onto the context (after "expurgating", or "unblessing", it).
         $self->_push_onto_context( { 'entity' => $status->expurgate } );
 
-	# Returning 1 here signals that the request was processed successfully
-	# (200 OK) and everything needed to construct the response is in the
-	# context.
+	# Returning 1 here signals that the requested resource exists. For
+        # GET requests, this is the last test.
         return 1;
     }
 
@@ -376,6 +386,81 @@ sub resource_exists {
     # 'target' and 'mapping'. So if these two are not present, we return 0
     # and the client gets "404 Not Found".
     return 0; 
+}
+
+
+=head2 known_content_type
+
+Looks at the 'Content-Type' header of POST and PUT requests, and generates
+a "415 Unsupported Media Type" response if it is anything other than
+'application/json'.
+
+=cut
+
+sub known_content_type {
+    my ( $self, $content_type ) = @_;
+
+    # for GET requests, we don't care about the content
+    return 1 if $self->request->method eq 'GET';
+
+    # some requests may not specify a Content-Type at all
+    return 0 if not defined $content_type;
+
+    # unfortunately, Web::Machine sometimes sends the content-type
+    # as a plain string, and other times as an
+    # HTTP::Headers::ActionPack::MediaType object
+    if ( ref( $content_type ) eq '' ) {
+        return ( $content_type eq 'application/json' ) ? 1 : 0;
+    }
+    if ( ref( $content_type ) eq 'HTTP::Headers::ActionPack::MediaType' ) {
+        return $content_type->equals( 'application/json' ) ? 1 : 0;
+    }
+    return 0;
+}
+
+
+=head2 malformed_request
+
+This test examines the request body. It can either be empty or contain
+valid JSON; otherwise, a '400 Malformed Request' response is returned.
+
+=cut
+
+sub malformed_request {
+    my ( $self ) = @_;
+    
+    my $body = $self->request->content;
+    if ( not defined $body or $body eq '' ) {
+        $log->debug( "malformed_request: No request body" );
+        return 0;
+    }
+
+    my ( $json, $result );
+    try {
+        $json = from_json( $body );
+        $result = 0;
+    } 
+    catch {
+        $log->error( "Caught JSON error: $_" );
+        $result = 1;
+    };
+
+    $log->debug( "malformed_request: Request body is valid JSON" );
+    return $result;
+}
+
+
+=head2 process_post
+
+Where POST (and PUT?) requests are processed.
+
+=cut
+
+sub process_post {
+    my $self = shift;
+    $self->response->header('Content-Type' => 'application/json' );
+    $self->response->body( $self->_make_json );
+    return 1;
 }
 
 
@@ -556,7 +641,7 @@ sub _populate_router {
     my ( $router, $resources ) = @_;
     foreach my $key ( keys %$resources ) {
         no strict 'refs';
-        $router_get->add_route( $key,
+        $router->add_route( $key,
             defaults => {
                 acl_profile => $resources->{$key}->{'acl_profile'},
             },

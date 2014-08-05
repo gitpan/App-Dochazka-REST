@@ -811,3 +811,32 @@ Revision history for Dochazka-REST
 - Model/Privhistory.t: work on get_privhistory routine
 - t/105-privhistory.t: update to reflect current code 
 
+0.136  2014-08-04 20:15 CEST
+- REST.pm: add some POD about how the REST interface is self-documenting
+- Dispatch.pm, Dispatch/*.pm: add _post_default routine
+- Shared.pm: rename 'make_get_default' to 'make_default' and adapt it to
+  generate both _get_default and _post_default
+- config/dispatch/dispatch_POST_Config.pm, Resource.pm: start laying groundwork
+  for POST processing
+- POST requests to all resources with _post_default as their target are working
+  but unit tests are missing
+
+0.137  2014-08-04 20:47 CEST
+- t/: add tests for the first POST resources (the really simple ones 
+  like 'help')
+
+0.138  2014-08-04 21:25 CEST
+- Dispatch.pm: implemented '/echo' POST resource, including unit tests
+- t/: renumber and rename dispatch-related unit test files to accommodate
+  new POST code
+
+0.139  2014-08-05 09:44 CEST
+- REST.pm: write some POD
+
+0.140  2014-08-05 12:39 CEST
+- REST.pm: work on POD
+- Dispatch.pm: fix bug in 'echo' POST resource (wasn't handling empty
+  requests)
+- Resource.pm: implement 'known_content_type' and 'malformed_request'
+  routines
+

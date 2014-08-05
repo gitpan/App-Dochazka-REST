@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 =head2 Development status
@@ -117,67 +117,161 @@ be implemented can also be thought of as clients.
 =head1 REST INTERFACE
 
 L<App::Dochazka::REST> attempts to present a I<REST>ful interface to potential
-clients. For a description of what this means in practice, see L<...>.
+clients. To learn more about REST, its meaning and implications, see L<...>.
 
-In the HTTP request, the client should provide an C<Accept:> header specifying
-either HTML (C<text/html>) or JSON (C<application/json>). If neither is specified,
-the response body will be in HTML.
+One of those implications is that clients communicate with the server using
+the HTTP protocol, which is described L<...|here>.
 
-The REST interface consists of a number of resources. The resources are 
-documented in the REST server itself, and can be explored using a web browser.
-For example, if the URL of your Dochazka installation is
-L<http://dochazka.site>, that's the place to start. The response to that
-URL will show all the top-level resources. Then, if you want to explore a
-resource further, you go to  L<http://dochazka.site/[RESOURCE]>.
 
-The following top-level resources are used to create, read, update, and delete
-attendance data:
+=head2 Basic parameters
 
-=over
+=head3 UTF-8
 
-=item * employee
+The server assumes all incoming requests are encoded in UTF-8, and it encodes
+all of its responses in UTF-8 as well.
 
-=item * privhistory
+=head3 HTTP(S)
 
-=item * schedhistory
+In order to protect user passwords from network sniffing and other nefarious
+activities, the server may be set up to accept HTTPS requests only. Such a
+setup may use a reverse proxy or a dedicated SSL-capable server. Since
+HTTP-over-SSL is a complex topic, this document ignores it by assuming that
+all client-server communications take place in plain text. If this bothers
+you, you can read all occurrences of 'HTTP' in this document as meaning
+'HTTP and/or HTTPS'.
 
-=item * schedule
+=head3 Self-documenting
 
-=item * activity
+Another implication of REST is that the server provides "resources" and that
+those resources are, to some extent at least, self-documenting.
 
-=item * interval
+L<App::Dochazka::REST> provides 'help' resources whose only purpose is to 
+provide information about the resources available to the client at a 
+particular base level. For example, the top-level help resource provides
+a list of resources available at that level, some of which are lower-level
+'help' resources.
 
-=item * lock
+For each resource, the 'help' resource provides a 'link' attribute with the
+full URI of the resource and a 'description' attribute with a terse
+description of what the resource is good for.
+
+
+=head2 Exploring the server
+
+=head3 With a web browser
+
+Only some of L<App::Dochazka::REST>'s resources (i.e, those that use the GET
+method) are accessible using a web browser. That said, if we are only
+interested in displaying information from the database, GET requests are all we
+need and using a web browser can be convenient.  
+
+To start exploring, fire up a standard web browser and point it to the base URI
+of your L<App::Dochazka::REST> installation:
+
+    http://dochazka.site
+
+and entering one's credentials in the Basic Authentication dialog.
+
+
+=head3 With a command-line HTTP client
+
+To access all the resources, you will need a client that is capable of
+generating POST, PUT, and DELETE requests as well as GET requests. Also, since
+some of the information L<App::Dochazka::REST> provides is in the response
+headers, the client needs to be capable of displaying those as well.
+
+One such client is Daniel Stenberg's B<curl>.
+
+In the HTTP request, the client may provide an C<Accept:> header specifying
+either HTML (C<text/html>) or JSON (C<application/json>). For the convenience
+of those using a web browser, HTML is the default.
+
+Here are some examples of how to use B<curl> (or a web browser) to explore
+resources. These examples assume a vanilla installation of
+L<App::Dochazka::REST> with the default root password. The same commands can be
+used with a production server, but keep in mind that the resources you will see
+may be limited by your ACL privilege level.
+
+=over 
+
+=item * GET resources
+
+The GET method is used to search for and display information. The top-level
+GET resources are listed at the top-level URI, either using B<curl>
+
+    $ curl -v -H 'Accept: application/json' http://demo:demo@dochazka.site/
+
+Similarly, to display a list of sub-resources under the 'privhistory' top-level
+resource, enter the command:
+
+    $ curl http://demo:demo@dochazka.site/employee -H 'Accept: application/json' 
+
+Oops - no resources are displayed because the 'demo' user has only passerby
+privileges, but all the privhistory resources require at least 'active'. To
+see all the available resources, we can authenticate as 'root':
+
+    $ curl http://root:immutable@dochazka.site/employee -H 'Accept: application/json' 
+
+
+=item * POST resources
+
+With the GET method, we could only access resources for finding and displaying
+information: we could not add, change, or delete information. For that we will
+need to turn to some other client than the web browser -- a client like B<curl>
+that is capable of generating HTTP requests with methods like POST, PUT and
+DELETE.
+
+Here is an example of how we would use B<curl> to display the top-level POST
+resources:
+
+    curl -v http://root:immutable@dochazka.site -X POST -H "Content-Type: application/json"
+
+The "Content-Type: application/json" header is necessary because the server
+only accepts JSON in the POST request body -- even though in this case we 
+did not send a request body, most POST requests will have one. For best
+results, the request body should be a legal JSON string represented as a
+sequence of bytes encoded in UTF-8.
+
+=item * PUT resources
+
+The PUT method is used to . . .
+
+PUT resources can be explored using a B<curl> command analogous to the one
+given for the POST method.
+
+=item * DELETE resources
+
+Any time we need to delete information -- i.e., completely wipe it from
+the database, we will need to use the DELETE method. 
+
+DELETE resources can be explored using a B<curl> command analogous to the one
+given for the POST method.
+
+Keep in mind that the data integrity constraints in the underlying PostgreSQL
+database may make it difficult to delete a resource if any other resources
+are linked to it. For example, an employee cannot be deleted until all
+intervals, privhistory records, schedhistory records, locks, etc. linked to
+that employee have been deleted. Intervals, on the other hand, can be 
+deleted as long as they are not subject to a lock.
 
 =back
 
 
 =head2 Request-response cycle
 
-(In order to protect user passwords from network sniffing and other nefarious
-activities, the server may be set up to accept HTTPS requests only. These are
-then decrypted to make HTTP requests. This document ignores this important
-implementation detail. If this bothers you, you can treat 'HTTP' as an
-abbreviation for 'HTTP and/or HTTPS'.)
-f
 Incoming HTTP requests are handled by L<App::Dochazka::REST::Resource>,
 which inherits from L<Web::Machine::Resource>. The latter uses L<Plack> to
 implement a PSGI-compliant stack.
 
-L<Web::Machine> uses a "state-machine" approach to implementing the HTTP 1.1
-standard. Incoming HTTP requests are processed by running them through a state
-machine: the request goes in, and the response comes out. Each "cog" of the
-state machine is a L<Web::Machine::Resource> method that can be overrided by a
-child module. In our case, this module is L<App::Dochazka::REST::Resource>.
+L<Web::Machine> takes a "state-machine" approach to implementing the HTTP 1.1
+standard. Requests are processed by running them through a state
+machine, each "cog" of which is a L<Web::Machine::Resource> method that can
+be overridden by a child module. In our case, this module is
+L<App::Dochazka::REST::Resource>.
 
 The behavior of the resulting web server can be characterized as follows:
 
 =over
-
-=item * B<UTF-8 assumed>
-
-The server assumes all incoming requests are encoded in UTF-8, and it encodes
-all of its responses in UTF-8 as well.
 
 =item * B<Allowed methods test>
 
@@ -187,11 +281,12 @@ If this test fails, a "405 Method Not Allowed" response is sent.
 
 =item * B<Internal and external authentication>
 
-All incoming requests are subject to HTTP Basic Authentication. The credentials
-entered by the user can be authenticated against an external database (LDAP),
-and internal database (PostgreSQL 'employees' table), or both. For details, see
-L<"AUTHENTICATION">. If authentication fails, a "401 Unauthorized" response is
-sent. This should not be confused with the next step ("Authorization/ACL check").
+After the Allowed methods test, the request is subject to HTTP Basic
+Authentication. The credentials entered by the user can be authenticated
+against an external database (LDAP), an internal database (PostgreSQL
+'employees' table), or both. For details, see L<"AUTHENTICATION">. If
+authentication fails, a "401 Unauthorized" response is sent. This should
+not be confused with the next step ("Authorization/ACL check").
 
 In a web browser, repeated failed authentication attempts are typically
 associated with repeated display of the credentials dialog (and no other
@@ -207,25 +302,56 @@ a "403 Forbidden" response is sent.
 
 =item * B<Test for resource existence>
 
-The last test a request undergoes on its quest to become a response is the
+The next test a request undergoes on its quest to become a response is the
 test of resource existence. If the request is asking for a non-existent resource,
 e.g. L<http://dochazka.site/employee/curent>, it cannot be fulfilled and a "404
 Not Found" response will be sent.
 
-As some readers might already have guessed, the server already knows whether 
-or not the resource exists in the previous step, Authorization/ACL check. Each 
-stop on the quest can only generate a single error message, however. To deal
-with this quandary, the ACL check for non-existent resources is set to always
-pass. This causes requests for non-existent resources to whizz right through
-the ACL check, only to be caught by the Test for resource existence.
-
-=item * B<Response generation> 
-
-The Test for resource existence is the last test. If the request passes it,
-a '200 OK' response is generated with an appropriate entity body.
+For GET requests, this is the last cog in the state machine: if the test
+passes, a "200 OK" response is sent, along with a response body. Requests
+using other methods (POST, PUT, DELETE) are subject to further processing
+as described below.
 
 =back
 
+=head3 Additional processing (POST and PUT)
+
+Because they are expected to have a request body, incoming POST and PUT
+requests are subject to the following additional test:
+
+=over
+
+=item * B<malformed_request>
+
+This test examines the request body. If it is non-existent, the test
+passes. If the body exists and is valid JSON, the test passes. Otherwise,
+it fails.
+
+=item * B<known_content_type>
+
+Test the request for the 'Content-Type' header. POST and PUT requests
+should have a header that says:
+
+    Content-Type: application/json
+
+If this header is not present, a "415 Unsupported Media Type" response is
+sent.
+
+=back
+
+=head3 Additional processing (POST)
+
+=over 
+
+=item * B<post_is_create>
+
+This test examines the POST request and places it into one of two
+categories: (1) generic request for processing, (2) a request that creates
+or otherwise manipulates a resource. 
+
+# FIXME: more verbiage needed
+
+=back
 
 
 =head1 DATA MODEL
@@ -278,25 +404,23 @@ For details, see L<App::Dochazka::REST::Model::Policy>.
 
 =head2 Employee
 
-Dochazka is an Attendance and Time Tracking application. To simplify the
-matter, "Attendance and Time" can be replaced by the word "Work". We could
-also call Dochazka a "Work Tracking" application. Because "work" is usually
-done by "employees", all users of Dochazka are referred to as "employees"
-regardless of their actual legal status. You could even say that "employee" is
-the Dochazka term for "user". 
+Users of Dochazka are referred to as "employees" regardless of their 
+legal status -- in reality they might be independent contractors, or
+students, or even household pets, but as far as Dochazka is concerned they
+are employees. You could say that "employee" is the Dochazka term for "user". 
 
 Employees are distinguished by an internal employee ID number (EID), which is
-assigned by Dochazka itself when the employee record is created. 
+assigned by Dochazka itself when the employee record is created. For the 
+convenience of humans using the system, employees are also distinguished
+by a unique nickname, or 'nick'.
 
-Other than the EID, Dochazka need not record any other employee
-identification data. That said, Dochazka has three optional employee
-identification fields (full name, nick, email address), which some sites
-may wish to use, but these can be left blank if needed or desired by the
-site. Dochazka does not verify the contents of these fields.
-
-Dochazka doesn't care about the employee's identification information for
-two principal reasons: first, "Dochazka is not an address book" (there are
-other, better systems -- such as LDAP -- for that); and second, privacy.
+Other than the EID and the nick, which are required, Dochazka need not
+record any other employee identification data. That said, Dochazka has
+two additional employee identification fields (fullname, email), which some
+sites may wish to use, but these are optional and can be left blank.
+Dochazka does not verify the contents of these fields other than enforcing
+a UNIQUE constraint to ensure that two or more employees cannot have the
+exact same fullname or email address.
 
 For details, see L<App::Dochazka::REST::Model::Employee>.
 

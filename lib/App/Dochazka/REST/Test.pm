@@ -56,11 +56,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 
@@ -80,7 +80,7 @@ This module provides helper code for unit tests.
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( req_root req_demo req_json req_html req_bad_creds
+our @EXPORT_OK = qw( req_root req_demo req_json_demo req_html req_bad_creds
 status_from_json );
 
 
@@ -119,17 +119,34 @@ sub req_demo {
 }
 
 
-=head2 req_json
+=head2 req_json_demo
 
 Construct an HTTP request for JSON as 'demo' (passerby priv)
 
 =cut
 
-sub req_json {
+sub req_json_demo {
     my @args = @_;
     my $r = HTTP::Request->new( @args );
     $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
     $r->header( 'Accept' => 'application/json' );
+    $r->header( 'Content-Type' => 'application/json' );  # necessary for POST to work
+    return $r;
+}
+
+
+=head2 req_json_root
+
+Construct an HTTP request for JSON as 'demo' (passerby priv)
+
+=cut
+
+sub req_json_root {
+    my @args = @_;
+    my $r = HTTP::Request->new( @args );
+    $r->header( 'Authorization' => 'Basic cm9vdDppbW11dGFibGU=' );
+    $r->header( 'Accept' => 'application/json' );
+    $r->header( 'Content-Type' => 'application/json' );  # necessary for POST to work
     return $r;
 }
 

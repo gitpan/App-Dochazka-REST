@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.135
+Version 0.140
 
 =cut
 
-our $VERSION = '0.135';
+our $VERSION = '0.140';
 
 
 
@@ -92,7 +92,9 @@ The following functions implement targets for the various routes.
 BEGIN {    
     no strict 'refs';
     *{"_get_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_get_default( 'DISPATCH_HELP_PRIVLEVEL_GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_PRIVLEVEL_GET' );
+    *{"_post_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_PRIVLEVEL_POST' );
 }
 
 

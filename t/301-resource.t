@@ -43,7 +43,7 @@ use App::CELL qw( $log $meta $site );
 use App::CELL::Status;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Resource;
-use App::Dochazka::REST::Test qw( req_json req_html req_bad_creds );
+use App::Dochazka::REST::Test qw( req_json_demo req_html req_bad_creds );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -70,11 +70,11 @@ isa_ok( $test, 'Plack::Test::MockHTTP' );
 my ( $res, $json );
 
 # the very basic-est request (200)
-$res = $test->request( req_json GET => '/' );
+$res = $test->request( req_json_demo GET => '/' );
 is( $res->code, 200 );
 
 # a too-long request (414)
-$res = $test->request( req_json GET => '/' x 1001 );
+$res = $test->request( req_json_demo GET => '/' x 1001 );
 #diag( "code is " . $res->code );
 is( $res->code, 414 );
 is( $res->content, 'Request-URI Too Large' );
@@ -90,12 +90,12 @@ is( $res->code, 401 );
 is( $res->content, 'Unauthorized' );
 
 # request that doesn't pass ACL check (403)
-$res = $test->request( req_json GET => '/forbidden' );
+$res = $test->request( req_json_demo GET => '/forbidden' );
 is( $res->code, 403 );
 is( $res->content, 'Forbidden' );
 
 # request for non-existent resource (404)
-$res = $test->request( req_json GET => '/HEE HAW!!!/non-existent/resource' );
+$res = $test->request( req_json_demo GET => '/HEE HAW!!!/non-existent/resource' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 
