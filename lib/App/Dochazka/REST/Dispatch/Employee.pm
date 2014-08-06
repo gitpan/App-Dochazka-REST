@@ -66,11 +66,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.144
+Version 0.145
 
 =cut
 
-our $VERSION = '0.144';
+our $VERSION = '0.145';
 
 
 
@@ -112,6 +112,10 @@ sub _get_nick {
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
 
     my $nick = $context->{'mapping'}->{'nick'};
+
+    return App::Dochazka::REST::Model::Employee->load_by_nick( $nick ) 
+        unless $nick =~ m/%/;
+    
     my $status = App::Dochazka::REST::Model::Employee->
         select_multiple_by_nick( $nick );
     foreach my $emp ( @{ $status->payload->{'result_set'} } ) {

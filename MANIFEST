@@ -1,5 +1,6 @@
 bin/dochazka-dbinit
 bin/dochazka-rest
+bin/dochazka-update-employee
 Build.PL
 Changes
 config/dispatch/dispatch_Config.pm

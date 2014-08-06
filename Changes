@@ -863,3 +863,9 @@ Revision history for Dochazka-REST
   emphasize that EID is required
 - t/317-dispatch-put-employee.t: add lots of unit tests
 
+0.145  2014-08-06 15:08 CEST
+- Dispatch/Employee.pm: GET resource 'employee/nick/:nick' now returns
+  only a single employee record unless nick parameter contains a '%',
+  in which it returns a result set (JSON array of employee records)
+- t/: adapt tests
+

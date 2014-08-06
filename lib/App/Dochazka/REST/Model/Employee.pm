@@ -61,11 +61,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.144
+Version 0.145
 
 =cut
 
-our $VERSION = '0.144';
+our $VERSION = '0.145';
 
 
 
