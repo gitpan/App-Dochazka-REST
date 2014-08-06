@@ -72,11 +72,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -359,13 +359,6 @@ sub forbidden {
             'method' => $method,
         } );
 
-        if ( $method =~ qr/(POST)|(PUT)/ ) {
-            # push the request body onto the context
-            $self->_push_onto_context( {
-                'request_body' => decode_utf8( $self->request->content ),
-            } );
-        }
-
         return 0; # pass ACL check
     } else {
         # if the path doesn't match, we pass the request on to resource_exists
@@ -452,6 +445,8 @@ sub known_content_type {
 
 This test examines the request body. It can either be empty or contain
 valid JSON; otherwise, a '400 Malformed Request' response is returned.
+If it contains valid JSON, it is converted into a Perl hashref and 
+stored in the 'request_body' attribute of the context.
 
 =cut
 
@@ -464,17 +459,18 @@ sub malformed_request {
         return 0;
     }
 
-    my ( $json, $result );
+    # there is a request body -- attempt to convert it
+    my $result = 0;
     try {
-        $json = from_json( $body );
-        $result = 0;
+        $self->_push_onto_context( { request_body => from_json( $body ) } );
     } 
     catch {
         $log->error( "Caught JSON error: $_" );
         $result = 1;
     };
 
-    $log->debug( "malformed_request: Request body is valid JSON" );
+    $log->debug( "malformed_request: Request body is valid JSON" ) unless $result;
+
     return $result;
 }
 

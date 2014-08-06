@@ -57,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -174,10 +174,17 @@ sub cud {
         my $counter = 0;
         map {
                $counter += 1;
+
+               #my $value = defined( $ARGS{'object'}->{$_} )
+               #        ? $ARGS{'object'}->{$_}
+               #        : 'undef';
+               #$log->debug( "cud binding parameter $counter to attribute $_ value $value" );
+
                $sth->bind_param( $counter, $ARGS{'object'}->{$_} );
             } @{ $ARGS{'attrs'} };
         $sth->execute;
         my $rh = $sth->fetchrow_hashref;
+        $log->info( "Statement " . $sth->{'Statement'} . " RETURNING values: " . Dumper( $rh ) );
         # populate object with all RETURNING fields 
         map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
         $dbh->commit;
@@ -194,7 +201,7 @@ sub cud {
     $dbh->{AutoCommit} = 1;
     $dbh->{RaiseError} = 0;
 
-    $status = $CELL->status_ok if not defined( $status );
+    $status = $CELL->status_ok( 'DOCHAZKA_CUD_OK', payload => $ARGS{'object'} ) if not defined( $status );
     return $status;
 }
 

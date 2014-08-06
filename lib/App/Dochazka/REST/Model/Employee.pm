@@ -61,11 +61,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -339,14 +339,15 @@ actually inserted. Returns a status object.
 
 sub insert {
     my ( $self ) = @_;
-
     my $status = cud(
         object => $self,
         sql => $site->SQL_EMPLOYEE_INSERT,
         attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
     );
-
-    return $status;
+    return $status->ok
+        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_INSERT_OK', args => [ $self->nick ],
+              payload => $status->payload )
+        : $status;
 }
 
 
@@ -364,13 +365,18 @@ Returns status object.
 sub update {
     my ( $self ) = @_;
 
+    # eid _MUST_ be defined
+    return $CELL->status_err( "No EID in object, yet EID needed for UPDATE operation" )
+        unless $self->{'eid'};
     my $status = cud(
         object => $self,
-        sql => $site->SQL_EMPLOYEE_UPDATE,
-        attrs => [ 'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
+        sql => $site->SQL_EMPLOYEE_UPDATE_BY_EID,
+        attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark', 'eid' ],
     );
-
-    return $status;
+    return $status unless $status->ok;
+    return $CELL->status_err( "UPDATE failed (no payload) for unknown reason" ) unless $status->payload;
+    $CELL->status_ok( 'DISPATCH_EMPLOYEE_UPDATE_OK', args => [ $self->nick ],
+        payload => $status->payload )
 }
 
 
@@ -392,8 +398,9 @@ sub delete {
         attrs => [ 'eid' ],
     );
     $self->reset( eid => $self->eid ) if $status->ok;
-
-    return $status;
+    return $status->ok
+        ? $status
+        : $CELL->status_ok( 'DISPATCH_EMPLOYEE_DELETE_OK' );
 }
 
 

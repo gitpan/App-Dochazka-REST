@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -120,30 +120,31 @@ sub _get_site_param {
 }
 
 
-# just put the request body in the payload
 sub _post_echo {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    # return a suitable payload, even if the request body is empty
-    return $CELL->status_ok( 'DISPATCH_POST_ECHO', payload => 
-        ( not defined $context->{'request_body'} or $context->{'request_body'} eq '' )
-            ? undef
-            : from_json( $context->{'request_body'} )
-    );
+    _process_echo( $context->{'method'}, $context->{'request_body'} );
 }
 
-# just put the request body in the payload
+
 sub _put_echo {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    # return a suitable payload, even if the request body is empty
-    return $CELL->status_ok( 'DISPATCH_PUT_ECHO', payload => 
-        ( not defined $context->{'request_body'} or $context->{'request_body'} eq '' )
-            ? undef
-            : from_json( $context->{'request_body'} )
-    );
+    _process_echo( $context->{'method'}, $context->{'request_body'} );
 }
 
+
+# carefully put the request body in the payload
+sub _process_echo {
+    my ( $method, $body ) = @_;
+
+    # return a suitable payload, even if the request body is empty
+    return $CELL->status_ok( 'DISPATCH_' . $method . '_ECHO', 
+        payload => ( not defined $body or $body eq '' )
+            ? undef
+            : $body
+    );
+}
 
 sub _get_forbidden { die "Das ist streng verboten"; }
 

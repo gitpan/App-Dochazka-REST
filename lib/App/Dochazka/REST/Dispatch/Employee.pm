@@ -43,12 +43,13 @@ use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared;
-use App::Dochazka::REST::Model::Employee qw( noof_employees_by_priv );
+use App::Dochazka::REST::Model::Employee qw( nick_exists noof_employees_by_priv );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use Carp;
 use Data::Dumper;
 use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
+use Try::Tiny;
 
 use parent 'App::Dochazka::REST::Dispatch';
 
@@ -65,11 +66,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -87,6 +88,9 @@ Controller/dispatcher module for the 'employee' resource.
 
 The following functions implement targets for the various routes.
 
+
+=head2 Default targets
+
 =cut
 
 BEGIN {
@@ -99,12 +103,15 @@ BEGIN {
         App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_PUT' );
 }
 
+=head2 GET targets
+
+=cut
 
 sub _get_nick {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
 
-    my $nick = $context->{'mapping'}->{'param'};
+    my $nick = $context->{'mapping'}->{'nick'};
     my $status = App::Dochazka::REST::Model::Employee->
         select_multiple_by_nick( $nick );
     foreach my $emp ( @{ $status->payload->{'result_set'} } ) {
@@ -113,12 +120,11 @@ sub _get_nick {
     return $status;
 }
 
-
 sub _get_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
 
-    my $eid = $context->{'mapping'}->{'param'};
+    my $eid = $context->{'mapping'}->{'eid'};
     App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
 }
 
@@ -145,5 +151,95 @@ sub _get_count {
     }
     return $result;
 }
+
+
+=head2 PUT targets
+
+=cut
+
+# no parameter, everything in request body, nick required
+sub _put_employee_body_with_nick_required {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ) 
+        unless $context->{'request_body'}->{'nick'};
+    delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
+    return _put_employee( %{ $context->{'request_body'} } );
+}
+
+# nick provided in path, rest in optional request body
+sub _put_employee_nick_in_path {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my $nick = $context->{'mapping'}->{'nick'};
+    die "AAAAAAAAAAHHHHH! Swallowed by the abyss" unless defined $nick and ref \$nick eq 'SCALAR';
+    $context->{'request_body'}->{'nick'} = $nick;
+    delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
+    return _put_employee( %{ $context->{'request_body'} } );
+}
+
+# no parameter, everything in request body, EID required
+sub _put_employee_body_with_eid_required {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ) 
+        unless $context->{'request_body'}->{'eid'};
+    return _put_employee( %{ $context->{'request_body'} } );
+}
+
+# EID provided in path, rest in optional request body
+sub _put_employee_eid_in_path {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my $eid = $context->{'mapping'}->{'eid'};
+    die "AAAAAAAAAAHHHHH! Swallowed by the abyss" unless defined $eid and ref \$eid eq 'SCALAR';
+    $context->{'request_body'}->{'eid'} = $eid;
+    return _put_employee( %{ $context->{'request_body'} } );
+}
+
+sub _put_employee {
+    my @ARGS = @_;
+    my %ARGS;
+
+    # validate arguments and convert them into employee object
+    my $status = $CELL->status_ok;
+    try {
+        %ARGS = validate( @ARGS, { 
+            eid =>      { tupe => SCALAR, optional => 1 },
+            nick =>     { type => SCALAR, optional => 1 },
+            fullname => { type => SCALAR, optional => 1 },
+            email =>    { type => SCALAR, optional => 1 },
+            passhash => { type => SCALAR, optional => 1 },
+            salt =>     { type => SCALAR, optional => 1 },
+            remark =>   { type => SCALAR, optional => 1 },
+        } );
+        # eid or nick MUST be provided
+        die "eid or nick MUST be provided" unless $ARGS{'eid'} or $ARGS{'nick'};
+    }
+    catch {
+        $status = $CELL->status_err( 'DISPATCH_PUT_EMPLOYEE: %s', args => [ $_ ] );
+    };
+    return $status unless $status->ok;
+    my $emp = App::Dochazka::REST::Model::Employee->spawn( %ARGS );
+
+    # execute the INSERT/UPDATE database transaction
+    my ( $level, $code );
+    # if EID provided, we try to update
+    if ( my $eid = $emp->eid ) {
+        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+        return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
+            ? $emp->update
+            : $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] );
+    }
+    # if nick provided, we either update if nick exists or insert otherwise
+    elsif ( my $nick = $emp->nick ) {
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+            $emp->eid( $status->payload->eid );
+            return $emp->update;
+        } else {
+            return $emp->insert;
+        }
+    }
+    # neither EID nor nick provided: ERROR
+    return $CELL->status_err( 'DISPATCH_EMPLOYEE_PLEASE_PROVIDE_EID_OR_NICK' );
+}
+
 
 1;

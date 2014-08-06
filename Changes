@@ -843,3 +843,23 @@ Revision history for Dochazka-REST
 0.141  2014-08-05 15:52 CEST
 - implement basic handling of PUT requests
 
+0.142  2014-08-05 21:46 CEST
+- implement 'employee' and 'employee/:nick' (INSERT/UPDATE) PUT resources
+  (ATM without unit tests)
+- Model/Employee.pm: fix bug ('update' routine didn't work)
+- Resource.pm: in 'malformed_request', push JSON from request body onto
+  context _after_ decoding it into a Perl hashref
+- minor cleanup/fixup
+
+0.143  2014-08-06 10:19 CEST
+- working on employee PUT resources: refactor targets, add 'eid' resources
+- Model/Shared.pm: make 'cud' return RETURNING values in payload
+- Model/Employee.pm: make 'insert' and 'update' return payload received from 'cud'
+
+0.144  2014-08-06 13:55 CEST
+- Model/Employee.pm: fix bug "status OK when 'update' called with undefined
+  EID"
+- config/: rename SQL_EMPLOYEE_UPDATE to SQL_EMPLOYEE_UPDATE_BY_EID to
+  emphasize that EID is required
+- t/317-dispatch-put-employee.t: add lots of unit tests
+

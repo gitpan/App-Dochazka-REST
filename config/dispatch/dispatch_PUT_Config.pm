@@ -45,19 +45,25 @@ set( 'DISPATCH_HELP_TOPLEVEL_PUT', [
     'help', 
     'echo',
     'forbidden', 
-    'employee',
-    'privhistory',
+    'employee/help',
+    'privhistory/help',
 ] );
 
 # DISPATCH_HELP_EMPLOYEE_PUT
 #    PUT resources - employee
 set( 'DISPATCH_HELP_EMPLOYEE_PUT', [
+    'employee',
     'employee/help',
+    'employee/nick',
+    'employee/nick/:nick',
+    'employee/eid',
+    'employee/eid/:eid',
 ] );
 
 # DISPATCH_HELP_PRIVHISTORY_PUT
 #    PUT resources - privhistory
 set( 'DISPATCH_HELP_PRIVHISTORY_PUT', [
+    'employee',
     'privhistory/help',
 ] );
 
@@ -96,8 +102,8 @@ set( 'DISPATCH_RESOURCES_PUT', {
     # EMPLOYEE PUT RESOURCES
     #
     'employee' =>
-    { 
-      acl_profile => 'passerby', 
+    {
+      acl_profile => 'admin', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
       description => 'Display employee resources',
     },
@@ -106,6 +112,32 @@ set( 'DISPATCH_RESOURCES_PUT', {
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
       description => 'Display employee resources',
+    },
+    'employee/nick' =>
+    {
+      acl_profile => 'admin', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_employee_body_with_nick_required', 
+      description => 'Insert new/update existing employee (JSON request body with nick required)',
+    },
+    'employee/nick/:nick' =>
+    {
+      acl_profile => 'admin', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_employee_nick_in_path', 
+      description => 'Insert new/update existing employee with provided nick ' . 
+                     '(JSON request body optional)',
+    },
+    'employee/eid' =>
+    {
+      acl_profile => 'admin', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_employee_body_with_eid_required', 
+      description => 'Update existing employee (JSON request body with EID required)',
+    },
+    'employee/eid/:eid' =>
+    {
+      acl_profile => 'admin', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_put_employee_eid_in_path', 
+      description => 'Update existing employee with provided EID ' . 
+                     '(JSON request body optional)',
     },
 
     # 

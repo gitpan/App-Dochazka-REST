@@ -55,8 +55,9 @@ set( 'DISPATCH_HELP_TOPLEVEL_GET', [
 #    GET resources - employee
 set( 'DISPATCH_HELP_EMPLOYEE_GET', [
     'employee/help',
-    'employee/nick/:param',
-    'employee/eid/:param',
+    'employee/:nick',
+    'employee/nick/:nick',
+    'employee/eid/:eid',
     'employee/current',
     'employee/count',
     'employee/count/:priv',
@@ -132,13 +133,19 @@ set( 'DISPATCH_RESOURCES_GET', {
       target => 'App::Dochazka::REST::Dispatch::Employee::_get_default', 
       description => 'Display employee resources',
     },
-    'employee/nick/:param' =>
+    'employee/:nick' =>
     { 
       acl_profile => 'admin', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_get_nick', 
       description => "Search for employees by nick (uses SQL 'LIKE')",
     },
-    'employee/eid/:param' =>
+    'employee/nick/:nick' =>
+    { 
+      acl_profile => 'admin', 
+      target => 'App::Dochazka::REST::Dispatch::Employee::_get_nick', 
+      description => "Search for employees by nick (uses SQL 'LIKE')",
+    },
+    'employee/eid/:eid' =>
     { 
       acl_profile => 'admin', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_get_eid', 

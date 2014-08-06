@@ -74,7 +74,8 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-is( scalar keys $status->payload->{'resources'}, 1 );
+is( ref $status->payload->{'resources'}, 'HASH' );
+is( scalar keys %{ $status->payload->{'resources'} }, 1 );
 ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
 # 1. privhistory/help as root
@@ -86,7 +87,8 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( scalar keys $status->payload->{'resources'} >= 6 );
+is( ref $status->payload->{'resources'}, 'HASH' );
+ok( scalar keys %{ $status->payload->{'resources'} } >= 6 );
 ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 ok( exists $status->payload->{'resources'}->{'privhistory/current'} );
 ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick'} );

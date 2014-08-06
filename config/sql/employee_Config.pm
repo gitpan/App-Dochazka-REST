@@ -83,7 +83,7 @@ set( 'SQL_EMPLOYEE_INSERT', q/
       / );
 
 #
-set( 'SQL_EMPLOYEE_UPDATE', q/
+set( 'SQL_EMPLOYEE_UPDATE_BY_EID', q/
       UPDATE employees SET fullname = ?, nick = ?, email = ?,
          passhash = ?, salt = ?, remark = ?  
       WHERE eid = ?

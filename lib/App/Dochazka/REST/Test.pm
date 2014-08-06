@@ -56,11 +56,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.141
+Version 0.144
 
 =cut
 
-our $VERSION = '0.141';
+our $VERSION = '0.144';
 
 
 
@@ -80,8 +80,8 @@ This module provides helper code for unit tests.
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( req_root req_demo req_json_demo req_html req_bad_creds
-status_from_json );
+our @EXPORT_OK = qw( req_root req_demo req_json_demo req_json_root req_html 
+req_bad_creds status_from_json );
 
 
 
