@@ -51,9 +51,6 @@ use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 use Try::Tiny;
 
-use parent 'App::Dochazka::REST::Dispatch';
-
-
 
 
 =head1 NAME
@@ -66,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 

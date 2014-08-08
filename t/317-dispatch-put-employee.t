@@ -82,7 +82,7 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( keys $status->payload->{'resources'} >= 3 );
+ok( keys %{ $status->payload->{'resources'} } >= 3 );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 ok( exists $status->payload->{'resources'}->{'employee/nick/:nick'} );

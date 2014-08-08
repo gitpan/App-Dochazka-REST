@@ -1,0 +1,2 @@
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Activity';

@@ -36,14 +36,17 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::dbh qw( $dbh );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
 use Params::Validate qw( :all );
 use Try::Tiny;
 
-use parent 'App::Dochazka::REST::dbh';
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Schedule';
+
 
 
 
@@ -56,11 +59,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -257,62 +260,6 @@ our @EXPORT_OK = qw( get_json );
 
 =head1 METHODS
 
-=head2 spawn
-
-Constructor. See Employee.pm->spawn for general comments.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
-}
-
-
-
-=head2 reset
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 'sid', 
-        'schedule', 'remark' );
-}
-
-
-
-=head2 Accessor methods
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    foreach my $subname ( 'sid', 'schedule', 'remark' ) {
-        no strict 'refs';
-        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
-    }   
-}
-
-=head3 sid
-
-Accessor method.
-
-
-=head3 schedule
-
-Accessor method.
-
-
-=head3 remark
-
-Accessor method.
-
-
-
 =head2 insert
 
 Instance method. Attempts to INSERT a record into the 'schedules' table.
@@ -322,8 +269,6 @@ Field values are taken from the object. Returns a status object.
 
 sub insert {
     my ( $self ) = @_;
-
-    my $dbh = __PACKAGE__->SUPER::dbh;
 
     # if the exact same schedule is already in the database, we
     # don't insert it again
@@ -404,8 +349,6 @@ Returns undef if not found.
 sub get_json {
     my ( $sid ) = @_;
     die "Problem with arguments in get_json" if not defined $sid;
-
-    my $dbh = __PACKAGE__->SUPER::dbh;
 
     my ( $json ) = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
                                          undef,

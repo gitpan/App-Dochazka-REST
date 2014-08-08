@@ -838,7 +838,8 @@ Revision history for Dochazka-REST
 - Dispatch.pm: fix bug in 'echo' POST resource (wasn't handling empty
   requests)
 - Resource.pm: implement 'known_content_type' and 'malformed_request'
-  routines
+  routines - requests with body containing anything other than legal JSON will
+  be rejected
 
 0.141  2014-08-05 15:52 CEST
 - implement basic handling of PUT requests
@@ -846,7 +847,7 @@ Revision history for Dochazka-REST
 0.142  2014-08-05 21:46 CEST
 - implement 'employee' and 'employee/:nick' (INSERT/UPDATE) PUT resources
   (ATM without unit tests)
-- Model/Employee.pm: fix bug ('update' routine didn't work)
+- Model/Employee.pm: fix bug "'update' routine doesn't work at all"
 - Resource.pm: in 'malformed_request', push JSON from request body onto
   context _after_ decoding it into a Perl hashref
 - minor cleanup/fixup
@@ -854,11 +855,12 @@ Revision history for Dochazka-REST
 0.143  2014-08-06 10:19 CEST
 - working on employee PUT resources: refactor targets, add 'eid' resources
 - Model/Shared.pm: make 'cud' return RETURNING values in payload
-- Model/Employee.pm: make 'insert' and 'update' return payload received from 'cud'
+- Model/Employee.pm: make 'insert' and 'update' return payload received from
+  'cud'
 
 0.144  2014-08-06 13:55 CEST
-- Model/Employee.pm: fix bug "status OK when 'update' called with undefined
-  EID"
+- Model/Employee.pm: fix bug "'update' returns OK status when called with
+  undefined EID -- should be ERR"
 - config/: rename SQL_EMPLOYEE_UPDATE to SQL_EMPLOYEE_UPDATE_BY_EID to
   emphasize that EID is required
 - t/317-dispatch-put-employee.t: add lots of unit tests
@@ -866,6 +868,26 @@ Revision history for Dochazka-REST
 0.145  2014-08-06 15:08 CEST
 - Dispatch/Employee.pm: GET resource 'employee/nick/:nick' now returns
   only a single employee record unless nick parameter contains a '%',
-  in which it returns a result set (JSON array of employee records)
+  in which case it returns a result set (JSON array of employee records)
 - t/: adapt tests
+
+0.146  2014-08-07 09:42 CEST
+- config/dispatch/: improve resource descriptions by including method
+- REST.pm: write some POD about POST and PUT
+- staging/: get rid of old ballast, add some new ballast (CLI scripts)
+- minor cleanup
+
+0.147  2014-08-07 11:05 CEST
+- t/317-dispatch-put-employee.t: fix 'keys on reference' oversight
+  that caused build to fail with Perl 5.20
+- staging/cli.plx: work on CLI script
+- split off "pure" data model functions into App::Dochazka so they can
+  be shared with App::Dochazka::CLI
+
+0.148  2014-08-08 10:15 CEST
+- test release script
+- t/: update depends script
+
+0.149  2014-08-08 10:25 CEST
+- test release script once again
 

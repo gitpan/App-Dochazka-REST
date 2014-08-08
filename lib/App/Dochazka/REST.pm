@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 =head2 Development status
@@ -218,8 +218,8 @@ see all the available resources, we can authenticate as 'root':
 With the GET method, we could only access resources for finding and displaying
 information: we could not add, change, or delete information. For that we will
 need to turn to some other client than the web browser -- a client like B<curl>
-that is capable of generating HTTP requests with methods like POST, PUT and
-DELETE.
+that is capable of generating HTTP requests with methods like POST (as well as
+PUT and DELETE).
 
 Here is an example of how we would use B<curl> to display the top-level POST
 resources:
@@ -234,7 +234,9 @@ sequence of bytes encoded in UTF-8.
 
 =item * PUT resources
 
-The PUT method is used to . . .
+The PUT method is used to add new resources and update existing ones. Since
+the resources are derived from the underlying database, this implies executing 
+INSERT and UPDATE statements on tables in the database.
 
 PUT resources can be explored using a B<curl> command analogous to the one
 given for the POST method.
@@ -255,6 +257,21 @@ that employee have been deleted. Intervals, on the other hand, can be
 deleted as long as they are not subject to a lock.
 
 =back
+
+
+=head2 Difference between POST and PUT
+
+The difference between POST and PUT is rather subtle. If I understood the HTTP 
+standard correctly, PUT requests are used to either add new resources or 
+modify (update) existing ones. So the path of the PUT request will be the 
+same, or very similar, to the path of GET request to display that resource.
+
+POST requests may also create a new resource and/or modify an existing one,
+but their path need not correspond to the path used by a GET request to 
+display the resource in question. If a POST request operates on a single
+resource, that resource will not be derivable from the request path. To
+overcome this, the response to the POST request will contain a "Location:"
+header pointing the user to the resource acted upon.
 
 
 =head2 Request-response cycle

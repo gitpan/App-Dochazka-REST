@@ -38,6 +38,7 @@ use Test::More;
 
 BEGIN {
     use_ok( 'App::CELL' );
+    use_ok( 'App::Dochazka' );
     use_ok( 'DBD::Pg' );
     use_ok( 'DBI' );
     use_ok( 'JSON' );
@@ -45,19 +46,6 @@ BEGIN {
     use_ok( 'Path::Router' );
     use_ok( 'Plack::Runner' );
     use_ok( 'Web::Machine' );
-    use_ok( 'App::Dochazka::REST' );
-    use_ok( 'App::Dochazka::REST' );
-    use_ok( 'App::Dochazka::REST::Model::Activity' );
-    use_ok( 'App::Dochazka::REST::Model::Employee' );
-    use_ok( 'App::Dochazka::REST::Model::Interval' );
-    use_ok( 'App::Dochazka::REST::Model::Lock' );
-    use_ok( 'App::Dochazka::REST::Model::Privhistory' );
-    use_ok( 'App::Dochazka::REST::Model::Schedule' );
-    use_ok( 'App::Dochazka::REST::Model::Schedhistory' );
-    use_ok( 'App::Dochazka::REST::Model::Schedintvls' );
-    use_ok( 'App::Dochazka::REST::Model::Shared' );
-    use_ok( 'App::Dochazka::REST::Util::Timestamp' );
 }
 
 done_testing;
-#diag( "Testing App::Dochazka::REST $App::Dochazka::REST::VERSION, Perl $], $^X" );

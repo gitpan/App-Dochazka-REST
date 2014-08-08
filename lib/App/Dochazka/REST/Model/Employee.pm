@@ -36,6 +36,7 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid schedule_by_eid noof );
 use Carp;
@@ -47,8 +48,8 @@ use Scalar::Util qw( blessed );
 use Storable qw( dclone );
 use Try::Tiny;
 
-use parent 'App::Dochazka::REST::dbh';
-
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Employee';
 
 
 
@@ -61,11 +62,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -220,82 +221,6 @@ our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 
 =head1 METHODS
-
-
-=head2 spawn
-
-Employee constructor. Does not interact with the database directly, but stores
-database handle for later use. Optional parameter: PARAMHASH containing
-definitions of any of the attributes listed in the 'reset' method.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn;
-}
-
-
-
-=head2 reset
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
-        'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark',
-        'priv', 'schedule'
-    );
-}
-
-
-
-=head2 Accessor methods
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    foreach my $subname ( 
-        'eid', 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' 
-    ) {
-        no strict 'refs';
-        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
-    }   
-}
-
-
-=head3 eid
-
-Accessor method.
-
-=head3 email
-
-Accessor method.
-
-=head3 fullname
-
-Accessor method.
-
-=head3 nick
-
-Accessor method.
-
-=head3 passhash
-
-Accessor method.
-
-=head3 salt
-
-Accessor method.
-
-=head3 remark
-
-Accessor method.
 
 =head3 priv
 
@@ -465,9 +390,6 @@ sub select_multiple_by_nick {
     # sk means "search key"
     my ( $sk ) = validate_pos( @_, { type => SCALAR, default => '%' } );
 
-    # get database handle from parent
-    my $dbh = __PACKAGE__->SUPER::dbh;
-
     my $status = {};
     my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
 
@@ -587,7 +509,6 @@ Get number of employees. Argument can be one of the following:
 sub noof_employees_by_priv {
     my ( $priv ) = @_;
     die "Problem with arguments" unless defined $priv;
-    my $dbh = __PACKAGE__->SUPER::dbh;
 
     if ( $priv eq 'total' ) {
         my $count = noof( 'employees' );

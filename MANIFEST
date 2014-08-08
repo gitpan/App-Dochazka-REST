@@ -1,6 +1,5 @@
 bin/dochazka-dbinit
 bin/dochazka-rest
-bin/dochazka-update-employee
 Build.PL
 Changes
 config/dispatch/dispatch_Config.pm
@@ -28,6 +27,7 @@ lib/App/Dochazka/REST/Dispatch/Privhistory.pm
 lib/App/Dochazka/REST/Dispatch/Shared.pm
 lib/App/Dochazka/REST/LDAP.pm
 lib/App/Dochazka/REST/Model/Activity.pm
+lib/App/Dochazka/REST/Model/bubba
 lib/App/Dochazka/REST/Model/Employee.pm
 lib/App/Dochazka/REST/Model/Interval.pm
 lib/App/Dochazka/REST/Model/Lock.pm

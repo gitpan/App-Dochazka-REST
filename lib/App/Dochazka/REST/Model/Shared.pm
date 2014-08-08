@@ -37,13 +37,13 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::CELL::Util qw( stringify_args );
+use App::Dochazka::REST::dbh qw( $dbh );
 use Carp;
 use Data::Dumper;
 use DBI;
 use Params::Validate qw( :all );
 use Try::Tiny;
 
-use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -57,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -127,8 +127,6 @@ sub load {
     } );
 
     # consult the database; N.B. - select may only return a single record
-    my $dbh = __PARENT__->SUPER::dbh;
-
     my $hr = $dbh->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
     return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
         if $dbh->err;
@@ -159,7 +157,6 @@ sub cud {
         attrs => { type => ARRAYREF } 
     } );
 
-    my $dbh = __PACKAGE__->SUPER::dbh;
     my $status;
 
     # DBI incantations
@@ -208,8 +205,8 @@ sub cud {
 
 =head2 noof
 
-Given a database handle and the name of a data model table, returns the
-total number of records in the table.
+Given the name of a data model table, returns the total number of records
+in the table.
 
     activities employees intervals locks privhistory schedhistory
     schedintvls schedules
@@ -223,8 +220,6 @@ sub noof {
 
     return unless grep { $table eq $_; } qw( activities employees intervals locks
             privhistory schedhistory schedintvls schedules );
-
-    my $dbh = __PACKAGE__->SUPER::dbh;
 
     my ( $result ) = $dbh->selectrow_array( "SELECT count(*) FROM $table" );
     return $result;
@@ -271,7 +266,6 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 
 sub _st_by_eid {
     my ( $st, $eid, $ts ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
     my $sql;
     if ( $ts ) {
         # timestamp given
@@ -292,84 +286,6 @@ sub _st_by_eid {
     }
     return $st;
 }
-
-
-
-=head2 make_spawn
-
-Returns a ready-made 'spawn' method. 
-
-=cut
-
-sub make_spawn {
-    return sub {
-        # process arguments
-        my ( $class, @ARGS ) = @_;
-        croak "Odd number of arguments (" . scalar @ARGS . ") in PARAMHASH: " . stringify_args( @ARGS ) if @ARGS and (@ARGS % 2);
-        my %ARGS = @ARGS;
-
-        # bless, reset, return
-        my $self = bless {}, $class;
-        $self->reset( %ARGS ); # make sure we have all required attributes
-        return $self;
-    }
-}
-
-
-=head2 make_reset
-
-Given a list of attributes, returns a ready-made 'reset' method. 
-
-=cut
-
-sub make_reset {
-
-    # take a list consisting of the names of attributes that the 'reset'
-    # method will accept -- these must all be scalars
-    my ( @attr ) = validate_pos( @_, map { { type => SCALAR }; } @_ );
-
-    # construct the validation specification for the 'reset' routine:
-    # 1. 'reset' will take named parameters _only_
-    # 2. only the values from @attr will be accepted as parameters
-    # 3. all parameters are optional
-    my $val_spec;
-    map { $val_spec->{$_} = 0; } @attr;
-    
-    return sub {
-        # process arguments
-        my $self = shift;
-        confess "Not an instance method call" unless ref $self;
-        my %ARGS = validate( @_, $val_spec ) if @_ and defined $_[0];
-
-        # set attributes to run-time values sent in argument list
-        map { $self->{$_} = $ARGS{$_}; } @attr;
-
-        # run the populate function, if any
-        $self->populate() if $self->can( 'populate' );
-
-        # return an appropriate throw-away value
-        return;
-    }
-}
-
-
-=head2 make_accessor
-
-Returns a ready-made accessor.
-
-=cut
-
-sub make_accessor {
-    my ( $subname ) = @_;
-    sub {
-        my $self = shift;
-        validate_pos( @_, { type => SCALAR, optional => 1 } );
-        $self->{$subname} = shift if @_;
-        return $self->{$subname};
-    };
-}
-
-
 
 
 =head1 AUTHOR

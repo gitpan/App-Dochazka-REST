@@ -36,6 +36,7 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared; 
 use Carp;
 use Data::Dumper;
@@ -43,7 +44,10 @@ use DBI;
 use JSON;
 use Try::Tiny;
 
-use parent 'App::Dochazka::REST::dbh';
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Schedintvls';
+
+
 
 
 =head1 NAME
@@ -55,11 +59,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -90,35 +94,6 @@ our @EXPORT_OK = qw( );
 
 =head1 METHODS
 
-=head2 spawn
-
-Constructor. See Employee.pm->spawn for general comments.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
-}
-
-
-
-=head2 reset
-
-Instance method. Resets object, either to its primal state (no arguments)
-or to the state given in PARAMHASH.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
-        'scratch_sid', 'intvls' 
-    );
-}
-
-
-
 =head2 populate
 
 Populate the schedintvls object (called automatically by 'reset' method
@@ -133,36 +108,6 @@ sub populate {
     $self->{scratch_sid} = $ss;
     return;
 }
-
-
-
-=head2 Accessor methods
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    foreach my $subname ( 'scratch_sid', 'intvls', 'schedule' ) {
-        no strict 'refs';
-        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
-    }   
-}
-
-=head3 scratch_sid
-
-Accessor method.
-
-
-=head3 intvls
-
-Accessor method.
-
-
-=head3 schedule
-
-Accessor method.
-
 
 
 =head2 load
@@ -180,7 +125,6 @@ sub load {
     my ( $self ) = @_;
 
     # prepare and execute statement
-    my $dbh = __PACKAGE__->SUPER::dbh;
     my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_SELECT );
     $sth->execute( $self->{scratch_sid} );
 
@@ -211,7 +155,6 @@ Field values are taken from the object. Returns a status object.
 
 sub insert {
     my ( $self ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
     my $status;
 
     # the insert operation needs to take place within a transaction,
@@ -262,7 +205,6 @@ Returns a status object.
 
 sub delete {
     my ( $self ) = @_;
-    my $dbh = __PACKAGE__->SUPER::dbh;
     my $status;
 
     $dbh->{AutoCommit} = 0;
@@ -325,7 +267,6 @@ Get next value from the scratch_sid_seq sequence
 =cut
 
 sub _next_scratch_sid {
-    my $dbh = __PACKAGE__->SUPER::dbh;
     return $dbh->selectrow_array( $site->SQL_SCRATCH_SID, undef );
 }
 

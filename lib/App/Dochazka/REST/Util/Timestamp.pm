@@ -35,11 +35,11 @@ package App::Dochazka::REST::Util::Timestamp;
 use 5.012;
 use strict;
 use warnings FATAL => 'all';
+use App::Dochazka::REST::dbh qw( $dbh );
 use DBI;
 use Time::Piece;
 use Time::Seconds;
 
-use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -52,11 +52,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -119,9 +119,8 @@ our $tomorrow_ts = $tomorrow . ' 00:00:00';
 
 =head2 split_tsrange
 
-Given a database handle and a string that might be a tsrange, split it into
-its lower and upper bounds (i.e. into two timestamps) by running it through the
-SQL statement:
+Given a string that might be a tsrange, split it into its lower and upper
+bounds (i.e. into two timestamps) by running it through the SQL statement:
 
     SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))
 
@@ -130,9 +129,6 @@ SQL statement:
 sub split_tsrange {
     my ( $tsr ) = @_;
 
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-    
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))',
         undef,
@@ -146,8 +142,8 @@ sub split_tsrange {
 
 =head2 canonicalize_ts
 
-Given a database handle and a string that might be a timestamp, "canonicalize" it
-by running it through the database in the SQL statement:
+Given a string that might be a timestamp, "canonicalize" it by running it
+through the database in the SQL statement:
 
     SELECT CAST( ? AS TIMESTAMP )
 
@@ -155,9 +151,6 @@ by running it through the database in the SQL statement:
 
 sub canonicalize_ts {
     my ( $ts ) = @_;
-
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
 
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS timestamp)',
@@ -188,17 +181,14 @@ sub subtract_days {
 
 =head2 tsrange_equal
 
-Given a database handle and two strings that might be equal tsranges, consult 
-the database and return the result (true or false).
+Given two strings that might be equal tsranges, consult the database and return
+the result (true or false).
 
 =cut
 
 sub tsrange_equal {
     my ( $tr1, $tr2 ) = @_;
 
-    my $dbh = __PACKAGE__->SUPER::dbh;
-    die "Problem with database handle" unless $dbh->ping;
-    
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS tsrange) = CAST( ? AS tsrange )',
         undef,

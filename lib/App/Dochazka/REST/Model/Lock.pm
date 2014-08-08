@@ -36,13 +36,17 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+#use App::Dochazka::REST::dbh qw( $dbh );
+use App::Dochazka::REST::Model::Shared qw( load cud );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( load cud );
 use DBI;
 use Params::Validate qw( :all );
 
-use parent 'App::Dochazka::REST::dbh';
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Lock';
+
+
 
 
 =head1 NAME
@@ -54,11 +58,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -112,68 +116,6 @@ our @EXPORT_OK = qw( );
 
 
 =head1 METHODS
-
-=head2 spawn
-
-Constructor. See Employee.pm->spawn for general comments.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
-}
-
-
-
-=head2 reset
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset(
-        'lid', 'eid', 'intvl', 'remark'
-    );
-}
-
-
-
-=head2 Accessor methods
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    foreach my $subname ( 'lid', 'eid', 'intvl', 'remark' ) {
-        no strict 'refs';
-        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
-    }   
-}
-
-=head3 lid
-
-Accessor method.
-
-
-=head3 eid
-
-Accessor method.
-
-
-=head3 intvl
-
-Accessor method.
-
-
-=head3 remark
-
-Accessor method.
-
-
 
 =head2 load_by_lid
 

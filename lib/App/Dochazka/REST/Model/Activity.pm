@@ -36,6 +36,7 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
+#use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid );
 use Carp;
 use Data::Dumper;
@@ -43,7 +44,9 @@ use DBI;
 use Params::Validate qw{:all};
 use Scalar::Util qw( blessed );
 
-use parent 'App::Dochazka::REST::dbh';
+# we get 'spawn', 'reset', and accessors from parent
+use parent 'App::Dochazka::Model::Activity';
+
 
 
 
@@ -56,11 +59,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -145,67 +148,6 @@ our @EXPORT_OK = qw( aid_by_code );
 
 
 =head1 METHODS
-
-
-=head2 spawn
-
-Activity constructor. For details, see Employee.pm->spawn.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"spawn"} = App::Dochazka::REST::Model::Shared::make_spawn();
-}
-
-
-
-=head2 reset
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    *{"reset"} = App::Dochazka::REST::Model::Shared::make_reset( 
-        'aid', 'code', 'long_desc', 'remark',
-    );
-}
-
-
-
-=head2 Accessor methods
-
-Boilerplate.
-
-=cut
-
-BEGIN {
-    foreach my $subname ( 
-        'aid', 'code', 'long_desc', 'remark',
-    ) {
-        no strict 'refs';
-        *{"$subname"} = App::Dochazka::REST::Model::Shared::make_accessor( $subname );
-    }   
-}
-
-
-=head3 aid
-
-Accessor method.
-
-=head3 code
-
-Accessor method.
-
-=head3 long_desc
-
-Accessor method.
-
-=head3 remark
-
-Accessor method.
 
 =head2 insert
 

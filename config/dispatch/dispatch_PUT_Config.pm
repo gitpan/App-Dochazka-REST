@@ -78,7 +78,7 @@ set( 'DISPATCH_RESOURCES_PUT', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::_put_default', 
-      description => 'Display available top-level resources',
+      description => 'Display available top-level PUT resources',
     },
     'echo' =>
     { 
@@ -105,13 +105,13 @@ set( 'DISPATCH_RESOURCES_PUT', {
     {
       acl_profile => 'admin', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
-      description => 'Display employee resources',
+      description => 'Display employee PUT resources',
     },
     'employee/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_put_default', 
-      description => 'Display employee resources',
+      description => 'Display employee PUT resources',
     },
     'employee/nick' =>
     {
@@ -147,13 +147,13 @@ set( 'DISPATCH_RESOURCES_PUT', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_put_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory PUT resources',
     },
     'privhistory/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_put_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory PUT resources',
     },
 
 } );

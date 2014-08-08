@@ -52,11 +52,11 @@ App::Dochazka::REST::dbh - database handle module (parent of data model classes)
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 
@@ -69,6 +69,14 @@ transparently provide the data model classes with a database handle.
 
 =cut
 
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT = qw( $dbh );
 
 
 our $dbh;

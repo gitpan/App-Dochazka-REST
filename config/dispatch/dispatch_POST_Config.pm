@@ -72,7 +72,7 @@ set( 'DISPATCH_RESOURCES_POST', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::_post_default', 
-      description => 'Display available top-level resources',
+      description => 'Display available top-level POST resources',
     },
     'echo' =>
     { 
@@ -89,7 +89,7 @@ set( 'DISPATCH_RESOURCES_POST', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::_post_default', 
-      description => 'Display available top-level resources',
+      description => 'Display available top-level POST resources',
     },
     
     # 
@@ -99,13 +99,13 @@ set( 'DISPATCH_RESOURCES_POST', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_post_default', 
-      description => 'Display employee resources',
+      description => 'Display employee POST resources',
     },
     'employee/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_post_default', 
-      description => 'Display employee resources',
+      description => 'Display employee POST resources',
     },
 
     # 
@@ -115,13 +115,13 @@ set( 'DISPATCH_RESOURCES_POST', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_post_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory POST resources',
     },
     'privhistory/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_post_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory POST resources',
     },
 
 } );

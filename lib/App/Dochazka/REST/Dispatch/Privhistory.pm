@@ -50,8 +50,6 @@ use Data::Dumper;
 use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 
-use parent 'App::Dochazka::REST::Dispatch';
-
 
 
 
@@ -65,11 +63,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.145
+Version 0.149
 
 =cut
 
-our $VERSION = '0.145';
+our $VERSION = '0.149';
 
 
 

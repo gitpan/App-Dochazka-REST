@@ -7,12 +7,10 @@ WriteMakefile
   'VERSION_FROM' => 'lib/App/Dochazka/REST.pm',
   'PREREQ_PM' => {
                    'App::CELL' => '0.194',
-                   'Carp' => 0,
+                   'App::Dochazka' => '0.153',
                    'DBD::Pg' => 0,
                    'DBI' => 0,
-                   'Data::Dumper' => 0,
                    'Data::Structure::Util' => 0,
-                   'Encode' => 0,
                    'File::ShareDir' => '1.00',
                    'HTTP::Request' => 0,
                    'JSON' => 0,
@@ -23,7 +21,6 @@ WriteMakefile
                    'Scalar::Util' => 0,
                    'Test::Fatal' => 0,
                    'Test::JSON' => 0,
-                   'Test::More' => 0,
                    'Try::Tiny' => 0,
                    'Web::Machine' => '0.15'
                  },

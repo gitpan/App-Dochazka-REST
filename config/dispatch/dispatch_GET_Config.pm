@@ -86,13 +86,13 @@ set( 'DISPATCH_RESOURCES_GET', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::_get_default', 
-      description => 'Display available top-level resources',
+      description => 'Display available top-level GET resources',
     },
     'help' => 
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::_get_default', 
-      description => 'Display available top-level resources',
+      description => 'Display available top-level GET resources',
     },
     'version' =>
     { 
@@ -125,13 +125,13 @@ set( 'DISPATCH_RESOURCES_GET', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_get_default', 
-      description => 'Display employee resources',
+      description => 'Display employee GET resources',
     },
     'employee/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Employee::_get_default', 
-      description => 'Display employee resources',
+      description => 'Display employee GET resources',
     },
     'employee/:nick' =>
     { 
@@ -177,13 +177,13 @@ set( 'DISPATCH_RESOURCES_GET', {
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_get_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory GET resources',
     },
     'privhistory/help' =>
     { 
       acl_profile => 'passerby', 
       target => 'App::Dochazka::REST::Dispatch::Privhistory::_get_default', 
-      description => 'Display privhistory resources',
+      description => 'Display privhistory GET resources',
     },
     'privhistory/nick/:nick' =>
     { 
