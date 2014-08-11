@@ -915,3 +915,7 @@ Revision history for Dochazka-REST
   completely disabled when META_DOCHAZKA_UNIT_TESTING is true (set this
   to true in unit tests that communicate with the REST server via HTTP)
 
+0.154  2014-08-11 14:19 CEST
+- add 'Plack::Session' to build_requires, just in case CPAN Testers gets
+  some funny ideas
+

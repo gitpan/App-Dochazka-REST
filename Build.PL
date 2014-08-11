@@ -24,6 +24,7 @@ my $builder = Module::Build->new(
         'App::CELL'      => 0.194,
         'App::Dochazka'  => 0.153,
         'HTTP::Request'  => 0,
+        'Plack::Session' => 0,
         'Plack::Test'    => 0,
         'Scalar::Util'   => 0,
         'Test::Fatal'    => 0,
