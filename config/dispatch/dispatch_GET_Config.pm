@@ -46,6 +46,7 @@ set( 'DISPATCH_HELP_TOPLEVEL_GET', [
     'version', 
     'siteparam/:param', 
     'forbidden', 
+    'session',
     'whoami',
     'employee',
     'privhistory',
@@ -110,6 +111,12 @@ set( 'DISPATCH_RESOURCES_GET', {
     { 
       target => 'App::Dochazka::REST::Dispatch::_get_forbidden',
       description => 'A resource that is forbidden to all',
+    },
+    'session' =>
+    { 
+      acl_profile => 'passerby', 
+      target => 'App::Dochazka::REST::Dispatch::_get_session', 
+      description => 'Display the current session',
     },
     'whoami' =>
     { 

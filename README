@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.149
+    Version 0.153
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -206,20 +206,27 @@ REST INTERFACE
         'POST', are accepted. If this test fails, a "405 Method Not Allowed"
         response is sent.
 
-    * Internal and external authentication
-        After the Allowed methods test, the request is subject to HTTP Basic
-        Authentication. The credentials entered by the user can be
+    * Internal and external authentication, session management
+        After the Allowed methods test, the user's credentials are
         authenticated against an external database (LDAP), an internal
-        database (PostgreSQL 'employees' table), or both. For details, see
-        "AUTHENTICATION". If authentication fails, a "401 Unauthorized"
-        response is sent. This should not be confused with the next step
-        ("Authorization/ACL check").
+        database (PostgreSQL 'employees' table), or both. Session management
+        techniques are utilized to minimize external authentication queries,
+        which impose latency. The authentication and session management
+        algorithms are described in, "AUTHENTICATION AND SESSION
+        MANAGEMENT". If authentication fails, a "401 Unauthorized" response
+        is sent.
 
         In a web browser, repeated failed authentication attempts are
         typically associated with repeated display of the credentials dialog
         (and no other indication of what is wrong, which can be confusing to
         users but is probably a good idea, because any error messages could
         be abused by attackers).
+
+        Authentication (validation of user credentials to determine her
+        identity) should not be confused with authorization (determination
+        whether the user has sufficient privileges to do what she is trying
+        to do). Authorization is dealt with in the next step
+        ("Authorization/ACL check").
 
     * Authorization/ACL check
         After the request is authenticated (i.e. associated with a known
@@ -590,12 +597,39 @@ INSTALLATION
     reverse proxies, firewalls, load balancers, connection pools, etc. will
     need to set those up, as well.
 
-AUTHENTICATION
+AUTHENTICATION AND SESSION MANAGEMENT
     Since employees do not access the database directly, but only via the
     `App::Dochazka::REST' web server, the web server needs to tie all
     incoming requests to an EID.
 
-    All incoming requests are subject to HTTP Basic Authentication. The
+    When an incoming request comes in, the headers and cookies are examined.
+    Requests that belong to an existing session have a cookie that looks
+    like:
+
+        Session ID: xdfke34irsdfslajoasdja;sldkf
+
+    while requests for a new session have a header that looks like this:
+
+        Authorize: 
+
+  Existing session
+    In the former case, the HTTP request will contain a 'psgix.session' key
+    in its Plack environment. The value of this key is a hashref that
+    contains the session state.
+
+    If the session state is valid, it will contain:
+
+    * the Employee ID, `eid'
+    * the IP address from which the session was first originated, `ip_addr'
+    * the date/time when the session was last seen, `last_seen'
+
+    If any of these are missing, or the difference between `last_seen' and
+    the current date/time is greater than the time interval defined in the
+    `DOCHAZKA_REST_SESSION_EXPIRATION_TIME', the request is rejected with
+    401 Unauthorized.
+
+  New session
+    Requests for a new session are subject to HTTP Basic Authentication. The
     credentials entered by the user can be authenticated against an external
     database (LDAP), and internal database (PostgreSQL 'employees' table),
     or both.
@@ -605,53 +639,8 @@ AUTHENTICATION
     external auth followed by internal auth. The desired combination can be
     set in the site configuration.
 
-  Current implementation
-    At the moment, this is accomplished via Web::Machine using HTTP Basic
-    Authentication with a single hardcoded username/password combination
-    `demo/demo'.
-
-    This allows us to use, e.g., `curl' like this:
-
-        $ curl http://demo:demo@0:5000/
-
-  Possible future implementation
-    This is done when the session is established (see Session management).
-    In the site configuration, the administrator associates an LDAP field
-    with either EID or nick. When an employee initiates a session by
-    contacting the server, `App::Dochazka::REST' first looks up the employee
-    in the LDAP database and determines her EID, either directly or via the
-    employee's nick. If the EID is valid, the password entered by the
-    employee is checked against the password stored in the LDAP database.
-
-    Alternatively, `App::Dochazka::REST' can be configured to authenticate
-    employees against passwords stored in the Dochazka database.
-
-    When the REST server registers an incoming request, it first checks to
-    see if it is associated with an active session. If it is, the request is
-    processed. If it is not, the incoming request is authenticated.
-
-    Authentication consists of:
-
-    * a check against Dochazka's own list (database) of employees
-    * an optional, additional check against an LDAP database
-
-    Depending on how the REST server is configured, one of these will
-    include a password check. The server will send the client a session key,
-    etc.
-
-REPORTING
-    Reporting is a core functionality of Dochazka: for most sites, the
-    entire point of keeping attendance records is to generate reports, at
-    regular (or irregular) intervals, based on those records. One obvious
-    use case for such reports is payroll.
-
-    That said, the REST server and its underlying database are more-or-less
-    "reporting neutral". In other words, care was taken to make them as
-    general as possible, to enable Dochazka to be useful in many different
-    site and reporting scenarios.
-
-    Thus, in Dochazka a report generator is always implemented either a
-    separate client or as part of a client. Never as part of the server.
+    If the request passes Basic Authentication, a session ID is generated
+    and stored in a cookie.
 
 METHODS
   init

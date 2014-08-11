@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 # ************************************************************************* 
 # Copyright (c) 2014, SUSE LLC
 # 
@@ -30,64 +29,54 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
-#
-# App::Dochazka::REST server executable
-#
-# -------------------------------------------------------------------------
 
-use 5.014;
+# -----------------------------------
+# Dochazka-REST
+# -----------------------------------
+# session_Config.pm
+#
+# configuration parameters related to sessions
+# -----------------------------------
+
+# 
+set( 'SQL_SESSION_SELECT_BY_SID', q/
+      SELECT s.session_id AS session_id, 
+             s.eid AS eid,
+             e.nick AS nick,
+             s.nonce AS nonce,
+             s.ip_addr AS ip_addr,
+             s.last_seen AS last_seen
+      FROM sessions s, employees e 
+      WHERE s.eid = e.eid AND s.session_id = ?
+      / );
+
+#
+set( 'SQL_SESSION_INSERT', q/
+      INSERT INTO sessions
+                (session_id, eid, nonce, ip_addr, last_seen)
+      VALUES    (?,          ?,   ?,     ?,       now() ) 
+      RETURNING session_id, eid, nonce, ip_addr, last_seen
+      / );
+
+#
+set( 'SQL_SESSION_UPDATE_TO_NOW', q/
+      UPDATE sessions
+      SET last_seen = now()
+      WHERE session_id = ?
+      RETURNING session_id, eid, nonce, ip_addr, last_seen
+      / );
+
+#
+set( 'SQL_SESSION_DELETE', q/
+      DELETE FROM sessions WHERE session_id = ?
+      RETURNING session_id, eid, nonce, ip_addr, last_seen
+      / );
+      
+
+# -----------------------------------
+# DO NOT EDIT ANYTHING BELOW THIS LINE
+# -----------------------------------
 use strict;
 use warnings;
 
-use App::CELL::Test::LogToFile;
-use App::Dochazka::REST;
-use Plack::Builder;
-use Plack::Runner;
- 
-=head1 NAME
-
-dochazka-rest - App::Dochazka::REST server startup script
-
-
-
-=head1 VERSION
-
-Version 0.153
-
-=cut
-
-our $VERSION = '0.153';
-
-
-
-=head1 SYNOPSIS
-
-    $ dochazka-rest
-
-
-
-=head1 DESCRIPTION
-
-Run this script from the bash prompt to start the server.
-
-=cut
-
-print "App::Dochazka::REST ver. $VERSION\n";
-print "Initializing and connecting to database\n";
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-my $status = $REST->{init_status};
-print $status->text unless $status->ok;
-print "Starting server\n";
-
-my $app = $REST->{'app'};
-
-my $runner = Plack::Runner->new;
-$runner->parse_options(@ARGV);
-$runner->run( 
-    builder {
-        enable "StackTrace", force => 1;
-        enable "Session";
-        $app 
-    }
-);
-
+1;

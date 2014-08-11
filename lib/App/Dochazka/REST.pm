@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.149
+Version 0.153
 
 =cut
 
-our $VERSION = '0.149';
+our $VERSION = '0.153';
 
 
 =head2 Development status
@@ -296,19 +296,25 @@ One of the first things the server looks at, when it receives a request, is
 the method. Only certain HTTP methods, such as 'GET' and 'POST', are accepted.
 If this test fails, a "405 Method Not Allowed" response is sent.
 
-=item * B<Internal and external authentication>
+=item * B<Internal and external authentication, session management>
 
-After the Allowed methods test, the request is subject to HTTP Basic
-Authentication. The credentials entered by the user can be authenticated
+After the Allowed methods test, the user's credentials are authenticated
 against an external database (LDAP), an internal database (PostgreSQL
-'employees' table), or both. For details, see L<"AUTHENTICATION">. If
-authentication fails, a "401 Unauthorized" response is sent. This should
-not be confused with the next step ("Authorization/ACL check").
+'employees' table), or both. Session management techniques are utilized
+to minimize external authentication queries, which impose latency. The
+authentication and session management algorithms are described in,
+L<"AUTHENTICATION AND SESSION MANAGEMENT">. If authentication fails, a "401
+Unauthorized" response is sent. 
 
 In a web browser, repeated failed authentication attempts are typically
 associated with repeated display of the credentials dialog (and no other
 indication of what is wrong, which can be confusing to users but is probably a
 good idea, because any error messages could be abused by attackers).
+
+Authentication (validation of user credentials to determine her identity)
+should not be confused with authorization (determination whether the user
+has sufficient privileges to do what she is trying to do). Authorization is
+dealt with in the next step ("Authorization/ACL check").
 
 =item * B<Authorization/ACL check>
 
@@ -751,83 +757,58 @@ need to set those up, as well.
 
 
 
-=head1 AUTHENTICATION
+=head1 AUTHENTICATION AND SESSION MANAGEMENT
 
 Since employees do not access the database directly, but only via the
 C<App::Dochazka::REST> web server, the web server needs to tie all incoming requests
 to an EID. 
 
-All incoming requests are subject to HTTP Basic Authentication. The credentials
-entered by the user can be authenticated against an external database
-(LDAP), and internal database (PostgreSQL 'employees' table), or both. 
+When an incoming request comes in, the headers and cookies are examined.
+Requests that belong to an existing session have a cookie that looks like:
+
+    Session ID: xdfke34irsdfslajoasdja;sldkf
+
+while requests for a new session have a header that looks like this:
+
+    Authorize: 
+
+=head2 Existing session
+
+In the former case, the HTTP request will contain a 'psgix.session' key
+in its Plack environment. The value of this key is a hashref that contains
+the session state.
+
+If the session state is valid, it will contain:
+
+=over
+
+=item * the Employee ID, C<eid>
+
+=item * the IP address from which the session was first originated, C<ip_addr>
+
+=item * the date/time when the session was last seen, C<last_seen>
+
+=back
+
+If any of these are missing, or the difference between C<last_seen> and the
+current date/time is greater than the time interval defined in the
+C<DOCHAZKA_REST_SESSION_EXPIRATION_TIME>, the request is rejected with 401
+Unauthorized.
+
+=head2 New session
+
+Requests for a new session are subject to HTTP Basic Authentication. The
+credentials entered by the user can be authenticated against an external
+database (LDAP), and internal database (PostgreSQL 'employees' table), or both. 
 
 This yields the following possible combinations: internal auth only, external
 auth only, internal auth followed by external auth, and external auth followed
 by internal auth. The desired combination can be set in the site configuration.
 
-
-
-=head2 Current implementation
-
-At the moment, this is accomplished via L<Web::Machine> using HTTP Basic
-Authentication with a single hardcoded username/password combination
-C<demo/demo>. 
-
-This allows us to use, e.g., C<curl> like this:
-
-    $ curl http://demo:demo@0:5000/
-
-
-=head2 Possible future implementation
-
-This is done when the session is established (see L</Session
-management>). In the site configuration, the administrator associates an LDAP
-field with either EID or nick. When an employee initiates a session by
-contacting the server, C<App::Dochazka::REST> first looks up the employee in the
-LDAP database and determines her EID, either directly or via the employee's
-nick. If the EID is valid, the password entered by the employee is checked
-against the password stored in the LDAP database.
-
-Alternatively, C<App::Dochazka::REST> can be configured to authenticate
-employees against passwords stored in the Dochazka database.
-
-When the REST server registers an incoming request, it first checks to see
-if it is associated with an active session. If it is, the request is
-processed. If it is not, the incoming request is authenticated.
-
-Authentication consists of:
-
-=over
-
-=item * a check against Dochazka's own list (database) of employees
-
-=item * an optional, additional check against an LDAP database
-
-=back
-
-Depending on how the REST server is configured, one of these will include a
-password check. The server will send the client a session key, etc. 
-
-
-
-
-=head1 REPORTING
-
-Reporting is a core functionality of Dochazka: for most sites, the entire
-point of keeping attendance records is to generate reports, at regular
-(or irregular) intervals, based on those records. One obvious use case for
-such reports is payroll. 
-
-That said, the REST server and its underlying database are more-or-less
-"reporting neutral". In other words, care was taken to make them as general
-as possible, to enable Dochazka to be useful in many different site
-and reporting scenarios.
-
-Thus, in Dochazka a report generator is always implemented either a
-separate client or as part of a client. Never as part of the server.
+If the request passes Basic Authentication, a session ID is generated and 
+stored in a cookie. 
 
 =cut
-
 
 
 
@@ -885,7 +866,12 @@ sub init_no_db {
 
     # * set up logging
     return $CELL->status_not_ok( "DOCHAZKA_APPNAME not set!" ) if not $site->DOCHAZKA_APPNAME;
-    my $debug_mode = $ARGS{'debug_mode'} || 0;
+    my $debug_mode;
+    if ( exists $ARGS{'debug_mode'} ) {
+        $debug_mode = $ARGS{'debug_mode'};
+    } else {
+        $debug_mode = $site->DOCHAZKA_REST_DEBUG_MODE || 0;
+    }
     $log->init( ident => $site->DOCHAZKA_APPNAME, debug_mode => $debug_mode );
     $log->info( "Initializing " . $site->DOCHAZKA_APPNAME );
 

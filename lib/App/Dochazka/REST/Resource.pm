@@ -55,6 +55,7 @@ use Encode qw( decode_utf8 );
 use JSON;
 use Params::Validate qw(:all);
 use Path::Router;
+use Plack::Session;
 use Scalar::Util qw( blessed );
 use Try::Tiny;
 use Web::Machine::Util qw( create_header );
@@ -72,11 +73,11 @@ App::Dochazka::REST::Resource - web resource definition
 
 =head1 VERSION
 
-Version 0.149
+Version 0.153
 
 =cut
 
-our $VERSION = '0.149';
+our $VERSION = '0.153';
 
 
 
@@ -276,7 +277,10 @@ current privilege level onto the context.
 
 sub is_authorized {
     my ( $self, $auth_header ) = @_;
-
+    
+    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING ) {
+        return 1 if $self->validate_session;
+    }
     if ( $auth_header ) {
         my $username = $auth_header->username;
         my $password = $auth_header->password;
@@ -284,6 +288,7 @@ sub is_authorized {
         if ( $auth_status->ok ) {
             my $emp = $auth_status->payload;
             $self->_push_onto_context( { current => $emp->expurgate, } );
+            $self->init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
             return 1;
         }
     }
@@ -294,7 +299,66 @@ sub is_authorized {
             ) 
         ]
     ); 
+}
 
+=head3 init_session
+
+Initialize the session. Takes an employee object.
+
+=cut
+
+sub init_session {
+    my $self = shift;
+    my ( $emp ) = validate_pos( @_, { type => HASHREF, can => 'eid' } );
+    my $session = Plack::Session->new( $self->request->{'env'} );
+    $session->set( 'eid', $emp->eid );
+    $session->set( 'ip_addr', $self->request->{'env'}->{'REMOTE_ADDR'} );
+    $session->set( 'last_seen', time );
+    return;
+}
+
+=head3 validate_session
+
+Validate the session
+
+=cut
+
+sub validate_session {
+    my ( $self ) = @_;
+
+    my $r = $self->request;
+    my $session = Plack::Session->new( $r->{'env'} );
+    my $remote_addr = $$r{'env'}{'REMOTE_ADDR'};
+
+    $self->_push_onto_context( { 'session' => $session->dump  } );
+    $self->_push_onto_context( { 'session_id' => $session->id } );
+    #$log->debug( "Session ID is " . $session->id );
+    #$log->debug( "Remote address is " . $remote_addr );
+    #$log->debug( "Session EID is " . 
+    #    ( $session->get('eid') ? $session->get('eid') : "not present") );
+    #$log->debug( "Session IP address is " . 
+    #    ( $session->get('ip_addr') ? $session->get('ip_addr') : "not present" ) );
+    #$log->debug( "Session last_seen is " . 
+    #    ( $session->get('last_seen') ? $session->get('last_seen') : "not present" ) );
+
+    # validate session:
+    if ( $session->get('eid') and 
+         $session->get('ip_addr') and 
+         $session->get('last_seen') and
+         $session->get('ip_addr') eq $remote_addr and
+         _is_fresh( $session->get('last_seen') ) ) 
+    {
+        $log->debug( "Existing session!" );
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_eid( $session->get('eid') )->payload;
+        die "missing employee object in session management" 
+            unless $emp->isa( "App::Dochazka::REST::Model::Employee" ); 
+        $self->_push_onto_context( { current => $emp->expurgate, } );
+        $session->set('last_seen', time); 
+        return 1;
+    }
+
+    $session->expire if $session->get('eid');  # invalid session: delete it
+    return;
 }
 
 
@@ -524,6 +588,23 @@ sub _make_json {
 }
 
 
+=head2 _is_fresh
+
+Takes a single argument, which is assumed to be number of seconds since
+epoch when the session was last seen. This is compared to "now" and if the
+difference is greater than the DOCHAZKA_REST_SESSION_EXPIRATION_TIME site
+parameter, the return value is false, otherwise true.
+
+=cut
+
+sub _is_fresh {
+    my ( $last_seen ) = validate_pos( @_, { type => SCALAR } );
+    return ( time - $last_seen > $site->DOCHAZKA_REST_SESSION_EXPIRATION_TIME )
+        ? 0
+        : 1;
+}
+
+
 =head2 _authenticate
 
 Authenticate the nick associated with an incoming REST request.  Takes a nick
@@ -546,8 +627,12 @@ sub _authenticate {
         $password = 'demo'; 
     }
 
-    # check if the employee exists in LDAP
-    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and ldap_exists( $nick ) ) {
+    $log->debug( "\$site->DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
+
+    # check if LDAP is enabled and if the employee exists in LDAP
+    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and 
+         $site->DOCHAZKA_LDAP and
+         ldap_exists( $nick ) ) {
 
         $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
 

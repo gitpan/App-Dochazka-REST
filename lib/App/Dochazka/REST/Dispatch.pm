@@ -65,11 +65,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.149
+Version 0.153
 
 =cut
 
-our $VERSION = '0.149';
+our $VERSION = '0.153';
 
 
 
@@ -117,6 +117,17 @@ sub _get_site_param {
               args => [ $param ] 
           );
     return $status;
+}
+
+
+sub _get_session {
+
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    return $CELL->status_ok( 'DISPATCH_CONTEXT', payload => {
+        session_id => $context->{'session_id'},
+        session => $context->{'session'},
+    } );
 }
 
 

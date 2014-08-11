@@ -134,6 +134,14 @@ set( 'DOCHAZKA_LDAP_TEST_UID_EXISTENT', 'I_exist_in_local_LDAP' );
 #     a non-existent UID for LDAP testing (t/201-LDAP.t)
 set( 'DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT', 'I_do_NOT_exist_in_local_LDAP' );
 
+# DOCHAZKA_REST_SESSION_EXPIRATION_TIME
+#     number of seconds after which a session will be considered stale
+set( 'DOCHAZKA_REST_SESSION_EXPIRATION_TIME', 3600 );
+
+# DOCHAZKA_REST_DEBUG_MODE
+#     whether or not debug- and trace-level messages are logged
+set( 'DOCHAZKA_REST_DEBUG_MODE', 0 );
+
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE
 # -----------------------------------

@@ -44,7 +44,10 @@ BEGIN {
     use_ok( 'JSON' );
     use_ok( 'Params::Validate' );
     use_ok( 'Path::Router' );
+    use_ok( 'Plack::Middleware::Session' );
+    use_ok( 'Plack::Middleware::StackTrace' );
     use_ok( 'Plack::Runner' );
+    use_ok( 'Plack::Session' );
     use_ok( 'Web::Machine' );
 }
 

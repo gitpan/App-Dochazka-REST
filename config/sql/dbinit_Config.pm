@@ -60,6 +60,12 @@ set( 'DBINIT_CREATE', [
           SELECT date_trunc('hour', $1) + INTERVAL '5 min' * ROUND(date_part('minute', $1) / 5.0)
       $$ LANGUAGE sql IMMUTABLE#,
 
+    #q#-- generates a random number between 1 and 1 million
+    # CREATE OR REPLACE FUNCTION random_number () 
+    # RETURNS INTEGER AS $$
+    #     SELECT CAST( trunc(random() * 999999 + 1) AS integer )
+    # $$ LANGUAGE sql IMMUTABLE#,
+#
     q/-- employee identification data
       -- the only required field is eid (Employee ID)
       -- fullname, nick, and email must be UNIQUE, but may be NULL
@@ -73,6 +79,15 @@ set( 'DBINIT_CREATE', [
         remark    text,
         stamp     json
       )/,
+
+    #q/-- session data
+    #  CREATE TABLE IF NOT EXISTS sessions (
+    #    session_id varchar(120) PRIMARY KEY,
+    #    eid        integer REFERENCES employees (eid) NOT NULL,
+    #    nonce      integer NOT NULL,
+    #    ip_addr    inet NOT NULL,
+    #    last_seen  timestamp NOT NULL
+    #  )/,
 
     q/-- sequence for use with the schedintvls table -- this is a 
       -- "scratch" version of the SID, if you will

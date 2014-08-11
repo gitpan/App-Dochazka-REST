@@ -891,3 +891,27 @@ Revision history for Dochazka-REST
 0.149  2014-08-08 10:25 CEST
 - test release script once again
 
+0.150  2014-08-10 18:25 CEST
+- Build.PL: add dependencies Plack::Middleware::Session, Plack::Middleware::StackTrace
+- config/sql/: add new 'sessions' table and 'random_number()' SQL function
+
+0.151  2014-08-10 22:49 CEST
+- update dependencies
+- start implementing session management
+
+0.152  2014-08-11 10:02 CEST
+- more work on session management (reconsider idea of storing sessions in
+  database)
+- REST.pm: describe authentication/session management algorithm in POD
+- config/, Dispatch.pm: add a "/session" resource that displays session state
+
+0.153  2014-08-11 13:18 CEST
+- update dependencies
+- config/Dochazka_Config.pm: add 'DOCHAZKA_REST_SESSION_EXPIRATION_TIME'
+  and 'DOCHAZKA_REST_DEBUG_MODE' site params
+- REST.pm: in 'init_no_db', respect 'debug_mode' PARAMHASH key and
+  DOCHAZKA_REST_DEBUG_MODE site param, in that order
+- Resource.pm: finish implementing session management; session management
+  completely disabled when META_DOCHAZKA_UNIT_TESTING is true (set this
+  to true in unit tests that communicate with the REST server via HTTP)
+
