@@ -30,24 +30,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 
-# ------------------------
-# ACL module
-# ------------------------
+package App::Dochazka::REST::Util;
 
-package App::Dochazka::REST::Dispatch::ACL;
-
+use 5.012;
 use strict;
-use warnings;
-
-use App::CELL qw( $CELL $log );
-use Data::Dumper;
+use warnings FATAL => 'all';
 
 
 
 =head1 NAME
 
-App::Dochazka::REST::Dispatch::ACL - ACL module
-
+App::Dochazka::REST::Util - miscellaneous utilities
 
 
 
@@ -63,67 +56,64 @@ our $VERSION = '0.157';
 
 
 
+=head1 SYNOPSIS
 
-=head1 DESCRIPTION
+Miscellaneous utilities
 
-This module provides helper code for ACL checks.
+    use App::Dochazka::REST::Util::Timestamp;
 
-=cut
+    ...
 
 
 
 
 =head1 EXPORTS
 
+This module provides the following exports:
+
+=over 
+
+=item L<deep_copy> (function)
+
+=back
+
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( check_acl );
+our @EXPORT_OK = qw( deep_copy );
 
 
 
 
 =head1 FUNCTIONS
 
-=head2 check_acl
+=head2 deep_copy
 
-Compare priv level of resource ($acl) with the priv level of the employee
-($priv). If $priv is at least as high as the $acl, the function returns
+Make a deep copy of a data structure, replacing code references with
+a scalar 'CODEREF' so they can be JSON->encoded. Taken from 
 
-    $CELL->status_ok( 'DISPATCH_ACL_CHECK' )
-
-otherwise it returns:
-
-    $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' )
+    http://www.perlmonks.org/?node_id=620173
 
 =cut
 
-sub check_acl {
-    my ( $acl, $priv ) = @_;
-
-    my $pass = $CELL->status_ok( 'DISPATCH_ACL_CHECK' );
-    my $fail = $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' );
-
-    if ( ! defined $acl or ! defined $priv ) {
-        $log->err( "Problem with arguments in check_acl" );
-        return $fail;
+sub deep_copy {
+    my $this = shift;
+    return unless defined $this;
+    if ( not ref $this ) {
+        $this
     }
-
-    if ( $acl eq 'passerby' ) {
-        return $pass;
-    } elsif ( $acl eq 'inactive' ) {
-        return $pass if $priv eq 'inactive';
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'active' ) {
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'admin' ) {
-        return $pass if $priv eq 'admin';
+    elsif ( ref $this eq "HASH" ) {
+        +{ map { $_ => _deep_copy( $this->{ $_ } ) } keys %$this }
     }
-
-    return $fail;
+    elsif ( ref $this eq "ARRAY" ) {
+        [map _deep_copy( $_ ), @$this]
+    }
+    elsif ( ref $this eq "CODE" ) {
+        'CODEREF'
+    }
+    else {
+        die "What's a " . ref $this . "?" 
+    }
 }
-
 
 1;

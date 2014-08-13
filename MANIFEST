@@ -7,10 +7,10 @@ config/dispatch/dispatch_GET_Config.pm
 config/dispatch/dispatch_Message_en.conf
 config/dispatch/dispatch_POST_Config.pm
 config/dispatch/dispatch_PUT_Config.pm
-config/Dochazka_Config.pm
-config/Dochazka_Message_en.conf
-config/Dochazka_MetaConfig.pm
 config/README
+config/REST_Config.pm
+config/REST_Message_en.conf
+config/REST_MetaConfig.pm
 config/sql/activity_Config.pm
 config/sql/dbinit_Config.pm
 config/sql/employee_Config.pm
@@ -38,6 +38,7 @@ lib/App/Dochazka/REST/Model/Schedule.pm
 lib/App/Dochazka/REST/Model/Shared.pm
 lib/App/Dochazka/REST/Resource.pm
 lib/App/Dochazka/REST/Test.pm
+lib/App/Dochazka/REST/Util.pm
 lib/App/Dochazka/REST/Util/Timestamp.pm
 LICENSE
 Makefile.PL

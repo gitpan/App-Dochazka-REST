@@ -58,11 +58,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.154
+Version 0.157
 
 =cut
 
-our $VERSION = '0.154';
+our $VERSION = '0.157';
 
 
 =head2 Development status
@@ -808,10 +808,27 @@ by internal auth. The desired combination can be set in the site configuration.
 If the request passes Basic Authentication, a session ID is generated and 
 stored in a cookie. 
 
-=cut
 
 
 
+=head1 DEBUGGING
+
+L<App::Dochazka::REST> offers the following debug facilities:
+
+=over
+
+=item * DOCHAZKA_DEBUG environment variable
+
+If the C<DOCHAZKA_DEBUG> environment variable is set to a true value, the
+entire 'context' will be returned in each JSON response, instead of just 
+the 'entity'. For more information, see C<Resource.pm>.
+
+=item * DOCHAZKA_REST_DEBUG_MODE site configuration parameter
+
+If the C<DOCHAZKA_REST_DEBUG_MODE> site parameter is set to a true value,
+debug messages will be logged.
+
+=back
 
 =head1 METHODS
 

@@ -911,11 +911,25 @@ Revision history for Dochazka-REST
   and 'DOCHAZKA_REST_DEBUG_MODE' site params
 - REST.pm: in 'init_no_db', respect 'debug_mode' PARAMHASH key and
   DOCHAZKA_REST_DEBUG_MODE site param, in that order
-- Resource.pm: finish implementing session management; session management
-  completely disabled when META_DOCHAZKA_UNIT_TESTING is true (set this
-  to true in unit tests that communicate with the REST server via HTTP)
+- Resource.pm: finish implementing session management
+- NOTE: since session management doesn't seem to work with Plack::Test, it is
+  completely disabled when META_DOCHAZKA_UNIT_TESTING is true (set this to true
+  in unit tests that use Plack::Test)
 
 0.154  2014-08-11 14:19 CEST
 - add 'Plack::Session' to build_requires, just in case CPAN Testers gets
-  some funny ideas
+  funny ideas
+
+0.155  2014-08-11 16:45 CEST
+- Resource.pm: cleanup
+
+0.156  2014-08-12 10:22 CEST
+- cleanup, documentation
+
+0.157  2014-08-12 15:52 CEST
+- REST.pm: add a 'DEBUGGING' section to POD
+- Util.pm: add a new 'Util.pm' module for miscellaneous utilities
+  and put 'deep_copy' function into it
+- Resource.pm: fix bug "die with StackTrace happens when DOCHAZKA_DEBUG
+  environment variable set"
 

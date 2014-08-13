@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.154
+    Version 0.157
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -641,6 +641,18 @@ AUTHENTICATION AND SESSION MANAGEMENT
 
     If the request passes Basic Authentication, a session ID is generated
     and stored in a cookie.
+
+DEBUGGING
+    App::Dochazka::REST offers the following debug facilities:
+
+    * DOCHAZKA_DEBUG environment variable
+        If the `DOCHAZKA_DEBUG' environment variable is set to a true value,
+        the entire 'context' will be returned in each JSON response, instead
+        of just the 'entity'. For more information, see `Resource.pm'.
+
+    * DOCHAZKA_REST_DEBUG_MODE site configuration parameter
+        If the `DOCHAZKA_REST_DEBUG_MODE' site parameter is set to a true
+        value, debug messages will be logged.
 
 METHODS
   init

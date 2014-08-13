@@ -48,6 +48,7 @@ use App::Dochazka::REST::Dispatch::Privhistory;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
+use App::Dochazka::REST::Util qw( deep_copy );
 use Carp;
 use Data::Dumper;
 use Data::Structure::Util qw( unbless );
@@ -66,18 +67,18 @@ use parent 'Web::Machine::Resource';
 
 =head1 NAME
 
-App::Dochazka::REST::Resource - web resource definition
+App::Dochazka::REST::Resource - HTTP request/response cycle
 
 
 
 
 =head1 VERSION
 
-Version 0.154
+Version 0.157
 
 =cut
 
-our $VERSION = '0.154';
+our $VERSION = '0.157';
 
 
 
@@ -98,11 +99,9 @@ In PSGI file:
 
 =head1 DESCRIPTION
 
-This is where we override the default versions of various methods
-defined by our "highway to H.A.T.E.O.S.": L<Web::Machine>.
-
-(Methods not defined in this module will be inherited from
-L<Web::Machine::Resource>.)
+This is where we override the default versions of various methods defined by
+our "highway to H.A.T.E.O.S.": L<Web::Machine>. (Methods not defined in this
+module will be inherited from L<Web::Machine::Resource>.)
 
 Do note, however, that none of the routines in this module are called by
 L<App::Dochazka::REST>. 
@@ -142,20 +141,7 @@ sub content_types_provided { [
 ] }
 
 
-=head2 content_types_accepted
-
-L<Web::Machine> calls this routine to determine how to handle the request
-body.
-
-=cut
- 
-sub content_types_accepted { [
-    { 'application/json' => '_handle_request_json' },
-] }
-
-
-
-=head2 _render_response_html
+=head3 _render_response_html
 
 Normally, clients will communicate with the server via
 '_render_response_json', but humans need HTML. This method takes the
@@ -179,7 +165,7 @@ sub _render_response_html {
 
 
 
-=head2 _render_response_json
+=head3 _render_response_json
 
 Encode the context as a JSON string. Wrapper for '_make_json', which is also
 used in '_render_response_html'.
@@ -190,7 +176,19 @@ sub _render_response_json { ( shift )->_make_json; }
 
 
 
-=head2 _handle_request_json
+=head2 content_types_accepted
+
+L<Web::Machine> calls this routine to determine how to handle the request
+body.
+
+=cut
+ 
+sub content_types_accepted { [
+    { 'application/json' => '_handle_request_json' },
+] }
+
+
+=head3 _handle_request_json
 
 PUT requests may contain a request body. This is the "handler
 function" where we process those requests.
@@ -202,20 +200,6 @@ sub _handle_request_json {
     $self->response->header('Content-Type' => 'application/json' );
     $self->response->body( $self->_make_json );
     return 1;
-}
-
-
-=head2 context
-
-This method is where we store data that needs to be shared among
-various "users" of the given object (i.e. among routines in this module).
-
-=cut
-
-sub context {
-    my $self = shift;
-    $self->{'context'} = shift if @_;
-    $self->{'context'};
 }
 
 
@@ -279,7 +263,7 @@ sub is_authorized {
     my ( $self, $auth_header ) = @_;
     
     if ( ! $meta->META_DOCHAZKA_UNIT_TESTING ) {
-        return 1 if $self->validate_session;
+        return 1 if $self->_validate_session;
     }
     if ( $auth_header ) {
         my $username = $auth_header->username;
@@ -288,7 +272,7 @@ sub is_authorized {
         if ( $auth_status->ok ) {
             my $emp = $auth_status->payload;
             $self->_push_onto_context( { current => $emp->expurgate, } );
-            $self->init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
+            $self->_init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
             return 1;
         }
     }
@@ -301,13 +285,14 @@ sub is_authorized {
     ); 
 }
 
-=head3 init_session
+
+=head3 _init_session
 
 Initialize the session. Takes an employee object.
 
 =cut
 
-sub init_session {
+sub _init_session {
     my $self = shift;
     my ( $emp ) = validate_pos( @_, { type => HASHREF, can => 'eid' } );
     my $session = Plack::Session->new( $self->request->{'env'} );
@@ -317,13 +302,14 @@ sub init_session {
     return;
 }
 
-=head3 validate_session
+
+=head3 _validate_session
 
 Validate the session
 
 =cut
 
-sub validate_session {
+sub _validate_session {
     my ( $self ) = @_;
 
     my $r = $self->request;
@@ -360,6 +346,114 @@ sub validate_session {
     $session->expire if $session->get('eid');  # invalid session: delete it
     return;
 }
+
+
+=head3 _is_fresh
+
+Takes a single argument, which is assumed to be number of seconds since
+epoch when the session was last seen. This is compared to "now" and if the
+difference is greater than the DOCHAZKA_REST_SESSION_EXPIRATION_TIME site
+parameter, the return value is false, otherwise true.
+
+=cut
+
+sub _is_fresh {
+    my ( $last_seen ) = validate_pos( @_, { type => SCALAR } );
+    return ( time - $last_seen > $site->DOCHAZKA_REST_SESSION_EXPIRATION_TIME )
+        ? 0
+        : 1;
+}
+
+
+=head3 _authenticate
+
+Authenticate the nick associated with an incoming REST request.  Takes a nick
+and a password (i.e., a set of credentials). Returns a status object, which
+will have level 'OK' on success (with employee object in the payload), 'NOT_OK'
+on failure.
+
+=cut
+
+sub _authenticate {
+    my ( $nick, $password ) = @_;
+    my ( $status, $emp );
+
+    # empty credentials: fall back to demo/demo
+    if ( $nick ) {
+        $log->notice( "Login attempt from $nick" );
+    } else {
+        $log->notice( "Login attempt from (anonymous) -- defaulting to demo/demo" );
+        $nick = 'demo'; 
+        $password = 'demo'; 
+    }
+
+    $log->debug( "\$site->DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
+
+    # check if LDAP is enabled and if the employee exists in LDAP
+    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and 
+         $site->DOCHAZKA_LDAP and
+         ldap_exists( $nick ) ) {
+
+        $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
+
+        # - authenticate by LDAP bind
+        if ( ldap_auth( $nick, $password ) ) {
+            # successful LDAP auth
+            # if the employee doesn't exist in the database, possibly autocreate
+            if ( ! nick_exists( $nick ) ) {
+                $log->info( "There is no employee $nick in the database: auto-creating" );
+                if ( $site->DOCHAZKA_LDAP_AUTOCREATE ) {
+                    my $emp = App::Dochazka::REST::Model::Employee->spawn(
+                        nick => $nick,
+                        remark => 'LDAP autocreate',
+                    );
+                    $status = $emp->insert;
+                    if ( $status->not_ok ) {
+                        $log->crit("Could not create $nick as new employee");
+                        return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+                    }
+                    $log->notice( "Auto-created employee $nick, who was authenticated via LDAP" );
+                } else {
+                    $log->notice( "Authentication attempt from LDAP user $nick failed because the user is not in the database and DOCHAZKA_LDAP_AUTOCREATE is not enabled" );
+                    return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+                }
+            }
+        }
+
+        # load the employee object
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
+        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+        return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
+    }
+
+    # if not, authenticate against the password stored in the employee object.
+    else {
+
+        $log->notice( "Employee $nick not found in LDAP; reverting to internal auth" );
+
+        # - check if this employee exists in database
+        my $emp = nick_exists( $nick );
+
+        if ( ! defined( $emp ) or ! $emp->isa( 'App::Dochazka::REST::Model::Employee' ) ) {
+            $log->notice( "Rejecting login attempt from unknown user $nick" );
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH');
+        }
+
+        # - the password might be empty
+        $password = '' unless defined( $password );
+        my $passhash = $emp->passhash;
+        $passhash = '' unless defined( $passhash );
+
+        # - check password against passhash
+        if ( $password eq $passhash ) {
+            $log->notice( "Internal auth successful for employee $nick" );
+            return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
+        } else {
+            $log->info( "Internal auth failed for known employee $nick (mistyped password?)" );
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+        }
+    }
+}            
 
 
 =head2 forbidden
@@ -554,7 +648,21 @@ sub process_post {
 
 
 
-=head2 _push_onto_context
+=head2 context
+
+This method is where we store data that needs to be shared among
+various "users" of the given object (i.e. among routines in this module).
+
+=cut
+
+sub context {
+    my $self = shift;
+    $self->{'context'} = shift if @_;
+    $self->{'context'};
+}
+
+
+=head3 _push_onto_context
 
 Takes a hashref and "pushes" it onto C<< $self->{'context'} >> for use later
 on in the course of processing the request.
@@ -581,119 +689,16 @@ Makes the JSON for inclusion in the response entity.
 
 sub _make_json {
     my ( $self ) = @_;
-    my $what = $ENV{'DOCHAZKA_DEBUG'}
-        ? $self->context
-        : $self->context->{'entity'};
-    $JSON->encode( unbless $what );
-}
-
-
-=head2 _is_fresh
-
-Takes a single argument, which is assumed to be number of seconds since
-epoch when the session was last seen. This is compared to "now" and if the
-difference is greater than the DOCHAZKA_REST_SESSION_EXPIRATION_TIME site
-parameter, the return value is false, otherwise true.
-
-=cut
-
-sub _is_fresh {
-    my ( $last_seen ) = validate_pos( @_, { type => SCALAR } );
-    return ( time - $last_seen > $site->DOCHAZKA_REST_SESSION_EXPIRATION_TIME )
-        ? 0
-        : 1;
-}
-
-
-=head2 _authenticate
-
-Authenticate the nick associated with an incoming REST request.  Takes a nick
-and a password (i.e., a set of credentials). Returns a status object, which
-will have level 'OK' on success (with employee object in the payload), 'NOT_OK'
-on failure.
-
-=cut
-
-sub _authenticate {
-    my ( $nick, $password ) = @_;
-    my ( $status, $emp );
-
-    # empty credentials: fall back to demo/demo
-    if ( $nick ) {
-        $log->notice( "Login attempt from $nick" );
+    if ( $ENV{'DOCHAZKA_DEBUG'} ) {
+        # We can't send the context to JSON->encode directly because the
+        # context contains a code reference and JSON->encode finds that
+        # offensive: our deep_copy routine replaces the code reference with
+        # a non-offensive placeholder string.
+        $JSON->encode( deep_copy( $self->context ) );
     } else {
-        $log->notice( "Login attempt from (anonymous) -- defaulting to demo/demo" );
-        $nick = 'demo'; 
-        $password = 'demo'; 
+        $JSON->encode( unbless $self->context->{'entity'} );
     }
-
-    $log->debug( "\$site->DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
-
-    # check if LDAP is enabled and if the employee exists in LDAP
-    if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and 
-         $site->DOCHAZKA_LDAP and
-         ldap_exists( $nick ) ) {
-
-        $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
-
-        # - authenticate by LDAP bind
-        if ( ldap_auth( $nick, $password ) ) {
-            # successful LDAP auth
-            # if the employee doesn't exist in the database, possibly autocreate
-            if ( ! nick_exists( $nick ) ) {
-                $log->info( "There is no employee $nick in the database: auto-creating" );
-                if ( $site->DOCHAZKA_LDAP_AUTOCREATE ) {
-                    my $emp = App::Dochazka::REST::Model::Employee->spawn(
-                        nick => $nick,
-                        remark => 'LDAP autocreate',
-                    );
-                    $status = $emp->insert;
-                    if ( $status->not_ok ) {
-                        $log->crit("Could not create $nick as new employee");
-                        return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
-                    }
-                    $log->notice( "Auto-created employee $nick, who was authenticated via LDAP" );
-                } else {
-                    $log->notice( "Authentication attempt from LDAP user $nick failed because the user is not in the database and DOCHAZKA_LDAP_AUTOCREATE is not enabled" );
-                    return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
-                }
-            }
-        }
-
-        # load the employee object
-        my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
-        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
-        return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
-    }
-
-    # if not, authenticate against the password stored in the employee object.
-    else {
-
-        $log->notice( "Employee $nick not found in LDAP; reverting to internal auth" );
-
-        # - check if this employee exists in database
-        my $emp = nick_exists( $nick );
-
-        if ( ! defined( $emp ) or ! $emp->isa( 'App::Dochazka::REST::Model::Employee' ) ) {
-            $log->notice( "Rejecting login attempt from unknown user $nick" );
-            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH');
-        }
-
-        # - the password might be empty
-        $password = '' unless defined( $password );
-        my $passhash = $emp->passhash;
-        $passhash = '' unless defined( $passhash );
-
-        # - check password against passhash
-        if ( $password eq $passhash ) {
-            $log->notice( "Internal auth successful for employee $nick" );
-            return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
-        } else {
-            $log->info( "Internal auth failed for known employee $nick (mistyped password?)" );
-            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
-        }
-    }
-}            
+}
 
 
 =head2 router

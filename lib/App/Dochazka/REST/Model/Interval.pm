@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.154
+Version 0.157
 
 =cut
 
-our $VERSION = '0.154';
+our $VERSION = '0.157';
 
 
 
@@ -175,6 +175,13 @@ Field values are taken from the object. Returns a status object.
 sub insert {
     my ( $self ) = @_;
 
+    # FIXME: here is where we should check if the interval falls within
+    # reasonable temporal limits. The upper limit is "now() + DOCHAZKA_MAX_FUTURE_DAYS";
+    # the lower limit is  . . . (is there a lower limit?)
+
+    # FIXME: this is also where we check if the interval conflicts with
+    # a lock.
+
     my $status = cud( 
         object => $self,
         sql => $site->SQL_INTERVAL_INSERT,
@@ -194,6 +201,13 @@ Field values are taken from the object. Returns a status object.
 
 sub update {
     my ( $self ) = @_;
+
+    # FIXME: here is where we should check if the interval falls within
+    # reasonable temporal limits. The upper limit is "now() + DOCHAZKA_MAX_FUTURE_DAYS";
+    # the lower limit is  . . . (is there a lower limit?)
+
+    # FIXME: this is also where we check if the interval conflicts with
+    # a lock.
 
     my $status = cud( 
         object => $self,

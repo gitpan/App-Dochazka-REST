@@ -30,33 +30,40 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 
-# -----------------------------------
-# Dochazka-REST
-# -----------------------------------
-# Dochazka_Config.pm
+# -------------------------------------------
+# App::Dochazka::REST
+# -------------------------------------------
 #
-# Main configuration file
-# -----------------------------------
+# REST_Config.pm - Top-level configuration file
+# providing default values for various site
+# configuration parameters. Any or all of these
+# parameters can be overrided in your site
+# configuration file(s).
+#
+# WARNING: THIS FILE MAY CONTAIN PASSWORDS
+# (restrictive permissions may be warranted)
+# -------------------------------------------
 
 
 # DOCHAZKA_URI
-#    the bare URI where the server listens (no trailing '/')
-#    ordinarily, this is obtained from the HTTP request itself, but
-#    sometimes (e.g. reverse proxy) it might not be correct -- if you
-#    are having this problem, you can override the auto-generated URI by
-#    setting this param in the site configuration
+#    the bare URI where the server listens (no trailing '/') -- this
+#    information is used in the various "help" (or "default") resources. If
+#    this parameter is not set, the URI is obtained from the HTTP request
+#    itself.
 #set( 'DOCHAZKA_URI', 'http://dochazka.site' );
 
 # DOCHAZKA_DOCUMENTATION_URI
+#    used in the "help"/"default" resources
 set( 'DOCHAZKA_DOCUMENTATION_URI', 'https://metacpan.org/pod/App::Dochazka::REST' );
 
 # DOCHAZKA_URI_MAX_LENGTH
-#    maximum length of a URI
+#    maximum length of a URI -- see Resource.pm->uri_too_long
 set( 'DOCHAZKA_URI_MAX_LENGTH', 1000 );
 
 # DOCHAZKA_APPNAME
-#    name of application for logging purposes
-set( 'DOCHAZKA_APPNAME', 'Dochazka-test' );
+#    name of application (for logging) -- this can be set to any string, with
+#    the proviso that it should not contain ':' characters
+set( 'DOCHAZKA_APPNAME', 'App-Dochazka-REST' );
 
 # DOCHAZKA_DBNAME
 #    name of PostgreSQL database to use
@@ -71,13 +78,13 @@ set( 'DOCHAZKA_DBUSER', 'dochazka' );
 set( 'DOCHAZKA_DBPASS', 'dochazka' );
 
 # DOCHAZKA_EID_OF_ROOT
-#    Employee ID of the root employee -- set in Employee.pm (do not set
-#    here)
+#    Employee ID of the root employee -- set at initialization time (in
+#    Employee.pm) -- do not set here
 #!! DO NOT SET HERE !!
 
 # DOCHAZKA_ACTIVITY_DEFINITIONS
-#    Initial set of activity definitions - sample only - override this in
-#    Dochazka_SiteConfig.pm
+#    Initial set of activity definitions - sample only - override this 
+#    with _your_ site's activities in Dochazka_SiteConfig.pm
 set( 'DOCHAZKA_ACTIVITY_DEFINITIONS', [
         { code => 'WORK', long_desc => 'Work' },
         { code => 'OVERTIME_WORK', long_desc => 'Overtime work' },
@@ -90,10 +97,10 @@ set( 'DOCHAZKA_ACTIVITY_DEFINITIONS', [
     ] );   
 
 # DOCHAZKA_ADVANCE_INTERVALS_MAX_DAYS
-#     Some employees may try to fill out their attendance days, weeks, 
+#     Some employees may try to enter attendance intervals days, weeks, 
 #     or even months in advance. This sets the maximum number of days
 #     in advance that Dochazka will accept an activity interval.
-set( 'DOCHAZKA_ADVANCE_INTERVALS_MAX_DAYS', 45 );
+set( 'DOCHAZKA_MAX_FUTURE_DAYS', 45 );
 
 # DOCHAZKA_BASIC_AUTH_REALM
 #     message displayed to user when she is asked to enter her credentials
