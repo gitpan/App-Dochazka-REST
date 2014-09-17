@@ -986,3 +986,17 @@ Revision history for Dochazka-REST
 - REST.pm: modify INSTALLATION section of POD to bring it closer to current
   reality
 
+0.170  2014-09-17 10:30 CEST
+- REST.pm: add some debug messages
+
+0.171  2014-09-17 10:51 CEST
+- REST.pm: fix bug 'Can't call method "errstr" on an undefined value' when
+  connect_db_pristine can't connect to database; remove debug messages
+
+0.172  2014-09-17 11:13 CEST
+- t/001-init.t: bail out of testing if we cannot connect to database
+
+0.173  2014-09-17 14:28 CEST
+- REST.pm: expand INSTALLATION section of POD with explanation of how to test database
+  connection using 'psql'
+

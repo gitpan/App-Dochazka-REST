@@ -69,7 +69,10 @@ $status = App::Dochazka::REST->connect_db_pristine(
     dbuser => $site->DOCHAZKA_DBUSER,
     dbpass => $site->DOCHAZKA_DBPASS,
 );
-diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
+if ( $status->not_ok ) {
+    diag( $status->code . ' ' . $status->text );
+    BAIL_OUT("Aborting test: could not connect to database");
+}
 ok( $status->ok, "Now connected to dochazka testing database for initialization" );
 my $dbh = $status->payload;
 ok( $dbh->ping );

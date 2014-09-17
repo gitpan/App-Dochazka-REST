@@ -60,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.169
+Version 0.173
 
 =cut
 
-our $VERSION = '0.169';
+our $VERSION = '0.173';
 
 
 =head2 Development status
@@ -685,6 +685,16 @@ Then, as root, we restart the postgresql service:
 
     bash# systemctl restart postgresql.service
 
+Lastly, check if you can connect to the C<postgres> database using the password:
+
+    bash$ psql --username postgres postgres
+    Password for user postgres: [...type 'mypass'...]
+    psql (9.2.7)
+    Type "help" for help.
+
+    postgres=# \q
+    bash$
+
 =item * B<Site configuration>
 
 Before the Dochazka REST database can be initialized, we will need to
@@ -936,7 +946,7 @@ handle in the payload.
 
 sub connect_db_pristine {
     my ( $class, @ARGS ) = @_;
-    $log->info( "Received " . scalar @ARGS . " arguments" );
+    #$log->info( "connect_db_pristine: received " . scalar @ARGS . " arguments" );
     return $CELL->status_err( 'DOCHAZKA_BAD_PARAMHASH', args => [ 'connect_db_pristine' ] )
         if @ARGS % 2;
     my %ARGS = @ARGS;
@@ -958,7 +968,7 @@ sub connect_db_pristine {
             RaiseError => 0,
             AutoCommit => 1,
         },
-    ) or return $CELL->status_err( $dbh->errstr );
+    ) or return $CELL->status_crit( DBI->errstr );
     $class->SUPER::init( $dbh );
     $log->notice( "Connected to " . $dbh->{Name} . 
                   " as username " . $dbh->{Username} );
@@ -993,7 +1003,7 @@ sub connect_db {
             RaiseError => 0,
             AutoCommit => 1,
         },
-    ) or return $CELL->status_err( $DBI::errstr );
+    ) or return $CELL->status_crit( DBI->errstr );
     __PACKAGE__->SUPER::init( $dbh );
 
     # initialize site params:
@@ -1022,7 +1032,6 @@ when calling this function.
 
 sub reset_db {
     my ( $self, $dbname ) = @_;
-
     my $status;
 
     # connect to 'postgres' database
