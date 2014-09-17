@@ -55,7 +55,7 @@ use Test::More;
 $log->info( "Entering t/301-resource.t" );
 
 # initialize 
-my $REST = App::Dochazka::REST->init( site => '/etc/dochazka', verbose => 1, debug_mode => 1 );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest', verbose => 1, debug_mode => 1 );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) { 
     plan skip_all => "not configured or server not running";

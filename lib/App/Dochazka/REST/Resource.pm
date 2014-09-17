@@ -74,11 +74,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 
@@ -116,7 +116,7 @@ L<App::Dochazka::REST>.
 =cut
 
 # a package variable to streamline calls to the JSON module
-my $JSON = JSON->new->allow_nonref->pretty;
+my $JSON = JSON->new->allow_nonref->utf8->pretty;
 # a package variable to store Path::Router instance for GET requests
 my $router_get;
 # a package variable to store Path::Router instance for POST requests
@@ -128,10 +128,25 @@ my $router_put;
 =head1 METHODS
 
 
+=head2 service_available
+
+This is the first method called on every incoming request.
+
+=cut
+
+sub service_available {
+    my $self = shift;
+    my $path = decode_utf8( $self->request->path_info );
+    $log->info( "Incoming " . $self->request->method . " request for $path" );
+    $self->{'context'} = { 'path' => $path };
+    return 1;
+}
+
+
 =head2 content_types_provided
 
 L<Web::Machine> calls this routine to determine how to generate the response
-body.
+body for GET requests. It is not called for PUT requests.
 
 =cut
  
@@ -179,7 +194,7 @@ sub _render_response_json { ( shift )->_make_json; }
 =head2 content_types_accepted
 
 L<Web::Machine> calls this routine to determine how to handle the request
-body.
+body (e.g. in PUT requests).
 
 =cut
  
@@ -318,7 +333,7 @@ sub _validate_session {
 
     $self->_push_onto_context( { 'session' => $session->dump  } );
     $self->_push_onto_context( { 'session_id' => $session->id } );
-    #$log->debug( "Session ID is " . $session->id );
+    $log->debug( "Session ID is " . $session->id );
     #$log->debug( "Remote address is " . $remote_addr );
     #$log->debug( "Session EID is " . 
     #    ( $session->get('eid') ? $session->get('eid') : "not present") );
@@ -418,11 +433,13 @@ sub _authenticate {
                     return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
                 }
             }
+        } else {
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH');
         }
 
         # load the employee object
         my $emp = App::Dochazka::REST::Model::Employee->load_by_nick( $nick )->payload;
-        die "missing employee object in _authenticate" unless $emp->isa( "App::Dochazka::REST::Model::Employee" );
+        die "missing employee object in _authenticate" unless ref($emp) eq "App::Dochazka::REST::Model::Employee";
         return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
     }
 
@@ -484,10 +501,8 @@ sub forbidden {
     my $router = router( $method );
     $router = init_router( $method ) unless defined $router and $router->isa( 'Path::Router' );
 
-    # The "path" is a series of bytes which are assumed to be encoded in UTF-8.
-    # In order to process them, they must first be "decoded" into Perl characters.
-    my $path = decode_utf8( $self->request->path_info );
-    $self->_push_onto_context( { 'path' => $path } );
+    # decoded path was placed on context by 'service_available'
+    my $path = $self->context->{'path'};
    
     # test path for a match
     if ( my $match = $router->match( $path ) ) {
@@ -509,13 +524,15 @@ sub forbidden {
             ? $site->DOCHAZKA_URI
             : $self->request->base->as_string;
 
-        $self->_push_onto_context( { 
+        my $push_hash = { 
             'acl_priv' => $acl_priv,
             'target' => $route->target,
             'mapping' => $match->mapping, 
             'uri' => $uri,
             'method' => $method,
-        } );
+        };
+        $log->debug( "Incoming request permitted: " . Dumper $push_hash );
+        $self->_push_onto_context( $push_hash );
 
         return 0; # pass ACL check
     } else {
@@ -535,6 +552,8 @@ exists. Executing the target builds the response entity.
 
 sub resource_exists {
     my ( $self ) = @_;
+
+    $log->debug( "Entering resource_exists" );
 
     # if 'target' and 'mapping' exist, we can execute the target with the
     # mapping in the PARAMHASH
@@ -620,14 +639,14 @@ sub malformed_request {
     # there is a request body -- attempt to convert it
     my $result = 0;
     try {
-        $self->_push_onto_context( { request_body => from_json( $body ) } );
+        $self->_push_onto_context( { request_body => $JSON->decode( $body ) } );
     } 
     catch {
         $log->error( "Caught JSON error: $_" );
         $result = 1;
     };
 
-    $log->debug( "malformed_request: Request body is valid JSON" ) unless $result;
+    $log->debug( "Request body: " . Dumper $self->context->{'request_body'} ) unless $result;
 
     return $result;
 }
@@ -689,15 +708,21 @@ Makes the JSON for inclusion in the response entity.
 
 sub _make_json {
     my ( $self ) = @_;
+    my $before;
+    my $after;
     if ( $ENV{'DOCHAZKA_DEBUG'} ) {
         # We can't send the context to JSON->encode directly because the
         # context contains a code reference and JSON->encode finds that
         # offensive: our deep_copy routine replaces the code reference with
         # a non-offensive placeholder string.
-        $JSON->encode( deep_copy( $self->context ) );
+        $before = deep_copy( $self->context );
     } else {
-        $JSON->encode( unbless $self->context->{'entity'} );
+        $before = unbless $self->context->{'entity'};
     }
+    $after = JSON->new->pretty->encode( $before );
+    $log->debug( "_make_json (before): " . Dumper $before );
+    $log->debug( "_make_json (UTF-8): " . Dumper $after );
+    return $after;
 }
 
 

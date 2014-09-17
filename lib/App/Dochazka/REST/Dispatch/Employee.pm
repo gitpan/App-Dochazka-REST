@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 
@@ -106,7 +106,7 @@ BEGIN {
 
 sub _get_nick {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick" ); 
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick with mapping " . Dumper $context->{'mapping'} ); 
 
     my $nick = $context->{'mapping'}->{'nick'};
 
@@ -202,16 +202,14 @@ sub _put_employee {
     my $status = $CELL->status_ok;
     try {
         %ARGS = validate( @ARGS, { 
-            eid =>      { tupe => SCALAR, optional => 1 },
-            nick =>     { type => SCALAR, optional => 1 },
-            fullname => { type => SCALAR, optional => 1 },
-            email =>    { type => SCALAR, optional => 1 },
-            passhash => { type => SCALAR, optional => 1 },
-            salt =>     { type => SCALAR, optional => 1 },
-            remark =>   { type => SCALAR, optional => 1 },
+            eid =>      { tupe => SCALAR | UNDEF, optional => 1 },
+            nick =>     { type => SCALAR },
+            fullname => { type => SCALAR | UNDEF, optional => 1 },
+            email =>    { type => SCALAR | UNDEF, optional => 1 },
+            passhash => { type => SCALAR | UNDEF, optional => 1 },
+            salt =>     { type => SCALAR | UNDEF, optional => 1 },
+            remark =>   { type => SCALAR | UNDEF, optional => 1 },
         } );
-        # eid or nick MUST be provided
-        die "eid or nick MUST be provided" unless $ARGS{'eid'} or $ARGS{'nick'};
     }
     catch {
         $status = $CELL->status_err( 'DISPATCH_PUT_EMPLOYEE: %s', args => [ $_ ] );

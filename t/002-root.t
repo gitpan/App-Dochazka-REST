@@ -45,7 +45,7 @@ use DBI;
 use App::Dochazka::REST;
 use Test::More;
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
@@ -75,7 +75,7 @@ sub test_sql_fail {
 # attempt to insert a new root employee
 #diag( 'attempt to insert a new root employee' );
 test_sql_fail(qr/duplicate key value/, <<SQL);
-INSERT INTO employees (eid) VALUES ($eid_of_root)
+INSERT INTO employees (eid, nick) VALUES ($eid_of_root, 'root')
 SQL
 
 # attempt to insert a new root employee in another way
@@ -119,6 +119,7 @@ SQL
 is( $rv, 1, "root employee's passhash and salt changed" );
 
 # change it back
+#diag( 'change it back' );
 $rv = $dbh->do( <<SQL , undef, 'immutable', undef, $eid_of_root ) or die( $dbh->errstr );
 UPDATE employees SET passhash=?, salt=? WHERE eid=?
 SQL
@@ -137,22 +138,26 @@ UPDATE employees SET nick = 'Bubba' WHERE nick='root'
 SQL
 
 # attempt to delete the root employee in another way -- FAIL
+#diag( 'attempt to delete the root employee in another way' );
 test_sql_fail(qr/root employee is immutable/, <<SQL);
 DELETE FROM employees WHERE nick='root'
 SQL
 
 # attempt to insert a second privhistory row for root employee -- FAIL
+#diag( 'attempt to insert a second privhistory row for root employee' );
 test_sql_fail(qr/root employee is immutable/, <<SQL);
 INSERT INTO privhistory (eid, priv, effective)
 VALUES ($eid_of_root, 'passerby', '2000-01-01')
 SQL
 
 # attempt to change root's single privhistory row -- FAIL
+#diag( 'attempt to change root\'s single privhistory row' );
 test_sql_fail(qr/root employee is immutable/, <<SQL);
 UPDATE privhistory SET priv='passerby' WHERE eid=$eid_of_root
 SQL
 
 # attempt to delete root's single privhistory row -- FAIL
+#diag( 'attempt to delete root\'s single privhistory row' );
 test_sql_fail(qr/root employee is immutable/, <<SQL);
 DELETE FROM privhistory WHERE eid=$eid_of_root
 SQL

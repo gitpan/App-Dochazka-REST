@@ -52,6 +52,22 @@
 #    itself.
 #set( 'DOCHAZKA_URI', 'http://dochazka.site' );
 
+# DOCHAZKA_HOST
+#    the hostname (vhost) where REST server will listen on a part
+set( 'DOCHAZKA_HOST', 'localhost' );
+
+# DOCHAZKA_PORT
+#    the port where the REST server will listen
+set( 'DOCHAZKA_PORT', 5000 );
+
+# DOCHAZKA_REST_LOG_FILE
+#     full path of log file to log to
+set( 'DOCHAZKA_REST_LOG_FILE', '/var/log/dochazka-rest.log' );
+
+# DOCHAZKA_REST_LOG_FILE_RESET
+#     should the logfile be deleted/wiped/unlinked/reset before each use
+set( 'DOCHAZKA_REST_LOG_FILE_RESET', 0 );
+
 # DOCHAZKA_DOCUMENTATION_URI
 #    used in the "help"/"default" resources
 set( 'DOCHAZKA_DOCUMENTATION_URI', 'https://metacpan.org/pod/App::Dochazka::REST' );

@@ -62,11 +62,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 
@@ -444,15 +444,13 @@ sub expurgate {
     my $udc;
     try {
         $udc = dclone( $self );
-        delete $udc->{'passhash'};
-        delete $udc->{'salt'};
         unbless $udc;
     } catch {
         $log->err( "AAAAAAAAHHHHHHH: $_" );
     };
 
-    die "Expurgated employee contains passhash?" if $udc->{'passhash'};
-    die "Expurgated employee contains salt?" if $udc->{'salt'};
+    #die "Expurgated employee contains passhash?" if $udc->{'passhash'};
+    #die "Expurgated employee contains salt?" if $udc->{'salt'};
     return $udc;
 }
 

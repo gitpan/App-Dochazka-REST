@@ -933,3 +933,56 @@ Revision history for Dochazka-REST
 - Resource.pm: fix bug "die with StackTrace happens when DOCHAZKA_DEBUG
   environment variable set"
 
+0.158  2014-08-13 03:21 CEST
+- REST.pm: add parameter validation to init_no_db
+- t/301-resource.t: fix bug found thanks to the above parameter validation
+
+0.159  2014-08-14 14:55 CEST
+- config/REST_Config.pm: add DOCHAZKA_HOST and DOCHAZKA_PORT
+- bin/dochazka-rest: look into how we could allow admin to specify host/port on
+  command line, yet default to values in site configuration if they are not
+  specified there
+
+0.160  2014-08-16 10:17 CEST
+- bin/dochazka-rest: comment out 'die' statement so server runs again
+
+0.161  2014-08-18 10:38 CEST
+- fix bug: "LDAP users can log in with wrong/no password"
+
+0.162  2014-08-21 15:31 CEST
+- t/002-root.t: fix broken unit test
+- bin/dochazka-rest: turn on debug_mode
+- Resource.pm: uncomment session ID debug message in _validate_session
+
+0.163  2014-08-27 17:42 CEST
+- Dispatch/Employee.pm->_put_employee: allow undef as value for optional fields
+  ('fullname', 'email', 'passhash', 'salt', 'remark') 
+- Model/Employee.pm->expurgate: when expurgating employee objects, do not
+  remove 'passhash' and 'salt' properties
+
+0.164  2014-08-28 11:26 CEST
+- Model/Shared.pm: do not put empty strings into the database
+
+0.165  2014-09-01 07:51 CEST
+- Unicode hell
+- add more debug messages
+
+0.166  2014-09-01 16:40 CEST
+- Resource.pm: Unicode hell! /employee/nick/číča is handled correctly when
+  sent by browser, but incorrectly when sent via App::Dochazka::WWW - yet
+  the path_info string is decoded correctly in 'service_available' in both
+  cases! Very strange.
+
+0.167  2014-09-04 17:34 CEST
+- respect DOCHAZKA_REST_LOG_FILE and DOCHAZKA_REST_LOG_FILE_REST core/site
+  config parameters (as is already the case in App::Dochazka::WWW) - no 
+  more chasing temporary files
+
+0.168  2014-09-04 17:41 CEST
+- t/: change default configuration directory (for unit testing purposes) from
+  '/etc/dochazka' to '/etc/dochazka-rest', as the former is ambiguous
+
+0.169  2014-09-17 09:59 CEST
+- REST.pm: modify INSTALLATION section of POD to bring it closer to current
+  reality
+

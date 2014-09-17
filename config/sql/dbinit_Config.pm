@@ -66,7 +66,7 @@ set( 'DBINIT_CREATE', [
       CREATE TABLE IF NOT EXISTS employees (
         eid       serial PRIMARY KEY,
         fullname  varchar(96) UNIQUE,
-        nick      varchar(32) UNIQUE,
+        nick      varchar(32) UNIQUE NOT NULL,
         email     text UNIQUE,
         passhash  text,
         salt      text,

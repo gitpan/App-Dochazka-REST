@@ -42,6 +42,8 @@ use DBI;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Activity;
 use File::ShareDir;
+use Log::Any::Adapter;
+use Params::Validate qw( :all );
 use Try::Tiny;
 use Web::Machine;
 
@@ -58,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 =head2 Development status
@@ -693,28 +695,35 @@ is sufficient to run the test suite.
 
 First, create a sitedir:
 
-    bash# mkdir /etc/dochazka
+    bash# mkdir /etc/dochazka-rest
 
 and, second, a file therein:
 
-    # cat << EOF > /etc/dochazka/Dochazka_SiteConfig.pm
+    # cat << EOF > /etc/dochazka-rest/REST_SiteConfig.pm
+    set( 'DOCHAZKA_REST_DEBUG_MODE', 1 );
     set( 'DBINIT_CONNECT_AUTH', 'mypass' );
+    set( 'DOCHAZKA_REST_LOG_FILE', $ENV{'HOME'} . "/dochazka-rest.log" );
+    set( 'DOCHAZKA_REST_LOG_FILE_RESET', 1);
     EOF
     #
 
-(NOTE: Strictly speaking, this sitedir setup is only needed for database
-initialization. During normal operation, L<App::Dochazka::REST> connects
-to the database using the default user C<dochazka> and password
-C<dochazka>. These are taken from the site parameters C<DOCHAZKA_DBUSER>
-and C<DOCHAZKA_DBPASS>.)
+Where 'mypass' is the PostgreSQL password you set in the 'ALTER
+ROLE' command, above.
+
+Strictly speaking, the C<DBINIT_CONNECT_AUTH> setting is only needed for
+database initialization (see below), when L<App::Dochazka::REST> connects
+to PostgreSQL as user 'postgres' to drop/create the database. Once the
+database is created, L<App::Dochazka::REST> connects to it using the
+PostgreSQL credentials set in the site parameters C<DOCHAZKA_DBUSER> and
+C<DOCHAZKA_DBPASS> (by default: C<dochazka> with password C<dochazka>).
 
 =item * B<Syslog setup>
 
-It is much easier to administer a Dochazka instance if C<syslog> is running
-and configured properly to place Dochazka's log messages into a separate
-file in a known location. In the future, L<App::Dochazka::REST> might
-provide a C<syslog_test> script to help the administrator complete this
-step.
+The above site configuration includes C<DOCHAZKA_REST_LOG_FILE> so
+L<App::Dochazka::REST> will write its log messages to a file in the home
+directory of the user it is running as. Also, since
+DOCHAZKA_REST_LOG_FILE_RESET is set to a true value, this log file will be
+reset (zeroed) every time L<App::Dochazka::REST> starts. 
 
 =item * B<Database initialization>
 
@@ -734,27 +743,19 @@ complete without errors.
 
 =item * B<Start the server>
 
-The last step is to start the Dochazka REST service. Maybe, in the future,
-this will be possible using a command like C<systemctl start dochazka.service>.
-Right now, though, an executable is run, as root, manually from the bash prompt:
+The last step is to start the Dochazka REST server. In the future, this
+will be possible using a command like C<systemctl start dochazka.service>.
+At the moment, however, we are still in development/testing phase and we 
+start the server like this (as a normal user):
 
-    bash# dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
-
-or, as any user:
-
-    bash$ dochazka-rest
+    $ cd ~/src/dochazka/App-Dochazka-REST
+    $ ../dev.sh server dochazka-rest
 
 =item * B<Take it for a spin>
 
-Point your browser to the hostname you entered in the previous step, or to
-L<http://0:5000/> if you didn't enter a hostname.
+Point your browser to L<http://localhost:5000/>
 
 =back
-
-The above procedure only includes the most basic steps. Sites with 
-reverse proxies, firewalls, load balancers, connection pools, etc. will
-need to set those up, as well.
-
 
 
 =head1 AUTHENTICATION AND SESSION MANAGEMENT
@@ -872,9 +873,12 @@ sitedir specified in the PARAMHASH is loaded. Call examples:
 =cut
 
 sub init_no_db {
-    my ( $self, @ARGS ) = @_;
-    croak( "Unbalanced PARAMHASH" ) if @ARGS % 2;
-    my %ARGS = @ARGS;
+    my $self = shift;
+    my %ARGS = validate( @_, { 
+        sitedir => { type => SCALAR, optional => 1 },
+        verbose => { type => SCALAR, optional => 1 },
+        debug_mode => { type => SCALAR, optional => 1 },
+    } );
     $log->info( Dumper( \%ARGS ) ) if $ARGS{verbose};
 
     # * load site configuration
@@ -889,6 +893,8 @@ sub init_no_db {
     } else {
         $debug_mode = $site->DOCHAZKA_REST_DEBUG_MODE || 0;
     }
+    unlink $site->DOCHAZKA_REST_LOG_FILE if $site->DOCHAZKA_REST_LOG_FILE_RESET;
+    Log::Any::Adapter->set('File', $site->DOCHAZKA_REST_LOG_FILE );
     $log->init( ident => $site->DOCHAZKA_APPNAME, debug_mode => $debug_mode );
     $log->info( "Initializing " . $site->DOCHAZKA_APPNAME );
 

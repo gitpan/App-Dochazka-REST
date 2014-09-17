@@ -56,11 +56,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 

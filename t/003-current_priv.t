@@ -48,7 +48,7 @@ use Test::More;
 
 
 # initialize and connect to database
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
 
 # plan tests

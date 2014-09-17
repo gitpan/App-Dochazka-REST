@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.157
+    Version 0.169
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -539,27 +539,35 @@ INSTALLATION
 
         First, create a sitedir:
 
-            bash# mkdir /etc/dochazka
+            bash# mkdir /etc/dochazka-rest
 
         and, second, a file therein:
 
-            # cat << EOF > /etc/dochazka/Dochazka_SiteConfig.pm
+            # cat << EOF > /etc/dochazka-rest/REST_SiteConfig.pm
+            set( 'DOCHAZKA_REST_DEBUG_MODE', 1 );
             set( 'DBINIT_CONNECT_AUTH', 'mypass' );
+            set( 'DOCHAZKA_REST_LOG_FILE', $ENV{'HOME'} . "/dochazka-rest.log" );
+            set( 'DOCHAZKA_REST_LOG_FILE_RESET', 1);
             EOF
             #
 
-        (NOTE: Strictly speaking, this sitedir setup is only needed for
-        database initialization. During normal operation,
-        App::Dochazka::REST connects to the database using the default user
-        `dochazka' and password `dochazka'. These are taken from the site
-        parameters `DOCHAZKA_DBUSER' and `DOCHAZKA_DBPASS'.)
+        Where 'mypass' is the PostgreSQL password you set in the 'ALTER
+        ROLE' command, above.
+
+        Strictly speaking, the `DBINIT_CONNECT_AUTH' setting is only needed
+        for database initialization (see below), when App::Dochazka::REST
+        connects to PostgreSQL as user 'postgres' to drop/create the
+        database. Once the database is created, App::Dochazka::REST connects
+        to it using the PostgreSQL credentials set in the site parameters
+        `DOCHAZKA_DBUSER' and `DOCHAZKA_DBPASS' (by default: `dochazka' with
+        password `dochazka').
 
     * Syslog setup
-        It is much easier to administer a Dochazka instance if `syslog' is
-        running and configured properly to place Dochazka's log messages
-        into a separate file in a known location. In the future,
-        App::Dochazka::REST might provide a `syslog_test' script to help the
-        administrator complete this step.
+        The above site configuration includes `DOCHAZKA_REST_LOG_FILE' so
+        App::Dochazka::REST will write its log messages to a file in the
+        home directory of the user it is running as. Also, since
+        DOCHAZKA_REST_LOG_FILE_RESET is set to a true value, this log file
+        will be reset (zeroed) every time App::Dochazka::REST starts.
 
     * Database initialization
         In the future, there might be a nifty `dochazka-dbinit' script to
@@ -578,24 +586,17 @@ INSTALLATION
         should complete without errors.
 
     * Start the server
-        The last step is to start the Dochazka REST service. Maybe, in the
-        future, this will be possible using a command like `systemctl start
-        dochazka.service'. Right now, though, an executable is run, as root,
-        manually from the bash prompt:
+        The last step is to start the Dochazka REST server. In the future,
+        this will be possible using a command like `systemctl start
+        dochazka.service'. At the moment, however, we are still in
+        development/testing phase and we start the server like this (as a
+        normal user):
 
-            bash# dochazka-rest --host [HOST] --port 80 --access-log /var/log/dochazka-rest.log
-
-        or, as any user:
-
-            bash$ dochazka-rest
+            $ cd ~/src/dochazka/App-Dochazka-REST
+            $ ../dev.sh server dochazka-rest
 
     * Take it for a spin
-        Point your browser to the hostname you entered in the previous step,
-        or to http://0:5000/ if you didn't enter a hostname.
-
-    The above procedure only includes the most basic steps. Sites with
-    reverse proxies, firewalls, load balancers, connection pools, etc. will
-    need to set those up, as well.
+        Point your browser to http://localhost:5000/
 
 AUTHENTICATION AND SESSION MANAGEMENT
     Since employees do not access the database directly, but only via the

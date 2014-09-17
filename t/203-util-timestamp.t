@@ -48,7 +48,7 @@ use Test::More;
 
 plan skip_all => "Under construction";
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
+my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";

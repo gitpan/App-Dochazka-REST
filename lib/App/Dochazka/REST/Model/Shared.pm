@@ -57,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.157
+Version 0.169
 
 =cut
 
-our $VERSION = '0.157';
+our $VERSION = '0.169';
 
 
 
@@ -177,7 +177,7 @@ sub cud {
                #        : 'undef';
                #$log->debug( "cud binding parameter $counter to attribute $_ value $value" );
 
-               $sth->bind_param( $counter, $ARGS{'object'}->{$_} );
+               $sth->bind_param( $counter, $ARGS{'object'}->{$_} || undef );
             } @{ $ARGS{'attrs'} };
         $sth->execute;
         my $rh = $sth->fetchrow_hashref;
