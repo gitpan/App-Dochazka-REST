@@ -21,7 +21,7 @@ my $builder = Module::Build->new(
         'Module::Build'  => 0,
     },
     build_requires => {
-        'App::CELL'      => 0.194,
+        'App::CELL'      => 0.197,
         'App::Dochazka'  => 0.153,
         'HTTP::Request'  => 0,
         'Plack::Session' => 0,

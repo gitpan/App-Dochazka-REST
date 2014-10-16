@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Privhistory - path dispatch
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
@@ -89,12 +89,16 @@ The following functions implement targets for the various routes.
 
 BEGIN {    
     no strict 'refs';
+    # dynamically generate four routines: _get_default, _post_default,
+    # _put_default, _delete_default
     *{"_get_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_PRIVHISTORY_GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_PRIVHISTORY', http_method => 'GET' );
     *{"_post_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_PRIVHISTORY_POST' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_PRIVHISTORY', http_method => 'POST' );
     *{"_put_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_PRIVHISTORY_PUT' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_PRIVHISTORY', http_method => 'PUT' );
+    *{"_delete_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_PRIVHISTORY', http_method => 'DELETE' );
 }
 
 

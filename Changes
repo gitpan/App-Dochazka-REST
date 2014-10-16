@@ -1000,3 +1000,57 @@ Revision history for Dochazka-REST
 - REST.pm: expand INSTALLATION section of POD with explanation of how to test database
   connection using 'psql'
 
+0.174  2014-09-24 16:38 CEST
+- try to fix UTF-8 bug, but only make it worse
+
+0.175  2014-09-25 09:29 CEST
+- Resource.pm: encode response body in UTF-8 before sending it out on the line
+
+0.176  2014-10-14 17:31 CEST
+- Dispatch/: add some comments
+- Resource.pm: add debug message; add allow_nonref; find bug #57 
+
+0.177  2014-10-15 10:33 CEST
+- start revamping path dispatch code in light of bug #57 (PUT request to
+  non-existent resource returns HTTP code 200 and null entity body)
+- realize that it makes no sense to return 404 on a PUT request, since the
+  whole idea of PUT is to create a new resource
+- the principal change is in Resource.pm->allowed_methods:
+  - the definition of each resource (in config/dispatch) should contain list of allowed methods
+  - when path is recognized, return the allowed methods from the resource definition
+  - when the path is not recognized _AND_ the method is PUT, return 405 Method Not Allowed
+
+0.178  2014-10-15 16:41 CEST
+- the design change in 0.177 caused a lot of breakage: put the pieces back together (WIP)
+
+0.179  2014-10-15 22:54 CEST
+- Build.PL: require App::CELL 0.197 (for 'get_param')
+- continue fixing brokenness following the design change in 0.177
+
+0.180  2014-10-16 08:40 CEST
+- massage Changes file
+- config/dispatch: make 'help' resources for all four HTTP methods we support
+  (GET, POST, PUT, DELETE)
+- t/: fix or disable all broken tests - test suite running clean again, but
+  many tests are missing
+
+0.181  2014-10-16 10:35 CEST
+- make 'employee/nick' and 'employee/eid' be POST requests (instead of PUT) -
+  we will reserve PUT for unique resources like 'employee/nick/joedavis'
+
+0.182  2014-10-16 10:56 CEST
+- Dispatch.pm: add POD for "" and "help" resources
+
+0.183  2014-10-16 11:12 CEST
+- LDAP.pm: use EXPORT_OK instead of EXPORT
+- Resource.pm: import routines from LDAP.pm explicitly
+
+0.184  2014-10-16 12:59 CEST
+- Resource.pm: implement basic handling of DELETE requests
+
+0.185  2014-10-16 13:37 CEST
+- t/: tweak naming scheme for dispatch unit test files; add unit test files
+  for DELETE method
+- config/dispatch/dispatch_Top_Config.pm: add target for DELETE on 'echo'
+  resource
+

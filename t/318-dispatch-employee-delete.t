@@ -39,9 +39,9 @@ use strict;
 use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
-use App::CELL qw( $meta $site );
+use App::CELL qw( $log $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_json_demo status_from_json );
+use App::Dochazka::REST::Test qw( req_json_demo req_json_root status_from_json );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -64,25 +64,24 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request
-$res = $test->request( req_json_demo POST => '/privhistory' );
+# 1. 'employee/help' - list employee DELETE resources available to passersby
+$res = $test->request( req_json_demo DELETE => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
-# 2. 'privhistory/help' -- the same as 1.
-$res = $test->request( req_json_demo POST => '/privhistory/help' );
+# 1. 'employee/help' - list employee DELETE resources available to admins
+$res = $test->request( req_json_root DELETE => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
-
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
 done_testing;

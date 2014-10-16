@@ -65,54 +65,23 @@ ok( blessed $test );
 my $res;
 
 # 1. the very basic-est request
-$res = $test->request( req_json_demo PUT => '/' );
+$res = $test->request( req_json_demo POST => '/employee' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+#ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
-# 2. '/help' - the same as '/'
-$res = $test->request( req_json_demo PUT => '/help' );
+# 2. 'employee/help' - the same as 1.
+$res = $test->request( req_json_demo POST => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
-
-# 3. '/echo' with legal JSON
-$res = $test->request( req_json_demo 'PUT', '/echo', undef, '{ "username": "foo", "password": "bar" }' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, 'DISPATCH_PUT_ECHO' );
-ok( exists $status->payload->{'username'} );
-is( $status->payload->{'username'}, 'foo' );
-ok( exists $status->payload->{'password'} );
-is( $status->payload->{'password'}, 'bar' );
-
-# 3. '/echo' with illegal JSON
-$res = $test->request( req_json_demo 'PUT', '/echo', undef, '{ "username": "foo", "password": "bar"' );
-is( $res->code, 400 );
-
-# 3. '/echo' with empty request body
-$res = $test->request( req_json_demo 'PUT', '/echo' );
-is( $res->code, 200 );
-like( $res->content, qr/"payload"\s*:\s*null/ );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, 'DISPATCH_PUT_ECHO' );
-ok( exists $status->{'payload'} );
-is( $status->payload, undef );
+#ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
 done_testing;

@@ -54,11 +54,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
@@ -78,7 +78,7 @@ Container for LDAP-related stuff.
 =cut
 
 use Exporter qw( import );
-our @EXPORT = qw( ldap_exists ldap_auth );
+our @EXPORT_OK = qw( ldap_exists ldap_auth );
 
 
 

@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
@@ -84,18 +84,18 @@ Every top-level resource has a '_get_default' target. Here is the code for that.
 =cut
 
 sub make_default {
-    no strict 'refs';
-    my ( $site_param ) = validate_pos( @_, { type => SCALAR } );
+    my %ARGS = validate( @_, { 
+            resource_list => { type => SCALAR }, 
+            http_method => { regex => qr/^(GET)|(HEAD)|(PUT)|(POST)|(DELETE)$/ } 
+        }
+    );
     return sub {
         my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-        # initialize local variables that we will need
-        my $resource_defs_spec = 'DISPATCH_RESOURCES_' . uc $context->{'method'};
-        my $resource_defs = $site->$resource_defs_spec;
-        
-        my $prlist = $site->$site_param; # 'prlist' is "Permitted Resources List"
-        $log->debug( "Permitted resource list from \$site->$site_param" );
-        my $server_status = App::Dochazka::REST::dbh::status;
+        my $resource_defs = $site->get_param( $ARGS{resource_list} );
+        my @rlist = keys %$resource_defs;
+        $log->debug( 'make_default: processing ' . scalar @rlist . ' resources for ' . $ARGS{http_method} . ' request' );
+        my $server_status = App::Dochazka::REST::dbh::status();
         my $uri = $context->{'uri'};
         $uri =~ s/\/*$//;
         my $acl_priv = $context->{'acl_priv'};
@@ -104,14 +104,17 @@ sub make_default {
         $acls = { 'passerby' => '', 'inactive' => '', 'active' => '', } if $acl_priv eq 'active';
         $acls = { 'passerby' => '', 'inactive' => '', } if $acl_priv eq 'inactive';
         $acls = { 'passerby' => '', } if $acl_priv eq 'passerby';
+        my $method = $context->{'method'};
 
         # populate resources
         my $resources = {};
-        $log->debug( "Permitted Resource List: " . Dumper( $prlist ) );
-        foreach my $entry ( @$prlist ) {
+        $log->debug( "Resource List: " . Dumper( \@rlist ) );
+        foreach my $entry ( @rlist ) {
             # include resource in help list only if current employee is authorized to access it
+            # _AND_ the method is allowed
             my $rspec = $resource_defs->{ $entry };
-            if ( defined $rspec->{'acl_profile'} and exists $acls->{ $rspec->{'acl_profile'} } ) {
+            if ( defined( $rspec->{'acl_profile'} ) and exists( $acls->{ $rspec->{'acl_profile'} } )
+                 and grep { $_ eq $method; } keys( %{ $rspec->{'target'} } ) ) {
                 $resources->{ $entry } = {
                     link => "$uri/$entry",
                     description => $rspec->{'description'},
@@ -129,6 +132,7 @@ sub make_default {
                 resources => $resources,
             },
         );
+        $log->debug("Dispatch/Shared.pm->make_default is finished, returning " . $status->code . " status" );
         return $status;
     };
 }

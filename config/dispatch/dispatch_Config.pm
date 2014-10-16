@@ -39,11 +39,12 @@
 # -----------------------------------
 
 
-# DISPATCH_CONTROLLERS
-#    list of major resources that we dispatch (a "major" resource is 
-#    one that has a dedicated controller/dispatch module
-set( 'DISPATCH_CONTROLLERS', [
-    'Employee', 'Privhistory',
+# DISPATCH_RESOURCE_LISTS
+#    list of resource lists -- see, e.g., dispatch_Employee_Config.pm
+set( 'DISPATCH_RESOURCE_LISTS', [
+    'DISPATCH_RESOURCES_TOP',
+    'DISPATCH_RESOURCES_EMPLOYEE',
+    'DISPATCH_RESOURCES_PRIVHISTORY',
 #    'Schedhistory', 'Schedule', 'Activity', 'Interval', 'Lock',
 ] );
 

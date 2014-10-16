@@ -41,7 +41,7 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_json_demo status_from_json );
+use App::Dochazka::REST::Test qw( req_root req_demo status_from_json );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -65,7 +65,7 @@ ok( blessed $test );
 my $res;
 
 # 1. the very basic-est request
-$res = $test->request( req_json_demo POST => '/' );
+$res = $test->request( req_demo GET => '/' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
@@ -73,12 +73,19 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
 
-# 2. '/help' - the same as '/'
-$res = $test->request( req_json_demo POST => '/help' );
+# 2. /version
+$res = $test->request( req_demo GET => '/version' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DOCHAZKA_REST_VERSION' );
+ok( exists $status->payload->{'version'} );
+
+# 3. /help
+$res = $test->request( req_demo GET => '/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
@@ -86,33 +93,64 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
 
-# 3. '/echo' with legal JSON
-$res = $test->request( req_json_demo 'POST', '/echo', undef, '{ "username": "foo", "password": "bar" }' );
+# 4. /siteparam (existing parameter with trailing '/')
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
-is( $status->code, 'DISPATCH_POST_ECHO' );
-ok( exists $status->payload->{'username'} );
-is( $status->payload->{'username'}, 'foo' );
-ok( exists $status->payload->{'password'} );
-is( $status->payload->{'password'}, 'bar' );
+is( $status->code, 'DISPATCH_PARAM_FOUND' );
+ok( exists $status->payload->{name} );
+ok( exists $status->payload->{type} );
+ok( exists $status->payload->{value} );
+is( $status->payload->{name}, 'DOCHAZKA_APPNAME' );
+is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
 
-# 3. '/echo' with illegal JSON
-$res = $test->request( req_json_demo 'POST', '/echo', undef, '{ "username": "foo", "password": "bar"' );
-is( $res->code, 400 );
-
-# 3. '/echo' with empty request body
-$res = $test->request( req_json_demo 'POST', '/echo' );
+# 4. /siteparam (existing parameter without trailing '/')
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME' );
 is( $res->code, 200 );
-like( $res->content, qr/"payload"\s*:\s*null/ );
 $status = status_from_json( $res->content );
 ok( $status->ok );
-is( $status->code, 'DISPATCH_POST_ECHO' );
-ok( exists $status->{'payload'} );
-is( $status->payload, undef );
+is( $status->code, 'DISPATCH_PARAM_FOUND' );
+ok( exists $status->payload->{name} );
+ok( exists $status->payload->{type} );
+ok( exists $status->payload->{value} );
+is( $status->payload->{name}, 'DOCHAZKA_APPNAME' );
+is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
+
+# 4. /siteparam (non-existent parameter)
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_appname' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
+
+# 4. /siteparam (existent parameter with trailing '/foobar')
+$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
+
+# 5. /employee
+$res = $test->request( req_demo GET => '/employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# 6. /privhistory
+$res = $test->request( req_demo GET => '/privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
 done_testing;

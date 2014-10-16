@@ -65,23 +65,24 @@ ok( blessed $test );
 my $res;
 
 # 1. the very basic-est request
-$res = $test->request( req_json_demo POST => '/employee' );
+$res = $test->request( req_json_demo DELETE => '/privhistory' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
 
-# 2. 'employee/help' - the same as 1.
-$res = $test->request( req_json_demo POST => '/employee/help' );
+# 2. 'privhistory/help' -- the same as 1.
+$res = $test->request( req_json_demo DELETE => '/privhistory/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+
 
 done_testing;

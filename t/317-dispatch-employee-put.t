@@ -83,17 +83,16 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 3 );
-ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 ok( exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
 
 # 2. 'employee/nick' - add a new employee with nick in request body
-$res = $test->request( req_json_demo PUT => '/employee/nick', undef, '{' );
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, '{' );
 is( $res->code, 400 ); # malformed
-$res = $test->request( req_json_demo PUT => '/employee/nick', undef, 
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, 
     '{ "nick":"mrfu", "fullname":"Dragon Scale" }' );
 is( $res->code, 403 ); # forbidden
-$res = $test->request( req_json_root PUT => '/employee/nick', undef, 
+$res = $test->request( req_json_root POST => '/employee/nick', undef, 
     '{ "nick":"mrfu", "fullname":"Dragon Scale" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -106,10 +105,10 @@ is_deeply( $mrfu, $mrfuprime );
 my $eid_of_mrfu = $mrfu->eid;
 
 # 2. 'employee/nick' - update existing employee
-$res = $test->request( req_json_demo PUT => '/employee/nick', undef, 
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, 
     '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
 is( $res->code, 403 ); # forbidden
-$res = $test->request( req_json_root PUT => '/employee/nick', undef, 
+$res = $test->request( req_json_root POST => '/employee/nick', undef, 
     '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -155,7 +154,7 @@ $mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrsfu,
 is_deeply( $mrsfu, $mrsfuprime );
 
 # 4. 'employee/eid' - update existing employee
-$res = $test->request( req_json_demo PUT => '/employee/eid', undef, 
+$res = $test->request( req_json_demo POST => '/employee/eid', undef, 
     '{ "eid": ' . $eid_of_mrsfu . ', "fullname":"Dragoness Update Again" }' );
 is( $res->code, 403 ); # forbidden
 $res = $test->request( req_json_root PUT => '/employee/nick/mrsfu', undef, 

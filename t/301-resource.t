@@ -94,18 +94,25 @@ $res = $test->request( req_json_demo GET => '/forbidden' );
 is( $res->code, 403 );
 is( $res->content, 'Forbidden' );
 
-# request for non-existent resource (404)
+# GET request for non-existent resource (404)
 $res = $test->request( req_json_demo GET => '/HEE HAW!!!/non-existent/resource' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 
-# test argument validation in 'router' method
-like( exception { App::Dochazka::REST::Resource::router( 'DUMMY2' ); },
-      qr/did not pass regex check/ );
-like( exception { App::Dochazka::REST::Resource::router( 'POST', ( 3..12 ) ); },
-      qr/but 1 was expected/ );
-like( exception { App::Dochazka::REST::Resource::router(); },
-      qr/0 parameters were passed.+but 1 was expected/ );
+# PUT request for non-existent resource (405)
+$res = $test->request( req_json_demo PUT => '/HEE HAW!!!/non-existent/resource' );
+is( $res->code, 405 );
+is( $res->content, 'Method Not Allowed' );
+
+# POST request for non-existent resource (404)
+$res = $test->request( req_json_demo POST => '/HEE HAW!!!/non-existent/resource' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
+
+# DELETE request on non-existent resource (404)
+$res = $test->request( req_json_demo DELETE => '/HEE HAW!!!/non-existent/resource' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
 
 # test argument validation in '_push_onto_context' method
 like( exception { App::Dochazka::REST::Resource::_push_onto_context( undef, 'DUMMY2' ); },

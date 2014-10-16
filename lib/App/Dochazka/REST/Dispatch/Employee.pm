@@ -63,18 +63,19 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
 
 =head1 DESCRIPTION
 
-Controller/dispatcher module for the 'employee' resource.
+Controller/dispatcher module for the 'employee' resource. To determine
+which functions in this module correspond to which resources, see.
 
 
 
@@ -92,12 +93,16 @@ The following functions implement targets for the various routes.
 
 BEGIN {
     no strict 'refs';
+    # dynamically generate four routines: _get_default, _post_default,
+    # _put_default, _delete_default
     *{"_get_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'GET' );
     *{"_post_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_POST' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'POST' );
     *{"_put_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_EMPLOYEE_PUT' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'PUT' );
+    *{"_delete_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'DELETE' );
 }
 
 =head2 GET targets
@@ -154,18 +159,30 @@ sub _get_count {
 }
 
 
-=head2 PUT targets
+=head2 POST targets
 
 =cut
 
 # no parameter, everything in request body, nick required
-sub _put_employee_body_with_nick_required {
+sub _post_employee_body_with_nick_required {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ) 
         unless $context->{'request_body'}->{'nick'};
     delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
     return _put_employee( %{ $context->{'request_body'} } );
 }
+
+# no parameter, everything in request body, EID required
+sub _post_employee_body_with_eid_required {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ) 
+        unless $context->{'request_body'}->{'eid'};
+    return _put_employee( %{ $context->{'request_body'} } );
+}
+
+=head2 PUT targets
+
+=cut
 
 # nick provided in path, rest in optional request body
 sub _put_employee_nick_in_path {
@@ -174,14 +191,6 @@ sub _put_employee_nick_in_path {
     die "AAAAAAAAAAHHHHH! Swallowed by the abyss" unless defined $nick and ref \$nick eq 'SCALAR';
     $context->{'request_body'}->{'nick'} = $nick;
     delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    return _put_employee( %{ $context->{'request_body'} } );
-}
-
-# no parameter, everything in request body, EID required
-sub _put_employee_body_with_eid_required {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ) 
-        unless $context->{'request_body'}->{'eid'};
     return _put_employee( %{ $context->{'request_body'} } );
 }
 
@@ -197,6 +206,8 @@ sub _put_employee_eid_in_path {
 sub _put_employee {
     my @ARGS = @_;
     my %ARGS;
+
+    $log->debug("Reached _put_employee");
 
     # validate arguments and convert them into employee object
     my $status = $CELL->status_ok;

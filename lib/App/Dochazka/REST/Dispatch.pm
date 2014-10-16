@@ -39,7 +39,7 @@ package App::Dochazka::REST::Dispatch;
 use strict;
 use warnings;
 
-use App::CELL qw( $CELL $log $site );
+use App::CELL qw( $CELL $log $site $meta );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Employee;
@@ -65,20 +65,81 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
 
 =head1 DESCRIPTION
 
-This is the top-level controller module: i.e., it contains top-level dispatch targets.
+This is the top-level dispatch module: i.e., it contains dispatch targets
+for the top-level resources defined in
+C<config/dispatch/dispatch_Top_Config.pm>.
 
 
+
+
+=head1 RESOURCES
+
+This section documents the resources whose dispatch targets are contained
+in this source module. For the resource definitions, see
+C<config/dispatch/dispatch_Top_Config.pm>.
+
+Each resource can have up to four targets (one each for the four supported
+HTTP methods GET, POST, PUT, and DELETE). That said, target routines may be
+written to handle more than one HTTP method and/or more than one resoure.
+
+
+=head2 C<""> or C</>
+
+This is the toppest of the top-level targets or, if you wish, the "root
+target". If the base UID of your L<App::Dochazka::REST> instance is
+C<http://dochazka.site:5000> and your username/password are "demo/demo",
+then this resource is triggered by either of the URLs:
+
+    http://demo:demo@dochazka.site:5000
+    http://demo:demo@dochazka.site:5000/
+
+In terms of behavior, this resource is identical to C<help> (see below).
+
+
+=head2 C<help>
+
+If the base UID of your L<App::Dochazka::REST> instance is
+C<http://dochazka.site:5000> and your username/password are "demo/demo",
+then this resource is triggered by either of the URLs:
+
+    http://demo:demo@dochazka.site:5000/help
+    http://demo:demo@dochazka.site:5000/help/
+    
+(This information applies analogously to all the resources described
+herein.)
+
+The purpose of the C<help> resource is to give the user an overview of all
+the top-level resources available to her, with regard to her privlevel and
+the HTTP method being used.
+
+That means, for example:
+
+=over
+
+=item * If the HTTP method is, GET, only resources with GET targets will be
+displayed
+
+=item * If the user's privlevel is 'inactive', only resources whose ACL
+profile is 'inactive' or lower (i.e., 'inactive' or 'passerby') will be
+displayed
+
+=back
+
+The information provided is sent as a JSON string in the HTTP response
+body, and includes the resource's name, full URI, ACL profile, and brief
+description, as well as a link to the L<App::Dochazka::REST> on-line
+documentation.
 
 
 =head1 TARGETS
@@ -86,35 +147,47 @@ This is the top-level controller module: i.e., it contains top-level dispatch ta
 =cut
 
 BEGIN {
+    # generate four subroutines: _get_default, _post_default, _put_default,
+    # delete_default
     no strict 'refs';
     *{"_get_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_TOP', http_method => 'GET' );
     *{"_post_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_POST' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_TOP', http_method => 'POST' );
     *{"_put_default"} = 
-        App::Dochazka::REST::Dispatch::Shared::make_default( 'DISPATCH_HELP_TOPLEVEL_PUT' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_TOP', http_method => 'PUT' );
+    *{"_delete_default"} = 
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_TOP', http_method => 'DELETE' );
 }
 
 
-sub _get_site_param {
+sub _get_param {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     # generate content
-    my ( $param, $value, $status );
+    my ( $param, $path, $value, $status, $type );
     $param = $context->{'mapping'}->{'param'};
-    {
-        no strict 'refs';
-        $value = $site->$param;
+    $path = $context->{'path'};
+    if ( $path =~ m/siteparam/ ) {
+        $type = 'site';
+        $value = $site->get_param( $param ), 
+    } elsif ( $path =~ m/metaparam/ ) {
+        $type = 'meta';
+        $value = $meta->get_param( $param );
     }
-    $status = $value
+    $status = defined( $value )
         ? $CELL->status_ok( 
-              'DISPATCH_SITE_PARAM_FOUND', 
-              args => [ $param ], 
-              payload => { $param => $value } 
+              'DISPATCH_PARAM_FOUND', 
+              args => [ $type, $param ], 
+              payload => { 
+                  type => $type,
+                  name => $param,
+                  value => $value,
+              } 
           )
         : $CELL->status_err( 
-              'DISPATCH_SITE_NOT_DEFINED', 
-              args => [ $param ] 
+              'DISPATCH_PARAM_NOT_DEFINED', 
+              args => [ $type, $param ] 
           );
     return $status;
 }
@@ -131,23 +204,10 @@ sub _get_session {
 }
 
 
-sub _post_echo {
+sub _echo {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    _process_echo( $context->{'method'}, $context->{'request_body'} );
-}
-
-
-sub _put_echo {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    _process_echo( $context->{'method'}, $context->{'request_body'} );
-}
-
-
-# carefully put the request body in the payload
-sub _process_echo {
-    my ( $method, $body ) = @_;
+    my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
 
     # return a suitable payload, even if the request body is empty
     return $CELL->status_ok( 'DISPATCH_' . $method . '_ECHO', 
@@ -157,8 +217,13 @@ sub _process_echo {
     );
 }
 
-sub _get_forbidden { die "Das ist streng verboten"; }
 
-sub _post_forbidden { die "Das ist streng verboten"; }
+sub _forbidden { die "Das ist streng verboten"; }
+
+
+sub _get_version {
+    return $CELL->status_ok( 'DISPATCH_DOCHAZKA_REST_VERSION', 
+        payload => { version => $VERSION } );
+}
 
 1;

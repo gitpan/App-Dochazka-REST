@@ -46,13 +46,13 @@ use App::Dochazka::REST::Dispatch;
 use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Privhistory;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
-use App::Dochazka::REST::LDAP;
+use App::Dochazka::REST::LDAP qw( ldap_exists ldap_auth );
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
 use App::Dochazka::REST::Util qw( deep_copy );
 use Carp;
 use Data::Dumper;
 use Data::Structure::Util qw( unbless );
-use Encode qw( decode_utf8 );
+use Encode qw( decode_utf8 encode_utf8 );
 use JSON;
 use Params::Validate qw(:all);
 use Path::Router;
@@ -74,11 +74,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.173
+Version 0.185
 
 =cut
 
-our $VERSION = '0.173';
+our $VERSION = '0.185';
 
 
 
@@ -117,12 +117,8 @@ L<App::Dochazka::REST>.
 
 # a package variable to streamline calls to the JSON module
 my $JSON = JSON->new->allow_nonref->utf8->pretty;
-# a package variable to store Path::Router instance for GET requests
-my $router_get;
-# a package variable to store Path::Router instance for POST requests
-my $router_post;
-# a package variable to store Path::Router instance for PUT requests
-my $router_put;
+# a package variable to store the Path::Router instance
+my $router;
 
 
 =head1 METHODS
@@ -146,7 +142,7 @@ sub service_available {
 =head2 content_types_provided
 
 L<Web::Machine> calls this routine to determine how to generate the response
-body for GET requests. It is not called for PUT requests.
+body for GET requests. It is not called for PUT, POST, or DELETE requests.
 
 =cut
  
@@ -212,6 +208,7 @@ function" where we process those requests.
 
 sub _handle_request_json {
     my $self = shift;
+    $log->debug("Entering _handle_request_json");
     $self->response->header('Content-Type' => 'application/json' );
     $self->response->body( $self->_make_json );
     return 1;
@@ -240,11 +237,90 @@ sub default_charset { 'utf-8'; }
 
 =head2 allowed_methods
 
-Determines which HTTP methods we recognize.
+Determines which HTTP methods we recognize for this resource. We return these
+methods in an array. If the requested method is not included in the array,
+L<Web::Machine> will return the appropriate HTTP error code.
 
 =cut
 
-sub allowed_methods { return [ 'GET', 'POST', 'PUT', ]; }
+sub allowed_methods { 
+    my ( $self ) = @_;
+
+    # determine method
+    my $method = uc $self->request->method;
+    die "Bad method $method" unless $method =~ m/^(GET)|(POST)|(PUT)|(HEAD)|(DELETE)$/;
+
+    $log->debug("Entering Resource.pm->allowed_methods");
+
+    # initialize router if necessary
+    init_router() unless defined $router and $router->isa( 'Path::Router' );
+
+    # decoded path was placed on context by 'service_available'
+    my $path = $self->context->{'path'};
+    $log->debug( "allowed_methods: path is $path" );
+   
+    # test path for a match
+    if ( my $match = $router->match( $path ) ) {
+
+        $log->debug( "allowed_methods: path matches a resource" );
+
+	# Path matches, so we now know exactly which resource the user is
+	# asking for. The keys of the 'target' hash in the resource metadata
+        # are the allowed methods.
+
+        my ( $route, @allowed_methods );
+        try {
+           $route = $match->route;
+           @allowed_methods = keys( $route->target );
+        } catch {
+           $log->crit( $_ );
+        };
+        $log->debug( "Allowed methods are " . Dumper( \@allowed_methods ) );
+        if (grep { $_ eq $method; } @allowed_methods) {
+
+            # In this case, we know that the method is allowed for this resource.
+            # Before we return that list of allowed methods, we need to push some
+            # info onto the context for use later as the request is processed further.
+
+            # N.B.: $uri is the base URI, not the path
+            my $uri = $site->DOCHAZKA_URI
+                ? $site->DOCHAZKA_URI
+                : $self->request->base->as_string;
+
+            my $target_hash;
+            try {
+               $target_hash = $route->target;
+            } catch {
+               $log->crit( $_ );
+            };
+            $log->debug( "Target hash is " . Dumper( $target_hash ) );
+
+            # assemble the target
+            my $target;
+            if ( $target = $target_hash->{$method} ) {
+                $log->debug( "This resource has a target for method $method" );
+                $target = $route->defaults->{'target_module'} . '::' . $target;
+            }
+            $log->debug( "Target is $target" );
+
+            my $push_hash = { 
+                'target' => \&{ $target },    # target is routine that will be called to process the request
+                'mapping' => $match->mapping, # mapping contains values of ':xyz' parts of path
+                'acl_profile' => $route->defaults->{'acl_profile'}, # ACL profile of the resource
+                'uri' => $uri,                # base URI of the REST server
+                'method' => $method,          # HTTP method
+            };
+            $self->_push_onto_context( $push_hash );
+            $log->debug( "allowed_methods pushed onto context: " . Dumper( $push_hash ) );
+        }
+        return \@allowed_methods;
+
+    } else {
+        # Path doesn't match, so no methods allowed on this request -- sorry, Charlie.
+        $log->debug("Path $path does not match any target. For PUT this will result in 405 Method Not Allowed.");
+        return [ 'GET', 'POST', 'DELETE' ];
+    }
+}
 
 
 
@@ -335,8 +411,8 @@ sub _validate_session {
     $self->_push_onto_context( { 'session_id' => $session->id } );
     $log->debug( "Session ID is " . $session->id );
     #$log->debug( "Remote address is " . $remote_addr );
-    #$log->debug( "Session EID is " . 
-    #    ( $session->get('eid') ? $session->get('eid') : "not present") );
+    $log->debug( "Session EID is " . 
+        ( $session->get('eid') ? $session->get('eid') : "not present") );
     #$log->debug( "Session IP address is " . 
     #    ( $session->get('ip_addr') ? $session->get('ip_addr') : "not present" ) );
     #$log->debug( "Session last_seen is " . 
@@ -493,52 +569,24 @@ action.
 sub forbidden {
     my ( $self ) = @_;
 
-    # determine method
-    my $method = uc $self->request->method;
-    die "Bad method $method" unless $method =~ m/^(GET)|(POST)|(PUT)$/;
+    $log->debug( "Entering Resource.pm->forbidden" );
 
-    # get router for this method (and initialize it if necessary)
-    my $router = router( $method );
-    $router = init_router( $method ) unless defined $router and $router->isa( 'Path::Router' );
-
-    # decoded path was placed on context by 'service_available'
-    my $path = $self->context->{'path'};
-   
-    # test path for a match
-    if ( my $match = $router->match( $path ) ) {
-        my $route = $match->route;
-
-	# Path matches, so we now know exactly which resource the user is
-	# asking for.  That means we also know the ACL profile of that
-	# resource. And, since the user has already been authenticate, we know
-	# who she is, too. 
-        my $acl_profile = $route->defaults->{'acl_profile'};
-        my $acl_priv = $self->context->{'current'}->{'priv'};
-
-        # We are ready to run the ACL check
-        my $acl_status = check_acl( $acl_profile, $acl_priv );
-        return 1 unless $acl_status->ok;
-        # ACL check passed
-
-        my $uri = $site->DOCHAZKA_URI
-            ? $site->DOCHAZKA_URI
-            : $self->request->base->as_string;
-
-        my $push_hash = { 
-            'acl_priv' => $acl_priv,
-            'target' => $route->target,
-            'mapping' => $match->mapping, 
-            'uri' => $uri,
-            'method' => $method,
-        };
-        $log->debug( "Incoming request permitted: " . Dumper $push_hash );
-        $self->_push_onto_context( $push_hash );
-
-        return 0; # pass ACL check
-    } else {
-        # if the path doesn't match, we pass the request on to resource_exists
-        return 0; 
+    # if there is no target on the context, the URL is invalid so we
+    # just pass on the request 
+    if (not exists $self->context->{'target'}) {
+        $log->debug("forbidden: no target on context, passing on this request");
+        return 0;
     }
+    my $acl_profile = $self->context->{'acl_profile'} || "undefined";
+    my $acl_priv = $self->context->{'current'}->{'priv'};
+
+    $log->debug( "My ACL level is $acl_priv and the ACL profile of this resource is $acl_profile" );
+    # run the ACL check
+    my $acl_status = check_acl( $acl_profile, $acl_priv );
+    $log->debug( "ACL check returned " . Dumper($acl_status) );
+    return 1 unless $acl_status->ok; # fail
+    $self->_push_onto_context( { 'acl_priv' => $acl_priv } );
+    return 0; # pass
 }
 
 
@@ -547,6 +595,8 @@ sub forbidden {
 If the resource exists, its mapping will have been determined in the L<"forbidden">
 routine. So, our job here is to execute the appropriate target if the mapping
 exists. Executing the target builds the response entity.
+
+For PUT, a positive return value implies that this is an update operation.
 
 =cut 
 
@@ -573,6 +623,7 @@ sub resource_exists {
 
 	# The target returns a status object, but this time we simply push that
 	# object onto the context (after "expurgating", or "unblessing", it).
+        #$self->_push_onto_context( { 'entity' => encode_utf8($status->expurgate) } );
         $self->_push_onto_context( { 'entity' => $status->expurgate } );
 
 	# Returning 1 here signals that the requested resource exists. For
@@ -584,6 +635,7 @@ sub resource_exists {
     # exists. Non-existence of the resource is signalled by non-inclusion of
     # 'target' and 'mapping'. So if these two are not present, we return 0
     # and the client gets "404 Not Found".
+    $log->debug( "Returning 404 Not Found" );
     return 0; 
 }
 
@@ -652,14 +704,27 @@ sub malformed_request {
 }
 
 
+=head2 delete_resource
+
+=cut
+
+sub delete_resource { 
+    my $self = shift;
+    $log->debug("Entering delete_resource");
+    $self->response->header('Content-Type' => 'application/json' );
+    $self->response->body( $self->_make_json );
+    return 1;
+};
+
 =head2 process_post
 
-Where POST requests are processed.
+This is where we construct responses to POST requests.
 
 =cut
 
 sub process_post {
     my $self = shift;
+    $log->debug("Entering process_post");
     $self->response->header('Content-Type' => 'application/json' );
     $self->response->body( $self->_make_json );
     return 1;
@@ -708,95 +773,70 @@ Makes the JSON for inclusion in the response entity.
 
 sub _make_json {
     my ( $self ) = @_;
-    my $before;
-    my $after;
+    my ( $before, $after, $after_utf8 );
     if ( $ENV{'DOCHAZKA_DEBUG'} ) {
         # We can't send the context to JSON->encode directly because the
         # context contains a code reference and JSON->encode finds that
         # offensive: our deep_copy routine replaces the code reference with
-        # a non-offensive placeholder string.
+        # an innocent placeholder string.
         $before = deep_copy( $self->context );
     } else {
         $before = unbless $self->context->{'entity'};
     }
-    $after = JSON->new->pretty->encode( $before );
+    $after = JSON->new->pretty->allow_nonref->encode( $before );
+    $after_utf8 = encode_utf8($after);
     $log->debug( "_make_json (before): " . Dumper $before );
-    $log->debug( "_make_json (UTF-8): " . Dumper $after );
-    return $after;
+    $log->debug( "_make_json (after): " . Dumper $after );
+    $log->debug( "_make_json (after UTF-8): " . Dumper $after_utf8 );
+    return $after_utf8;
 }
-
-
-=head2 router
-
-Takes one parameter -- an HTTP method (e.g. 'GET', 'POST'). Returns
-the router instance for that method, which is stored in a package
-variable.
-
-=cut
-
-sub router {
-    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)|(PUT)/ } );
-    return $router_get if $method eq 'GET';
-    return $router_post if $method eq 'POST';
-    return $router_put if $method eq 'PUT';
-
-    # We should never reach this point
-    croak "AAAAAAAAAAAAHHHH!!!! Engulfed by the abyss";
-}
-
 
 
 =head2 init_router
 
-Takes HTTP method and initializes the corresponding router.
+Initialize (populate) the router
 
 =cut
 
 sub init_router {
-    my ( $method ) = validate_pos( @_, { regex => qr/(GET)|(POST)|(PUT)/ } );    	
-    return _init_get() if $method eq 'GET';
-    return _init_post() if $method eq 'POST';
-    return _init_put() if $method eq 'PUT';
-    # never reach this point
-    die "AAAAAAAAAAAHHH! Engulfed by the abyss";
-}
 
+    $log->debug("Entering Resource.pm->init_router");
 
-# initialization routine for GET router
-sub _init_get {
-    $router_get = Path::Router->new;
-    die "Bad Path::Router object" unless $router_get->isa( 'Path::Router' );
-    _populate_router( $router_get, $site->DISPATCH_RESOURCES_GET );
-    $router_get;
-}
+    $router = Path::Router->new;
 
+    # we have resource definitions divided into multiple lists
+    # (config/dispatch/dispatch_Employee_Config.pm, etc.) for manageability
+    # so we need to loop not only over the resources themselves, but also
+    # over the lists
 
-# initialization routine for POST router
-sub _init_post {
-    $router_post = Path::Router->new;
-    die "Bad router" unless $router_post->isa( 'Path::Router' );
-    _populate_router( $router_post, $site->DISPATCH_RESOURCES_POST );
-    $router_post;
-}
+    foreach my $param ( @{ $site->DISPATCH_RESOURCE_LISTS } ) {
+        $log->debug("init_router: Processing $param");
+        # $param will be something like 'DISPATCH_RESOURCES_EMPLOYEE'
+        my $list = $site->get_param( $param );
+        foreach my $resource ( keys %$list ) {
+            # $resource will be something like 'employee/help'
 
-# initialization routine for PUT router
-sub _init_put {
-    $router_put = Path::Router->new;
-    die "Bad router" unless $router_put->isa( 'Path::Router' );
-    _populate_router( $router_put, $site->DISPATCH_RESOURCES_PUT );
-    $router_put;
-}
+            $log->debug("init_router: Processing resource $resource");
 
-sub _populate_router {
-    my ( $router, $resources ) = @_;
-    foreach my $key ( keys %$resources ) {
-        no strict 'refs';
-        $router->add_route( $key,
-            defaults => {
-                acl_profile => $resources->{$key}->{'acl_profile'},
-            },
-            target => \&{ $resources->{$key}->{'target'} },
-        );
+            my $acl_profile = $list->{$resource}->{'acl_profile'};
+            #$log->debug("init_router: acl_profile is $acl_profile ");
+            my $target_module = $list->{$resource}->{'target_module'};
+            #$log->debug("init_router: target_module is $target_module");
+            my $target = $list->{$resource}->{'target'};
+            #$log->debug("init_router: target is " . Dumper( $target ));
+
+            try {
+                $router->add_route( $resource, 
+                    defaults => {
+                        acl_profile => $acl_profile,
+                        target_module => $target_module,
+                    },
+                    target => $target,
+                );
+            } catch {
+                $log->crit( $_ );
+            };
+        }
     }
     return;
 }
