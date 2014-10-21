@@ -39,9 +39,9 @@ use strict;
 use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
-use App::CELL qw( $meta $site );
+use App::CELL qw( $log $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_json_demo status_from_json );
+use App::Dochazka::REST::Test qw( req_json_demo req_json_root status_from_json );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -64,7 +64,8 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request
+# POST 'employee'
+$log->notice("--- POST employee");
 $res = $test->request( req_json_demo POST => '/employee' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -74,7 +75,8 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 #ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
-# 2. 'employee/help' - the same as 1.
+# POST 'employee/help' - the same as 1.
+$log->notice("--- POST employee/help");
 $res = $test->request( req_json_demo POST => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -83,5 +85,72 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 #ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# POST 'employee/nick' - add a new employee with nick in request body
+$log->notice("--- POST employee/nick (insert)");
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, '{' );
+is( $res->code, 400 ); # malformed
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, 
+    '{ "nick":"mrfu", "fullname":"Dragon Scale" }' );
+is( $res->code, 403 ); # forbidden
+$res = $test->request( req_json_root POST => '/employee/nick', undef, 
+    '{ "nick":"mrfu", "fullname":"Dragon Scale" }' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_EMPLOYEE_INSERT_OK' );
+my $mrfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+my $mrfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $mrfu->eid, 
+    nick => 'mrfu', fullname => 'Dragon Scale' );
+is_deeply( $mrfu, $mrfuprime );
+my $eid_of_mrfu = $mrfu->eid;
+
+# POST 'employee/nick' - update existing employee
+$log->notice("--- POST employee/nick (update)");
+$res = $test->request( req_json_demo POST => '/employee/nick', undef, 
+    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
+is( $res->code, 403 ); # forbidden
+$res = $test->request( req_json_root POST => '/employee/nick', undef, 
+    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+$mrfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+$mrfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrfu,
+    nick => 'mrfu', fullname => 'Dragon Scale Update', email => 'scale@dragon.org' );
+is_deeply( $mrfu, $mrfuprime );
+
+# POST 'employee/eid' - give Mr. Fu a sex change
+$log->notice("--- POST employee/eid (update with different nick)");
+$res = $test->request( req_json_demo POST => '/employee/eid', undef, 
+    '{ "eid": ' . $mrfu->eid . ', "nick" : "mrsfu" , "fullname":"Dragoness" }' );
+is( $res->code, 403 ); # forbidden
+$res = $test->request( req_json_root POST => '/employee/eid', undef, 
+    '{ "eid": ' . $mrfu->eid . ', "nick" : "mrsfu" , "fullname":"Dragoness" }' );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+my $mrsfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+my $mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $mrfu->eid,
+    nick => 'mrsfu', fullname => 'Dragoness', email => 'scale@dragon.org' );
+is_deeply( $mrsfu, $mrsfuprime );
+
+# POST 'employee/eid' - update non-existent
+$log->notice("--- POST employee/eid (non-existent EID)");
+$res = $test->request( req_json_demo POST => "/employee/eid", undef, '{ "eid" : 5442' );
+is( $res->code, 400 ); # malformed
+$res = $test->request( req_json_demo POST => "/employee/eid", undef, '{ "eid" : 5442 }' );
+is( $res->code, 403 ); # forbidden
+$res = $test->request( req_json_root PUT => "/employee/eid", undef, 
+    '{ "eid": 534, "nick": "mrfu", "fullname":"Lizard Scale" }' );
+is( $res->code, 405 ); # method not allowed
+$res = $test->request( req_json_root POST => "/employee/eid", undef, 
+    '{ "eid": 534, "nick": "mrfu", "fullname":"Lizard Scale" }' );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
 
 done_testing;

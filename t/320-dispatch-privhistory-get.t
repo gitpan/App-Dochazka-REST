@@ -186,15 +186,7 @@ ok( exists $status->payload->{'privhistory'}->[0]->{'effective'} );
 $res = $test->request( req_demo GET => '/privhistory/nick/root/[1999-12-31 23:59, 2000-01-01 00:01)' );
 is( $res->code, 403 );
 $res = $test->request( req_root GET => '/privhistory/nick/root/[1999-12-31 23:59, 2000-01-01 00:01)' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, "DISPATCH_NO_RECORDS_FOUND" );
-ok( defined $status->payload );
-ok( exists $status->payload->{'nick'} );
-is( $status->payload->{'nick'}, 'root' );
-ok( defined $status->payload->{'privhistory'} );
-is_deeply( $status->payload->{'privhistory'}, [] );
+is( $res->code, 404 );
 
 # 6. 'privhistory/eid/$eid_of_root'
 $res = $test->request( req_demo GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT );
@@ -236,14 +228,6 @@ $res = $test->request( req_demo GET => '/privhistory/eid/' .  $site->DOCHAZKA_EI
 is( $res->code, 403 );
 $res = $test->request( req_root GET => '/privhistory/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
     '/[1999-12-31 23:59, 2000-01-01 00:01)' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, "DISPATCH_NO_RECORDS_FOUND" );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-ok( defined $status->payload->{'privhistory'} );
-is_deeply( $status->payload->{'privhistory'}, [] );
+is( $res->code, 404 );
 
 done_testing;

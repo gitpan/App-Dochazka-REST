@@ -46,9 +46,10 @@ use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Privhistory;
 use Carp;
 use Data::Dumper;
-use JSON;
+#use JSON qw();
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
+#use Scalar::Util qw( blessed );
+use Test::Deep::NoTest;
 
 #use parent 'App::Dochazka::REST::Resource';
 
@@ -65,11 +66,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -96,6 +97,8 @@ written to handle more than one HTTP method and/or more than one resoure.
 
 =head2 C<""> or C</>
 
+B<Works with:> GET, POST, PUT, DELETE
+
 This is the toppest of the top-level targets or, if you wish, the "root
 target". If the base UID of your L<App::Dochazka::REST> instance is
 C<http://dochazka.site:5000> and your username/password are "demo/demo",
@@ -108,6 +111,8 @@ In terms of behavior, this resource is identical to C<help> (see below).
 
 
 =head2 C<help>
+
+B<Works with:> GET, POST, PUT, DELETE
 
 If the base UID of your L<App::Dochazka::REST> instance is
 C<http://dochazka.site:5000> and your username/password are "demo/demo",
@@ -127,8 +132,8 @@ That means, for example:
 
 =over
 
-=item * If the HTTP method is, GET, only resources with GET targets will be
-displayed
+=item * If the HTTP method is GET, only resources with GET targets will be
+displayed (same applies to other HTTP methods)
 
 =item * If the user's privlevel is 'inactive', only resources whose ACL
 profile is 'inactive' or lower (i.e., 'inactive' or 'passerby') will be
@@ -140,6 +145,51 @@ The information provided is sent as a JSON string in the HTTP response
 body, and includes the resource's name, full URI, ACL profile, and brief
 description, as well as a link to the L<App::Dochazka::REST> on-line
 documentation.
+
+
+=head2 C<bugreport>
+
+B<Works with:> GET
+
+Returns a C<report_bugs_to> key in the payload, containing the address to
+report bugs to.
+
+
+=head2 C<echo>
+
+B<Works with:> POST, PUT, DELETE
+
+This resource simply takes whatever content body was sent and echoes it
+back in the response body.
+
+
+=head2 C<version>
+
+B<Works with:> GET
+
+Returns a C<version> key in the payload, containing the version number of
+the running L<App::Dochazka::REST> instance.
+
+
+=head2 C<siteparam/:param>
+
+B<Works with:> GET
+
+Assuming that the argument C<:param> is the name of an existing site
+parameter, displays the parameter's value. This resource is available only
+to users with C<admin> privileges.
+
+
+=head2 C<metaparam/:param>
+
+B<Works with:> GET, PUT
+
+Assuming that the argument C<:param> is the name of an existing meta
+parameter, displays the parameter's value. This resource is available only
+to users with C<admin> privileges.
+
+
+
 
 
 =head1 TARGETS
@@ -192,17 +242,56 @@ sub _get_param {
     return $status;
 }
 
+# PUT is only for meta parameters
+sub _put_param {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my ( $param, $path, $value, $status, $type );
+    $param = $context->{'mapping'}->{'param'};
+    $path = $context->{'path'};
+    my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
+    $value = $body->{'value'};
+    $log->debug("_put_param: about to set metaparam $param to " . Dumper( $value ) );
+    if ( $path =~ m/metaparam/ ) {
+        $type = 'meta';
+        $meta->set( $param, $value );
+    }
+    $status = ( eq_deeply( $meta->get_param( $param ), $value ) )
+        ? $CELL->status_ok( 
+              'DISPATCH_PARAM_SET', 
+              args => [ $type, $param ], 
+              payload => { 
+                  type => $type,
+                  name => $param,
+                  value => $value,
+              } 
+          )
+        : $CELL->status_err( 
+              'DISPATCH_PARAM_NOT_SET', 
+              args => [ $type, $param ],
+              payload => {
+                  type => $type,
+                  name => $param,
+                  value => $meta->get_param( $param ),
+              }
+          );
+    return $status;
+}
 
 sub _get_session {
 
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    return $CELL->status_ok( 'DISPATCH_CONTEXT', payload => {
+    return $CELL->status_ok( 'DISPATCH_SESSION_DATA', payload => {
         session_id => $context->{'session_id'},
         session => $context->{'session'},
     } );
 }
 
+sub _get_bugreport {
+    return $CELL->status_ok( 'DISPATCH_BUGREPORT', payload => {
+        report_bugs_to => $site->DOCHAZKA_REPORT_BUGS_TO
+    } );
+}
 
 sub _echo {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );

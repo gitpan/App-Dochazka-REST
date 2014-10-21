@@ -74,11 +74,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -134,7 +134,7 @@ sub service_available {
     my $self = shift;
     my $path = decode_utf8( $self->request->path_info );
     $log->info( "Incoming " . $self->request->method . " request for $path" );
-    $self->{'context'} = { 'path' => $path };
+    $self->{'context'} = { 'path' => $path, 'method' => $self->request->method };
     return 1;
 }
 
@@ -271,7 +271,7 @@ sub allowed_methods {
         my ( $route, @allowed_methods );
         try {
            $route = $match->route;
-           @allowed_methods = keys( $route->target );
+           @allowed_methods = keys( %{ $route->target } );
         } catch {
            $log->crit( $_ );
         };
@@ -308,7 +308,6 @@ sub allowed_methods {
                 'mapping' => $match->mapping, # mapping contains values of ':xyz' parts of path
                 'acl_profile' => $route->defaults->{'acl_profile'}, # ACL profile of the resource
                 'uri' => $uri,                # base URI of the REST server
-                'method' => $method,          # HTTP method
             };
             $self->_push_onto_context( $push_hash );
             $log->debug( "allowed_methods pushed onto context: " . Dumper( $push_hash ) );
@@ -362,7 +361,10 @@ sub is_authorized {
         my $auth_status = _authenticate( $username, $password );
         if ( $auth_status->ok ) {
             my $emp = $auth_status->payload;
-            $self->_push_onto_context( { current => $emp->expurgate, } );
+            $self->_push_onto_context( { 
+                current => $emp->expurgate,
+                current_priv => $emp->priv
+            } );
             $self->_init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
             return 1;
         }
@@ -429,7 +431,10 @@ sub _validate_session {
         my $emp = App::Dochazka::REST::Model::Employee->load_by_eid( $session->get('eid') )->payload;
         die "missing employee object in session management" 
             unless $emp->isa( "App::Dochazka::REST::Model::Employee" ); 
-        $self->_push_onto_context( { current => $emp->expurgate, } );
+        $self->_push_onto_context( { 
+            current => $emp->expurgate, 
+            current_priv => $emp->priv
+        } );
         $session->set('last_seen', time); 
         return 1;
     }
@@ -578,12 +583,12 @@ sub forbidden {
         return 0;
     }
     my $acl_profile = $self->context->{'acl_profile'} || "undefined";
-    my $acl_priv = $self->context->{'current'}->{'priv'};
+    my $acl_priv = $self->context->{'current_priv'};
 
     $log->debug( "My ACL level is $acl_priv and the ACL profile of this resource is $acl_profile" );
     # run the ACL check
     my $acl_status = check_acl( $acl_profile, $acl_priv );
-    $log->debug( "ACL check returned " . Dumper($acl_status) );
+    $log->debug( "ACL status: " . $acl_status->code );
     return 1 unless $acl_status->ok; # fail
     $self->_push_onto_context( { 'acl_priv' => $acl_priv } );
     return 0; # pass
@@ -609,7 +614,7 @@ sub resource_exists {
     # mapping in the PARAMHASH
     if ( exists $self->context->{'target'} and exists $self->context->{'mapping'} ) {
 
-        $log->debug( "Request for resource " . $self->context->{'path'} );
+        $log->debug( $self->request->method . " request for resource " . $self->context->{'path'} );
 
         my $target = $self->context->{'target'};
 
@@ -620,6 +625,16 @@ sub resource_exists {
         # This is where we actually execute the target, sending it the
         # entire context as an argument.
         my $status = &$target( $self->context );
+
+        # If method is GET and result is "No records found", return 404
+        if ( 
+            $self->context->{'method'} eq 'GET' and 
+            $status->ok and 
+            $status->code eq 'DISPATCH_NO_RECORDS_FOUND'
+        ) {
+            $log->debug( "Returning 404 Not Found" );
+            return 0; 
+        }
 
 	# The target returns a status object, but this time we simply push that
 	# object onto the context (after "expurgating", or "unblessing", it).

@@ -72,6 +72,11 @@ set( 'DOCHAZKA_REST_LOG_FILE_RESET', 0 );
 #    used in the "help"/"default" resources
 set( 'DOCHAZKA_DOCUMENTATION_URI', 'https://metacpan.org/pod/App::Dochazka::REST' );
 
+# DOCHAZKA_REPORT_BUGS_TO
+#    this should be an ordinary string like "bugs@dochazka.com" or
+#    "http://bugs.dochazka.com"
+set( 'DOCHAZKA_REPORT_BUGS_TO', 'bug-App-Dochazka-REST@rt.cpan.org' );
+
 # DOCHAZKA_URI_MAX_LENGTH
 #    maximum length of a URI -- see Resource.pm->uri_too_long
 set( 'DOCHAZKA_URI_MAX_LENGTH', 1000 );

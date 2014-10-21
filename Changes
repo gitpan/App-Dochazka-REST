@@ -1054,3 +1054,65 @@ Revision history for Dochazka-REST
 - config/dispatch/dispatch_Top_Config.pm: add target for DELETE on 'echo'
   resource
 
+0.186  2014-10-16 16:44 CEST
+- Dispatch/, t/: work on dispatch-related POD, unit tests
+
+0.187  2014-10-16 17:53 CEST
+- t/: more dispatch tests
+
+0.188  2014-10-16 22:46 CEST
+- t/: add a bunch of tests; refine siteparam and metaparam tests; find
+  App::CELL bug ($meta can be used to access site parameters)
+
+0.189  2014-10-17 11:10 CEST
+- Resource.pm: provide hash to keys, instead of hash reference
+
+0.190  2014-10-17 17:48 CEST
+- Build.PL: require latest App::CELL to avoid bug
+- implement 'bugreport' resource
+- implement PUT method for 'metaparam/:param' resource
+- Dispatch.pm: add POD for more resources
+- t/310-dispatch-top-get.t: add test case for 'bugreport' resource
+- t/312-dispatch-top-put.t: add test case "set meta parameter via REST
+  call"
+
+0.191  2014-10-20 16:53 CEST
+- Hackweek Day 1
+- Build.PL: depend on latest version of App::Dochazka
+- config/dispatch/dispatch_Employee_Config.pm: use refactored employee
+  targets
+- config/sql/employee_Config.pm: do not include 'priv' and 'schedule' in
+  employee objects
+- Dispatch/Employee.pm: refactor employee PUT and POST targets
+- Model/Employee.pm: add 'overlay' method
+- Resource.pm: instead of having 'priv' property directly in the current
+  employee hash, we make a separate 'current_priv' property for it; 
+  push the HTTP method onto the context hash ASAP (in service_available)
+- t/316-dispatch-employee-post.t: add some "real" tests involving inserting
+  and update employee objects
+- t/317-dispatch-employee-put.t: fix broken tests
+
+0.192  2014-10-20 22:15 CEST
+- dispatch/dispatch_Employee_Config.pm: resources into alphabetical order; add
+  'employee/current/priv' resource
+- dispatch/dispatch_Message_en.conf, Dispatch/Employee.pm: add
+  'employee/current/priv' resource
+- Model/Shared.pm: add some log messages in course of debugging a problem with
+  App::Dochazka::CLI
+
+0.193  2014-10-21 08:35 CEST
+- t/: fix accumulated brokenness in data model tests
+- t/315-dispatch-employee-get.t: clean up comments and add a test case
+
+0.194  2014-10-21 09:21 CEST
+- Resource.pm: if method is GET and result is "No records found", return
+  404 instead of 200 + status object
+- t/: adapt tests to this change
+
+0.195  2014-10-21 10:51 CEST
+- Model/Employee.pm->noof_employees_by_priv: if $priv is not a valid
+  privlevel, return 'OK' status + status code DISPATCH_NO_RECORDS_FOUND
+  to trigger a 404 Not Found response; also, put 'count' property in the
+  payload where it belongs
+- t/315-dispatch-employee-get.t: adapt existing test case
+

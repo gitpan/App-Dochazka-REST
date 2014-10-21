@@ -21,8 +21,8 @@ my $builder = Module::Build->new(
         'Module::Build'  => 0,
     },
     build_requires => {
-        'App::CELL'      => 0.197,
-        'App::Dochazka'  => 0.153,
+        'App::CELL'      => 0.199,
+        'App::Dochazka'  => 0.170,
         'HTTP::Request'  => 0,
         'Plack::Session' => 0,
         'Plack::Test'    => 0,
@@ -33,7 +33,7 @@ my $builder = Module::Build->new(
     requires => {
         'perl'           => 5.012,
         'App::CELL'      => 0.194,
-        'App::Dochazka'  => 0.153,
+        'App::Dochazka'  => 0.170,
         'Data::Structure::Util' => 0,
         'DBD::Pg'        => 0,
         'DBI'            => 0,
@@ -46,6 +46,7 @@ my $builder = Module::Build->new(
         'Plack::Runner'  => 0,
         'Plack::Session' => 0,
         'Scalar::Util'   => 0,
+        'Test::Deep::NoTest' => 0,
         'Try::Tiny'      => 0,
         'Web::Machine'   => 0.15,
     },

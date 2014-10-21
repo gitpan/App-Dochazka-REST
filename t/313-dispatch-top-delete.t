@@ -64,28 +64,49 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request
-$res = $test->request( req_json_demo DELETE => '/' );
+# "" resource as demo
+$res = $test->request( req_json_demo DELETE => '' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'echo'} );
 
-# 2. '/help' - the same as '/'
-$res = $test->request( req_json_demo DELETE => '/help' );
+# "" resource as root
+$res = $test->request( req_json_root DELETE => '' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
 
-# 3. '/echo' with legal JSON
-$res = $test->request( req_json_root 'DELETE', '/echo', undef, '{ "username": "foo", "password": "bar" }' );
+# 'help' resource as demo
+$res = $test->request( req_json_demo DELETE => 'help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'echo'} );
+
+# "help" resource as root
+$res = $test->request( req_json_root DELETE => 'help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
+
+# "echo" resource as demo
+$res = $test->request( req_json_demo DELETE => 'echo' );
+is( $res->code, 403 );
+is( $res->message, "Forbidden" );
+
+# "echo" resource as root with legal JSON
+$res = $test->request( req_json_root 'DELETE', 'echo', undef, '{ "username": "foo", "password": "bar" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
@@ -95,12 +116,12 @@ is( $status->payload->{'username'}, 'foo' );
 ok( exists $status->payload->{'password'} );
 is( $status->payload->{'password'}, 'bar' );
 
-# 3. '/echo' with illegal JSON
-$res = $test->request( req_json_root 'DELETE', '/echo', undef, '{ "username": "foo", "password": "bar"' );
+# 'echo' resource as root with illegal JSON
+$res = $test->request( req_json_root 'DELETE', 'echo', undef, '{ "username": "foo", "password": "bar"' );
 is( $res->code, 400 );
 
-# 3. '/echo' with empty request body
-$res = $test->request( req_json_root 'DELETE', '/echo' );
+# 'echo' resource as root with empty request body
+$res = $test->request( req_json_root 'DELETE', 'echo' );
 is( $res->code, 200 );
 like( $res->content, qr/"payload"\s*:\s*null/ );
 $status = status_from_json( $res->content );
@@ -108,5 +129,46 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DELETE_ECHO' );
 ok( exists $status->{'payload'} );
 is( $status->payload, undef );
+
+# 'employee' resource as demo
+$res = $test->request( req_json_demo 'DELETE', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
+ok( not exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
+
+# 'employee' resource as root
+$res = $test->request( req_json_root 'DELETE', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+# admin-only resources
+# ...
+
+# 'privhistory' resource as demo
+$res = $test->request( req_json_demo 'DELETE', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+# admin-only resources
+# ...
+
+# 'privhistory' resource as root
+$res = $test->request( req_json_root 'DELETE', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+# admin-only resources
+# ...
 
 done_testing;

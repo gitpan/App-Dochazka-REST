@@ -199,8 +199,6 @@ is( noof( 'schedhistory' ), 1 );
 # and now Mr. Sched's employee object should contain the schedule
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $emp->{eid} );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-my $mrsched = $status->payload;
-is_valid_json( $mrsched->{schedule} );
 
 # try to load the same schedhistory record into an empty object
 my $sh2 = App::Dochazka::REST::Model::Schedhistory->spawn;

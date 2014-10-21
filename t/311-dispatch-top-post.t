@@ -64,7 +64,7 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request (as demo)
+# "/" resource as demo
 $res = $test->request( req_json_demo POST => '/' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -72,11 +72,13 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 
-# 2. the very basic-est request (as root)
+# "/" resource as root
 $res = $test->request( req_json_root POST => '/' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -84,42 +86,51 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
-ok( not exists $status->payload->{'resources'}->{'foobar'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
 
-# 3. '/help' - the same as '/' (as demo)
-$res = $test->request( req_json_demo POST => '/help' );
+# "help" resource as demo
+$res = $test->request( req_json_demo POST => 'help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 
-# 3. '/help' - the same as '/' (as root)
-$res = $test->request( req_json_root POST => '/help' );
+# "help" resource as root
+$res = $test->request( req_json_root POST => 'help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'echo'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
-ok( not exists $status->payload->{'resources'}->{'foobar'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
 
-# 4. '/echo' with legal JSON (as root due to strict ACL policy)
-$res = $test->request( req_json_root 'POST', '/echo', undef, '{ "username": "foo", "password": "bar" }' );
+# "echo" resource as demo
+$res = $test->request( req_json_demo POST => 'echo' );
+is( $res->code, 403 );
+is( $res->message, 'Forbidden' );
+
+# 'echo' with legal JSON (as root due to strict ACL policy)
+$res = $test->request( req_json_root 'POST', 'echo', undef, '{ "username": "foo", "password": "bar" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
@@ -129,12 +140,12 @@ is( $status->payload->{'username'}, 'foo' );
 ok( exists $status->payload->{'password'} );
 is( $status->payload->{'password'}, 'bar' );
 
-# 5. '/echo' with illegal JSON
-$res = $test->request( req_json_root 'POST', '/echo', undef, '{ "username": "foo", "password": "bar"' );
+# 'echo' with illegal JSON
+$res = $test->request( req_json_root 'POST', 'echo', undef, '{ "username": "foo", "password": "bar"' );
 is( $res->code, 400 );
 
-# 6. '/echo' with empty request body
-$res = $test->request( req_json_root 'POST', '/echo' );
+# 'echo' with empty request body
+$res = $test->request( req_json_root 'POST', 'echo' );
 is( $res->code, 200 );
 like( $res->content, qr/"payload"\s*:\s*null/ );
 $status = status_from_json( $res->content );
@@ -142,5 +153,58 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_POST_ECHO' );
 ok( exists $status->{'payload'} );
 is( $status->payload, undef );
+
+# 'employee' as demo
+$res = $test->request( req_json_demo 'POST', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'method'} );
+is( $status->payload->{'method'}, 'POST' );
+
+# 'employee' as root
+$res = $test->request( req_json_root 'POST', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'method'} );
+is( $status->payload->{'method'}, 'POST' );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'employee/eid'} );
+ok( exists $status->payload->{'resources'}->{'employee/nick'} );
+
+# 'privhistory' as demo
+$res = $test->request( req_json_demo 'POST', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'method'} );
+is( $status->payload->{'method'}, 'POST' );
+
+# 'privhistory' as root
+$res = $test->request( req_json_root 'POST', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'method'} );
+is( $status->payload->{'method'}, 'POST' );
+# additional admin-only resources
+# none yet
 
 done_testing;

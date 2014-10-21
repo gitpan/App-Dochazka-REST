@@ -6,8 +6,8 @@ WriteMakefile
   'NAME' => 'App::Dochazka::REST',
   'VERSION_FROM' => 'lib/App/Dochazka/REST.pm',
   'PREREQ_PM' => {
-                   'App::CELL' => '0.197',
-                   'App::Dochazka' => '0.153',
+                   'App::CELL' => '0.199',
+                   'App::Dochazka' => '0.17',
                    'DBD::Pg' => 0,
                    'DBI' => 0,
                    'Data::Structure::Util' => 0,
@@ -22,6 +22,7 @@ WriteMakefile
                    'Plack::Session' => 0,
                    'Plack::Test' => 0,
                    'Scalar::Util' => 0,
+                   'Test::Deep::NoTest' => 0,
                    'Test::Fatal' => 0,
                    'Test::JSON' => 0,
                    'Try::Tiny' => 0,

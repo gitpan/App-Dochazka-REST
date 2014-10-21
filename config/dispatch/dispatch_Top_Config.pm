@@ -55,17 +55,6 @@ set( 'DISPATCH_RESOURCES_TOP', {
         acl_profile => 'passerby', 
         description => 'Display available top-level resources for given HTTP method',
     },
-    'echo' =>
-    {
-        target => {
-            POST => '_echo', 
-            PUT => '_echo', 
-            DELETE => '_echo',
-        },
-        target_module => 'App::Dochazka::REST::Dispatch',
-        acl_profile => 'admin', 
-        description => 'Echo the request body',
-    },
     'help' => 
     { 
         target => {
@@ -77,6 +66,26 @@ set( 'DISPATCH_RESOURCES_TOP', {
         target_module => 'App::Dochazka::REST::Dispatch',
         acl_profile => 'passerby', 
         description => 'Display available top-level resources for given HTTP method',
+    },
+    'bugreport' =>
+    {
+        target => {
+            GET => '_get_bugreport',
+        },
+        target_module => 'App::Dochazka::REST::Dispatch',
+        acl_profile => 'passerby', 
+        description => 'Display the address for reporting bugs in App::Dochazka::REST',
+    },
+    'echo' =>
+    {
+        target => {
+            POST => '_echo', 
+            PUT => '_echo', 
+            DELETE => '_echo',
+        },
+        target_module => 'App::Dochazka::REST::Dispatch',
+        acl_profile => 'admin', 
+        description => 'Echo the request body',
     },
     'version' =>
     { 
@@ -94,16 +103,17 @@ set( 'DISPATCH_RESOURCES_TOP', {
         },
         target_module => 'App::Dochazka::REST::Dispatch',
         acl_profile => 'admin', 
-        description => 'Show value of a site configuration parameter',
+        description => 'Display site configuration parameter',
     },
     'metaparam/:param' =>
     { 
         target => {
             GET => '_get_param', 
+            PUT => '_put_param',
         },
         target_module => 'App::Dochazka::REST::Dispatch',
         acl_profile => 'admin', 
-        description => 'Show value of a site configuration parameter',
+        description => 'Display (GET) or set (PUT) meta configuration parameter',
     },
     'forbidden' =>
     { 

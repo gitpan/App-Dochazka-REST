@@ -44,7 +44,7 @@ use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared;
 use App::Dochazka::REST::Model::Employee qw( nick_exists noof_employees_by_priv );
-use App::Dochazka::REST::Model::Shared qw( noof );
+use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid );
 use Carp;
 use Data::Dumper;
 use Params::Validate qw( :all );
@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -145,6 +145,23 @@ sub _get_current {
 }
 
 
+sub _get_current_priv {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_current_priv" ); 
+
+    my $current_emp = $context->{'current'};
+    my $current_priv = priv_by_eid( $current_emp->{'eid'} );
+    $CELL->status_ok( 
+        'DISPATCH_EMPLOYEE_CURRENT_PRIV', 
+        args => [ $current_emp->{'nick'}, $current_priv ], 
+        payload => { 
+            'priv' => $current_priv,
+            'current_emp' => $current_emp,
+        } 
+    );
+}
+
+
 sub _get_count {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_count" ); 
@@ -159,61 +176,85 @@ sub _get_count {
 }
 
 
-=head2 POST targets
-
-=cut
-
-# no parameter, everything in request body, nick required
-sub _post_employee_body_with_nick_required {
+sub _assemble_employee_object {
+    my %hr = @_;
+    my %r;
+    while (my ($key, $value) = each %hr) {
+        if ( grep { $key eq $_ } ( 'eid', 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ) ) {
+            $r{$key} = $value;
+        }
+    }
+    return %r;
+}
+        
+sub _put_post_employee_by_nick {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ) 
-        unless $context->{'request_body'}->{'nick'};
-    delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    return _put_employee( %{ $context->{'request_body'} } );
+
+    # get nick
+    my $nick;
+    if ( $context->{'method'} eq 'POST' ) {
+        $nick = $context->{'request_body'}->{'nick'} if exists $context->{'request_body'}->{'nick'};
+    } elsif ( $context->{'method'} eq 'PUT' ) {
+        $nick = $context->{'mapping'}->{'nick'} if exists $context->{'mapping'}->{'nick'};
+    } else {
+        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
+    }
+
+    if ( $nick ) {
+        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+            my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
+            my $newemp = App::Dochazka::REST::Model::Employee->spawn(
+                _assemble_employee_object( %{ $context->{'request_body'} } ) 
+            );
+            _update_employee( $oldemp, $newemp );
+        } else {
+            _insert_employee( _assemble_employee_object( nick => $nick, %{ $context->{'request_body'} } ) );
+        }
+    } else {
+        return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ); 
+    }
 }
 
-# no parameter, everything in request body, EID required
-sub _post_employee_body_with_eid_required {
+sub _put_post_employee_by_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ) 
-        unless $context->{'request_body'}->{'eid'};
-    return _put_employee( %{ $context->{'request_body'} } );
+
+    # get eid
+    my $eid;
+    if ( $context->{'method'} eq 'POST' ) {
+        $eid = $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
+    } elsif ( $context->{'method'} eq 'PUT' ) {
+        $eid = $context->{'mapping'}->{'eid'} if exists $context->{'mapping'}->{'eid'};
+    } else {
+        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
+    }
+
+    if ( $eid ) {
+        my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+            my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
+            my $newemp = App::Dochazka::REST::Model::Employee->spawn(
+                _assemble_employee_object( %{ $context->{'request_body'} } ) 
+            );
+            _update_employee( $oldemp, $newemp );
+        } else {
+            return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', $eid );
+        }
+    } else {
+        return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ); 
+    }
 }
 
-=head2 PUT targets
-
-=cut
-
-# nick provided in path, rest in optional request body
-sub _put_employee_nick_in_path {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my $nick = $context->{'mapping'}->{'nick'};
-    die "AAAAAAAAAAHHHHH! Swallowed by the abyss" unless defined $nick and ref \$nick eq 'SCALAR';
-    $context->{'request_body'}->{'nick'} = $nick;
-    delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    return _put_employee( %{ $context->{'request_body'} } );
-}
-
-# EID provided in path, rest in optional request body
-sub _put_employee_eid_in_path {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my $eid = $context->{'mapping'}->{'eid'};
-    die "AAAAAAAAAAHHHHH! Swallowed by the abyss" unless defined $eid and ref \$eid eq 'SCALAR';
-    $context->{'request_body'}->{'eid'} = $eid;
-    return _put_employee( %{ $context->{'request_body'} } );
-}
-
-sub _put_employee {
+# takes PROPLIST with mandatory 'nick' property
+sub _insert_employee {
     my @ARGS = @_;
-    my %ARGS;
-
-    $log->debug("Reached _put_employee");
+    $log->debug("Reached _insert_employee from " . (caller)[1] . " line " .  (caller)[2] . " with argument list " . join( ", ", @ARGS ) );
 
     # validate arguments and convert them into employee object
     my $status = $CELL->status_ok;
+    my %ARGS;
     try {
         %ARGS = validate( @ARGS, { 
-            eid =>      { tupe => SCALAR | UNDEF, optional => 1 },
             nick =>     { type => SCALAR },
             fullname => { type => SCALAR | UNDEF, optional => 1 },
             email =>    { type => SCALAR | UNDEF, optional => 1 },
@@ -223,33 +264,19 @@ sub _put_employee {
         } );
     }
     catch {
-        $status = $CELL->status_err( 'DISPATCH_PUT_EMPLOYEE: %s', args => [ $_ ] );
+        $status = $CELL->status_err( 'DISPATCH_INSERT_EMPLOYEE: %s', args => [ $_ ] );
     };
     return $status unless $status->ok;
     my $emp = App::Dochazka::REST::Model::Employee->spawn( %ARGS );
-
-    # execute the INSERT/UPDATE database transaction
-    my ( $level, $code );
-    # if EID provided, we try to update
-    if ( my $eid = $emp->eid ) {
-        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-        return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
-            ? $emp->update
-            : $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] );
-    }
-    # if nick provided, we either update if nick exists or insert otherwise
-    elsif ( my $nick = $emp->nick ) {
-        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-            $emp->eid( $status->payload->eid );
-            return $emp->update;
-        } else {
-            return $emp->insert;
-        }
-    }
-    # neither EID nor nick provided: ERROR
-    return $CELL->status_err( 'DISPATCH_EMPLOYEE_PLEASE_PROVIDE_EID_OR_NICK' );
+    return $emp->insert;
 }
 
+# takes "emp" and "over" employee objects - $emp is overlayed by $over
+sub _update_employee {
+    my ($emp, $over) = @_;
+
+    $emp->overlay( $over ); # note that 'overlay' does not change EID
+    return $emp->update;
+}
 
 1;

@@ -106,66 +106,66 @@ my $eid_of_mrfu = $mrfu->eid;
 
 # 2. 'employee/nick' - update existing employee
 $res = $test->request( req_json_demo POST => '/employee/nick', undef, 
-    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
+    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "mrfu@dragon.org" }' );
 is( $res->code, 403 ); # forbidden
 $res = $test->request( req_json_root POST => '/employee/nick', undef, 
-    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "scale@dragon.org" }' );
+    '{ "nick":"mrfu", "fullname":"Dragon Scale Update", "email" : "mrfu@dragon.org" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
 $mrfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
 $mrfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrfu,
-    nick => 'mrfu', fullname => 'Dragon Scale Update', email => 'scale@dragon.org' );
+    nick => 'mrfu', fullname => 'Dragon Scale Update', email => 'mrfu@dragon.org' );
 is_deeply( $mrfu, $mrfuprime );
 
 # 3. 'employee/nick/:nick' - add new employee
-$res = $test->request( req_json_demo PUT => '/employee/nick/mrsfu', undef, '{' );
+$res = $test->request( req_json_demo PUT => '/employee/nick/brotherchen', undef, '{' );
 is( $res->code, 400 ); # malformed
-$res = $test->request( req_json_demo PUT => '/employee/nick/mrsfu', undef, 
-    '{ "nick":"mrsfu", "fullname":"Dragoness" }' );
+$res = $test->request( req_json_demo PUT => '/employee/nick/brotherchen', undef, 
+    '{ "nick":"brotherchen", "fullname":"Anders Chen" }' );
 is( $res->code, 403 ); # forbidden
-$res = $test->request( req_json_root PUT => '/employee/nick/mrsfu', undef, 
-    '{ "nick":"mrsfu", "fullname":"Dragoness" }' );
+$res = $test->request( req_json_root PUT => '/employee/nick/brotherchen', undef, 
+    '{ "nick":"brotherchen", "fullname":"Anders Chen" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_EMPLOYEE_INSERT_OK' );
-my $mrsfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
-my $mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $mrsfu->eid, 
-    nick => 'mrsfu', fullname => 'Dragoness' );
-is_deeply( $mrsfu, $mrsfuprime );
-my $eid_of_mrsfu = $mrsfu->eid;
+my $brchen = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+my $brchenprime = App::Dochazka::REST::Model::Employee->spawn( eid => $brchen->eid, 
+    nick => 'brotherchen', fullname => 'Anders Chen' );
+is_deeply( $brchen, $brchenprime );
+my $eid_of_brchen = $brchen->eid;
 
 # 3. 'employee/nick/:nick' - update existing employee
-$res = $test->request( req_json_demo PUT => '/employee/nick/mrsfu', undef, '{' );
+$res = $test->request( req_json_demo PUT => '/employee/nick/brotherchen', undef, '{' );
 is( $res->code, 400 ); # malformed
-$res = $test->request( req_json_demo PUT => '/employee/nick/mrsfu', undef, 
-    '{ "fullname":"Dragoness Update" }' );
+$res = $test->request( req_json_demo PUT => '/employee/nick/brotherchen', undef, 
+    '{ "fullname":"Chen Update" }' );
 is( $res->code, 403 ); # forbidden
-$res = $test->request( req_json_root PUT => '/employee/nick/mrsfu', undef, 
-    '{ "eid": 534, "fullname":"Dragoness Update" }' );
+$res = $test->request( req_json_root PUT => '/employee/nick/brotherchen', undef, 
+    '{ "eid": 534, "fullname":"Chen Update" }' );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
-$mrsfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
-$mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrsfu,
-    nick => 'mrsfu', fullname => 'Dragoness Update' );
-is_deeply( $mrsfu, $mrsfuprime );
+$brchen = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+$brchenprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_brchen,
+    nick => 'brotherchen', fullname => 'Chen Update' );
+is_deeply( $brchen, $brchenprime );
 
 # 4. 'employee/eid' - update existing employee
-$res = $test->request( req_json_demo POST => '/employee/eid', undef, 
-    '{ "eid": ' . $eid_of_mrsfu . ', "fullname":"Dragoness Update Again" }' );
+$res = $test->request( req_json_demo PUT => "/employee/eid/$eid_of_brchen", undef, 
+    '{ "eid": ' . $eid_of_brchen . ', "fullname":"Chen Update Again" }' );
 is( $res->code, 403 ); # forbidden
-$res = $test->request( req_json_root PUT => '/employee/nick/mrsfu', undef, 
-    '{ "eid": ' . $eid_of_mrsfu . ', "fullname":"Dragoness Update Again" }' );
+$res = $test->request( req_json_root PUT => "/employee/eid/$eid_of_brchen", undef, 
+    '{ "eid": ' . $eid_of_brchen . ', "fullname":"Chen Update Again" }' );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
-$mrsfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
-$mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrsfu,
-    nick => 'mrsfu', fullname => 'Dragoness Update Again' );
-is_deeply( $mrsfu, $mrsfuprime );
+$brchen = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+$brchenprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_brchen,
+    nick => 'brotherchen', fullname => 'Chen Update Again' );
+is_deeply( $brchen, $brchenprime );
 
 # 5. 'employee/eid/:eid' - update existing employee
 $res = $test->request( req_json_demo PUT => "/employee/eid/$eid_of_mrfu", undef, '{' );
@@ -180,7 +180,7 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
 $mrfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
 $mrfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_mrfu,
-    nick => 'mrfu', fullname => 'Lizard Scale' );
+    nick => 'mrfu', fullname => 'Lizard Scale', email => 'mrfu@dragon.org' );
 is_deeply( $mrfu, $mrfuprime );
 
 # 5. 'employee/eid/:eid' - update non-existent
@@ -195,6 +195,5 @@ $status = status_from_json( $res->content );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
-
 
 done_testing;

@@ -149,9 +149,8 @@ is( $emp->email, 'root@site.org' );
 is( $emp->fullname, 'Root Immutable' );
 
 # get root's priv level and test priv accessor
-ok( exists( $emp->{priv} ) );
-is( $emp->{priv}, 'admin', "root is an admin" );
-is( $emp->priv, 'admin', "root is an admin another way" );
+my $root_priv = $emp->priv;
+is( $root_priv, 'admin', "root is an admin" );
 
 # spawn an employee object
 $emp = App::Dochazka::REST::Model::Employee->spawn( 
@@ -243,8 +242,9 @@ is( $emp->email, $emp->{email}, "accessor: email" );
 is( $emp->passhash, $emp->{passhash}, "accessor: passhash" );
 is( $emp->salt, $emp->{salt}, "accessor: salt" );
 is( $emp->remark, $emp->{remark}, "accessor: remark" );
-is( $emp->priv, $emp->{priv}, "accessor: priv" );
-is( $emp->priv, "passerby", "accessor: priv" );
+my $priv_of_mrsfu = $emp->priv;
+is( $priv_of_mrsfu, "passerby", "accessor: priv" );
+is( $emp->priv, $priv_of_mrsfu, "accessor: priv" );
 
 # Employees table should have three records (root, demo, Mrs. Fu, and Mr. Fu)
 is( noof( 'employees' ), 4 );

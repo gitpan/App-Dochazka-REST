@@ -56,11 +56,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -189,7 +189,6 @@ Perl hashref, bless it into 'App::CELL::Status', and send it back to caller.
 
 sub status_from_json {
     my ( $json ) = @_;
-    is_valid_json( $json );
     bless from_json( $json ), 'App::CELL::Status';
 }
 

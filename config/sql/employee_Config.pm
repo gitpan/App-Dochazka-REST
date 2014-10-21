@@ -40,14 +40,12 @@
 
 # 
 set( 'SQL_EMPLOYEE_SELECT_BY_EID', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark,
-          current_priv(eid) AS priv, current_schedule(eid) AS schedule 
+      SELECT eid, fullname, nick, email, passhash, salt, remark
       FROM employees WHERE eid=?/ );
 
 #
 set( 'SQL_EMPLOYEE_SELECT_BY_NICK', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark,
-          current_priv(eid) AS priv, current_schedule(eid) AS schedule 
+      SELECT eid, fullname, nick, email, passhash, salt, remark
       FROM employees WHERE nick=?/ );
 
 #
@@ -62,8 +60,7 @@ set( 'SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP', q/
 
 # 
 set( 'SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark,
-          current_priv(eid) AS priv, current_schedule(eid) AS schedule
+      SELECT eid, fullname, nick, email, passhash, salt, remark
       FROM employees WHERE nick LIKE ?/ );
 
 #

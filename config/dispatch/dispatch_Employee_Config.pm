@@ -46,6 +46,61 @@
 #    - the values of those keys are hashes containing resource metadata
 set( 'DISPATCH_RESOURCES_EMPLOYEE', {
 
+    'employee/count' =>
+    { 
+        target => {
+            GET => '_get_count', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'admin', 
+        description => 'Display total count of employees (all privilege levels)',
+    },
+    'employee/count/:priv' =>
+    { 
+        target => {
+            GET => '_get_count', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'admin', 
+        description => 'Display total count of employees with given privilege level',
+    },
+    'employee/current' =>
+    { 
+        target => {
+            GET => '_get_current', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'passerby', 
+        description => 'Display the current employee (i.e. the one we authenticated with)',
+    },
+    'employee/current/priv' =>
+    { 
+        target => {
+            GET => '_get_current_priv', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'passerby', 
+        description => 'Display the privilege level of the current employee (i.e. the one we authenticated with)',
+    },
+    'employee/eid' =>
+    {
+        target => {
+            POST => '_put_post_employee_by_eid', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'admin', 
+        description => 'Update existing employee (JSON request body with EID required)',
+    },
+    'employee/eid/:eid' =>
+    { 
+        target => {
+            GET => '_get_eid', 
+            PUT => '_put_post_employee_by_eid', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'admin', 
+        description => 'GET: look up employee by EID (exact match); PUT: update existing employee',
+    },
     'employee/help' =>
     { 
         target => {
@@ -70,7 +125,7 @@ set( 'DISPATCH_RESOURCES_EMPLOYEE', {
     'employee/nick' =>
     {
         target => {
-            POST => '_post_employee_body_with_nick_required',
+            POST => '_put_post_employee_by_nick',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
@@ -80,57 +135,11 @@ set( 'DISPATCH_RESOURCES_EMPLOYEE', {
     { 
         target => {
             GET => '_get_nick', 
-            PUT => '_put_employee_nick_in_path', 
+            PUT => '_put_post_employee_by_nick', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
         description => "GET: look up employee by nick (exact match); PUT: insert new employee or update existing"
-    },
-    'employee/eid' =>
-    {
-        target => {
-            POST => '_post_employee_body_with_eid_required', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
-        description => 'Update existing employee (JSON request body with EID required)',
-    },
-    'employee/eid/:eid' =>
-    { 
-        target => {
-            GET => '_get_eid', 
-            PUT => '_put_employee_eid_in_path', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
-        description => 'GET: look up employee by EID (exact match); PUT: update existing employee',
-    },
-    'employee/current' =>
-    { 
-        target => {
-            GET => '_get_current', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'passerby', 
-        description => 'Display the current employee (i.e. the one we authenticated with)',
-    },
-    'employee/count' =>
-    { 
-        target => {
-            GET => '_get_count', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
-        description => 'Display total count of employees (all privilege levels)',
-    },
-    'employee/count/:priv' =>
-    { 
-        target => {
-            GET => '_get_count', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
-        description => 'Display total count of employees with given privilege level',
     },
 
 } );

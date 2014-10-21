@@ -64,28 +64,72 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request
-$res = $test->request( req_json_demo PUT => '/' );
+# "" resource as demo
+$res = $test->request( req_json_demo PUT => '' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'echo'} );
 
-# 2. '/help' - the same as '/'
-$res = $test->request( req_json_demo PUT => '/help' );
+# "" resource as root
+$res = $test->request( req_json_root PUT => '' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
+ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 
-# 3. '/echo' with legal JSON
-$res = $test->request( req_json_root 'PUT', '/echo', undef, '{ "username": "foo", "password": "bar" }' );
+# 'help' resource as demo
+$res = $test->request( req_json_demo PUT => 'help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'echo'} );
+
+# "help" resource as root
+$res = $test->request( req_json_root PUT => 'help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+# additional admin-only resources
+ok( exists $status->payload->{'resources'}->{'echo'} );
+ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
+
+# "metaparam/:param" resource as demo
+$res = $test->request( req_json_demo PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
+is( $res->code, 403 );
+is( $res->message, "Forbidden" );
+
+# "metaparam/:param" resource as root
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
+$res = $test->request( req_json_root PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING', 
+    undef, '{ "value": "foobar" }' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_PARAM_SET' );
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 'foobar' );
+$res = $test->request( req_json_root PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING', 
+    undef, '{ "value": 1 }' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
+
+# "echo" resource as demo
+$res = $test->request( req_json_demo PUT => 'echo' );
+is( $res->code, 403 );
+is( $res->message, "Forbidden" );
+
+# "echo" resource as root with legal JSON
+$res = $test->request( req_json_root 'PUT', 'echo', undef, '{ "username": "foo", "password": "bar" }' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
@@ -95,12 +139,12 @@ is( $status->payload->{'username'}, 'foo' );
 ok( exists $status->payload->{'password'} );
 is( $status->payload->{'password'}, 'bar' );
 
-# 3. '/echo' with illegal JSON
-$res = $test->request( req_json_root 'PUT', '/echo', undef, '{ "username": "foo", "password": "bar"' );
+# 'echo' resource as root with illegal JSON
+$res = $test->request( req_json_root 'PUT', 'echo', undef, '{ "username": "foo", "password": "bar"' );
 is( $res->code, 400 );
 
-# 3. '/echo' with empty request body
-$res = $test->request( req_json_root 'PUT', '/echo' );
+# 'echo' resource as root with empty request body
+$res = $test->request( req_json_root 'PUT', 'echo' );
 is( $res->code, 200 );
 like( $res->content, qr/"payload"\s*:\s*null/ );
 $status = status_from_json( $res->content );
@@ -108,5 +152,47 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_PUT_ECHO' );
 ok( exists $status->{'payload'} );
 is( $status->payload, undef );
+
+# 'employee' resource as demo
+$res = $test->request( req_json_demo 'PUT', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+# admin-only resources
+ok( not exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
+ok( not exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
+
+# 'employee' resource as root
+$res = $test->request( req_json_root 'PUT', 'employee' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+# admin-only resources
+ok( exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
+ok( exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
+
+# 'privhistory' resource as demo
+$res = $test->request( req_json_demo 'PUT', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+# admin-only resources
+# ...
+
+# 'privhistory' resource as root
+$res = $test->request( req_json_root 'PUT', 'privhistory' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+# admin-only resources
+# ...
 
 done_testing;

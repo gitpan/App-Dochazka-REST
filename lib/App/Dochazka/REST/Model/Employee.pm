@@ -62,11 +62,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -162,9 +162,11 @@ L<App::Dochazka::REST::Model::Employee>. The most important methods are:
 =item * basic accessors (L<eid>, L<fullname>, L<nick>, L<email>,
 L<passhash>, L<salt>, L<remark>)
 
-=item * privilege accessor (L<priv>)
+=item * L<priv> (privilege "accessor" - but privilege info is not stored in
+the object)
 
-=item * schedule accessor (L<schedule>)
+=item * L<schedule> (schedule "accessor" - but schedule info is not stored
+in the object)
 
 =item * L<reset> (recycles an existing object by setting it to desired state)
 
@@ -222,7 +224,27 @@ our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 =head1 METHODS
 
-=head3 priv
+=head2 overlay
+
+Overlay, or merge, "self" object with another object. Parameters from
+the latter overwrite the former.
+
+=cut
+
+sub overlay {
+    my ( $self, $over ) = @_;
+    foreach my $prop ( 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ) {
+        if ( $over->{$prop} ) {
+            if ( $self->{$prop} ) {
+                $log->debug( "overlay replacing $prop (" . $self->{$prop} .  ") with new value (" . $over->{$prop} . ")" );
+            }
+            $self->{$prop} = $over->{$prop};
+        }
+    }
+    return;
+}
+
+=head2 priv
 
 Accessor method. Wrapper for App::Dochazka::REST::Model::Shared::priv_by_eid
 N.B.: for this method to work, the 'eid' attribute must be populated
@@ -238,7 +260,7 @@ sub priv {
 }
 
 
-=head3 schedule
+=head2 schedule
 
 Accessor method. Wrapper for App::Dochazka::REST::Model::Shared::schedule_by_eid
 N.B.: for this method to work, the 'eid' attribute must be populated
@@ -510,16 +532,22 @@ sub noof_employees_by_priv {
 
     if ( $priv eq 'total' ) {
         my $count = noof( 'employees' );
-        return $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], count => $count );
+        return $CELL->status_ok( 
+            'DISPATCH_COUNT_EMPLOYEES', 
+            args => [ $count, $priv ], 
+            payload => { count => $count } );
     }
 
-    return $CELL->status_err( 'DOCHAZKA_INVALID_PRIV', args => [ $priv ] ) unless 
+    # if $priv is not one of the "kosher" privlevels, return 'OK' status
+    # with code DISPATCH_NO_RECORDS_FOUND to Resource.pm, which triggers a
+    # 404
+    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND' ) unless 
         grep { $priv eq $_; } qw( admin active inactive passerby );
 
     my $sql = $site->SQL_EMPLOYEE_COUNT_BY_PRIV_LEVEL;
     my ( $count ) = $dbh->selectrow_array( $sql, undef, $priv );
     $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], 
-        count => $count, payload => { 'priv' => $priv, 'count' => $count } );
+        payload => { 'priv' => $priv, 'count' => $count } );
 }
 
 

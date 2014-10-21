@@ -57,11 +57,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.185
+Version 0.195
 
 =cut
 
-our $VERSION = '0.185';
+our $VERSION = '0.195';
 
 
 
@@ -239,6 +239,7 @@ database.
 sub priv_by_eid {
     my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
         { type => SCALAR, optional => 1 } );
+    $log->debug( "priv_by_eid: EID is " . (defined( $eid ) ? $eid : 'undef') . " - called from " . (caller)[1] . " line " . (caller)[2] );
     return _st_by_eid( 'priv', $eid, $ts );
 }
 
@@ -267,6 +268,7 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 sub _st_by_eid {
     my ( $st, $eid, $ts ) = @_;
     my $sql;
+    $log->debug( "Entering _st_by_eid with \$st == $st" );
     if ( $ts ) {
         # timestamp given
         if ( $st eq 'priv' ) {
@@ -282,6 +284,7 @@ sub _st_by_eid {
         } elsif ( $st eq 'schedule' ) {
             $sql = $site->SQL_EMPLOYEE_CURRENT_SCHEDULE;
         } 
+        $log->debug("About to run SQL statement $sql with parameter $eid - called from " . (caller)[1] . " line " . (caller)[2] );
         ( $st ) = $dbh->selectrow_array( $sql, undef, $eid );
     }
     return $st;

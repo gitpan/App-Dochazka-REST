@@ -40,12 +40,14 @@ use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
+use App::CELL::Config;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Test qw( req_root req_demo status_from_json );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
 use Scalar::Util qw( blessed );
+use Test::Fatal;
 use Test::JSON;
 use Test::More;
 
@@ -64,93 +66,296 @@ ok( blessed $test );
 
 my $res;
 
-# 1. the very basic-est request
+# "" resource as demo
 $res = $test->request( req_demo GET => '/' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'resources'}->{'version'} );
+ok( exists $status->payload->{'resources'}->{'whoami'} );
+ok( exists $status->payload->{'resources'}->{'session'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'privhistory'} );
 
-# 2. /version
-$res = $test->request( req_demo GET => '/version' );
+# "" resource as root
+$res = $test->request( req_root GET => '/' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'method'} );
+# passerby resources
+ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'resources'}->{'version'} );
+ok( exists $status->payload->{'resources'}->{'session'} );
+ok( exists $status->payload->{'resources'}->{'employee'} );
+ok( exists $status->payload->{'resources'}->{'privhistory'} );
+# plus admin-only resources
+ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
+
+# "help" resource as demo
+$res = $test->request( req_demo GET => 'help' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'resources'}->{'version'} );
+ok( exists $status->payload->{'resources'}->{'whoami'} );
+ok( exists $status->payload->{'resources'}->{'session'} );
+ok( exists $status->payload->{'resources'}->{'employee'} );
+ok( exists $status->payload->{'resources'}->{'privhistory'} );
+
+# "help" resource as root
+$res = $test->request( req_root GET => 'help' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'method'} );
+# passerby resources
+ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'help'} );
+ok( exists $status->payload->{'resources'}->{'version'} );
+ok( exists $status->payload->{'resources'}->{'session'} );
+ok( exists $status->payload->{'resources'}->{'employee'} );
+ok( exists $status->payload->{'resources'}->{'privhistory'} );
+# plus admin-only resources
+ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
+
+# "bugreport" as demo
+$res = $test->request( req_demo GET => 'bugreport' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_BUGREPORT' );
+ok( exists $status->payload->{'report_bugs_to'} );
+
+# "version" as demo
+$res = $test->request( req_demo GET => 'version' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DOCHAZKA_REST_VERSION' );
 ok( exists $status->payload->{'version'} );
 
-# 3. /help
-$res = $test->request( req_demo GET => '/help' );
+# "version" as root
+$res = $test->request( req_root GET => 'version' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
-is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'help'} );
-ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+is( $status->code, 'DISPATCH_DOCHAZKA_REST_VERSION' );
+ok( exists $status->payload->{'version'} );
 
-# 4. /siteparam (existing parameter with trailing '/')
-$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/' );
+# "session" as demo
+$res = $test->request( req_demo GET => 'session' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_SESSION_DATA' );
+ok( exists $status->payload->{'session'} );
+ok( exists $status->payload->{'session_id'} );
+#ok( exists $status->payload->{'session'}->{'ip_addr'} );
+#ok( exists $status->payload->{'session'}->{'last_seen'} );
+#ok( exists $status->payload->{'session'}->{'eid'} );
+
+# "siteparam/:param" as demo (existing parameter)
+$res = $test->request( req_demo GET => 'siteparam/DOCHAZKA_APPNAME/' );
+is( $res->code, 403 );
+is( $res->message, 'Forbidden' );
+
+# "siteparam/:param" as root (existing parameter)
+$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME/' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_PARAM_FOUND' );
 ok( exists $status->payload->{name} );
-ok( exists $status->payload->{type} );
-ok( exists $status->payload->{value} );
 is( $status->payload->{name}, 'DOCHAZKA_APPNAME' );
+ok( exists $status->payload->{type} );
+is( $status->payload->{type}, 'site' );
+ok( exists $status->payload->{value} );
 is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
 
-# 4. /siteparam (existing parameter without trailing '/')
-$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME' );
+# "siteparam/:param" as root (existing parameter without trailing '/')
+$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
-is( $status->code, 'DISPATCH_PARAM_FOUND' );
-ok( exists $status->payload->{name} );
-ok( exists $status->payload->{type} );
-ok( exists $status->payload->{value} );
-is( $status->payload->{name}, 'DOCHAZKA_APPNAME' );
-is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
 
-# 4. /siteparam (non-existent parameter)
-$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_appname' );
+# "siteparam/:param" as demo (non-existent parameter)
+$res = $test->request( req_demo GET => 'siteparam/DOCHEEEHAWHAZKA_appname' );
+is( $res->code, 403 );
+is( $res->content, 'Forbidden' );
+
+# "siteparam/:param" as root (non-existent parameter)
+$res = $test->request( req_root GET => 'siteparam/DOCHEEEHAWHAZKA_appname' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
 
-# 4. /siteparam (existent parameter with trailing '/foobar')
-$res = $test->request( req_root GET => '/siteparam/DOCHAZKA_APPNAME/foobar' );
+# "siteparam/:param" as root (try to use siteparam to access a meta parameter)
+$res = $test->request( req_root GET => 'siteparam/META_DOCHAZKA_UNIT_TESTING' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
+
+# "siteparam/:param" as demo (existent parameter with trailing '/foobar' => invalid resource)
+$res = $test->request( req_demo GET => 'siteparam/DOCHAZKA_APPNAME/foobar' );
 is( $res->code, 404 );
 is( $res->content, 'Not Found' );
 
-# 5. /employee
+# "siteparam/:param" as root (existent parameter with trailing '/foobar' => invalid resource)
+$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME/foobar' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
+
+# "metaparam/:param" as root (existing parameter)
+$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_PARAM_FOUND' );
+ok( exists $status->payload->{name} );
+is( $status->payload->{name}, 'META_DOCHAZKA_UNIT_TESTING' );
+ok( exists $status->payload->{type} );
+is( $status->payload->{type}, 'meta' );
+ok( exists $status->payload->{value} );
+is( $status->payload->{value}, 1 );
+
+# "metaparam/:param" as root (existing parameter without trailing '/')
+$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
+is( $res->code, 200 );
+is( $status->payload->{name}, 'META_DOCHAZKA_UNIT_TESTING' );
+is( $status->payload->{type}, 'meta' );
+is( $status->payload->{value}, 1 );
+
+# "metaparam/:param" as demo (bogus parameter)
+$res = $test->request( req_demo GET => 'metaparam/DOCHEEEHAWHAZKA_appname' );
+is( $res->code, 403 );
+is( $res->content, 'Forbidden' );
+
+# "metaparam/:param" as root (bogus parameter)
+$res = $test->request( req_root GET => 'metaparam/DOCHEEEHAWHAZKA_appname' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
+
+# "metaparam/:param" as root (try to use metaparam to access a site parameter)
+$res = $test->request( req_root GET => 'metaparam/DOCHAZKA_APPNAME' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
+
+# "metaparam/:param" as demo (existent parameter with trailing '/foobar' => invalid resource)
+$res = $test->request( req_demo GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
+
+# "metaparam/:param" as root (existent parameter with trailing '/foobar' => invalid resource)
+$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
+is( $res->code, 404 );
+is( $res->content, 'Not Found' );
+
+# "employee" as demo
 $res = $test->request( req_demo GET => '/employee' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/current'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
-# 6. /privhistory
+# "employee" as root
+$res = $test->request( req_root GET => '/employee' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'employee/current'} );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+# additional admin-level resources
+ok( exists $status->payload->{'resources'}->{'employee/count/:priv'} );
+ok( exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
+ok( exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
+ok( exists $status->payload->{'resources'}->{'employee/:nick'} );
+ok( exists $status->payload->{'resources'}->{'employee/count'} );
+
+# "privhistory" as demo
 $res = $test->request( req_demo GET => '/privhistory' );
 is( $res->code, 200 );
+is_valid_json( $res->content );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+
+# "privhistory" as root
+$res = $test->request( req_root GET => '/privhistory' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+# additional admin-level resources
+ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/current/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'privhistory/current'} );
 
 done_testing;
