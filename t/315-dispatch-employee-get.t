@@ -63,131 +63,6 @@ ok( blessed $test );
 
 my $res;
 
-# "employee/help" as demo
-$res = $test->request( req_demo GET => '/employee/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( keys %{ $status->payload->{'resources'} } >= 2 );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
-
-# "employee/help" as root
-$res = $test->request( req_root GET => '/employee/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'documentation'} );
-ok( exists $status->payload->{'resources'} );
-ok( keys %{ $status->payload->{'resources'} } >= 6 );
-ok( exists $status->payload->{'resources'}->{'employee/help'} );
-
-# "employee/current" as demo user
-$res = $test->request( req_demo GET => '/employee/current' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-ok( exists $status->payload->{'nick'} );
-ok( not exists $status->payload->{'priv'} );
-is( $status->payload->{'nick'}, 'demo' );
-
-# "employee/current" as root user
-$res = $test->request( req_root GET => '/employee/current' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-ok( exists $status->payload->{'nick'} );
-ok( not exists $status->payload->{'priv'} );
-is( $status->payload->{'nick'}, 'root' );
-
-# "employee/current/priv" as demo
-$res = $test->request( req_demo GET => 'employee/current/priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'priv'} );
-ok( exists $status->payload->{'current_emp'} );
-is( $status->payload->{'current_emp'}->{'nick'}, 'demo' );
-is( $status->payload->{'priv'}, 'passerby' );
-
-# "employee/nick/root" as root
-$res = $test->request( req_root GET => 'employee/nick/root' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-my $emp = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
-is( ref $emp, 'App::Dochazka::REST::Model::Employee' );
-is( $emp->eid, $site->DOCHAZKA_EID_OF_ROOT );
-is( $emp->nick, 'root' );
-
-# "employee/nick/demo" as root
-$res = $test->request( req_root GET => '/employee/nick/demo' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
-ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-$emp->reset( %{ $status->payload } );
-is( ref $emp, 'App::Dochazka::REST::Model::Employee' );
-is( $emp->nick, 'demo' );
-my $eid_of_demo = $emp->eid;
-
-# "employee/nick/heathledger" (non-existent resource - should return 404)
-$res = $test->request( req_root GET => '/employee/nick/heathledger' );
-is( $res->code, 404 );
-
-# 4. /employee/eid/1
-$res = $test->request( req_root GET => '/employee/eid/' . $site->DOCHAZKA_EID_OF_ROOT );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-ok( exists $status->payload->{'nick'} );
-is( $status->payload->{'nick'}, 'root' );
-ok( exists $status->payload->{'fullname'} );
-is( $status->payload->{'fullname'}, 'Root Immutable' );
-
-# 4. /employee/eid/$eid_of_demo
-$res = $test->request( req_root GET => "/employee/eid/$eid_of_demo" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, $eid_of_demo );
-ok( exists $status->payload->{'nick'} );
-is( $status->payload->{'nick'}, 'demo' );
-ok( exists $status->payload->{'fullname'} );
-is( $status->payload->{'fullname'}, 'Demo Employee' );
-
-# "employee/eid/$eid_of_demo" as demo
-$res = $test->request( req_demo GET => "/employee/eid/$eid_of_demo" );
-is( $res->code, 403 );
-
-# "/employee/eid/53432" as root
-$res = $test->request( req_root GET => '/employee/eid/53432' );
-is( $res->code, 404 );
-
-# "employee/eid/53432" as demo
-$res = $test->request( req_demo GET => "/employee/eid/53432" );
-is( $res->code, 403 );
-
 # "employee/count" as root
 $res = $test->request( req_root GET => '/employee/count' );
 is( $res->code, 200 );
@@ -227,6 +102,130 @@ is( $status->payload->{'count'}, 0 );
 
 # "employee/count/[nonsense]" as root
 $res = $test->request( req_root GET => '/employee/count/inactivepeeplz' );
+is( $res->code, 404 );
+
+# "employee/current" as demo user
+$res = $test->request( req_demo GET => '/employee/current' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+ok( exists $status->payload->{'nick'} );
+ok( not exists $status->payload->{'priv'} );
+is( $status->payload->{'nick'}, 'demo' );
+
+# "employee/current" as root user
+$res = $test->request( req_root GET => '/employee/current' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'nick'} );
+ok( not exists $status->payload->{'priv'} );
+is( $status->payload->{'nick'}, 'root' );
+
+# "employee/current/priv" as demo
+$res = $test->request( req_demo GET => 'employee/current/priv' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'priv'} );
+ok( exists $status->payload->{'current_emp'} );
+is( $status->payload->{'current_emp'}->{'nick'}, 'demo' );
+is( $status->payload->{'priv'}, 'passerby' );
+
+# "/employee/eid/:eid" with EID == 1
+$res = $test->request( req_root GET => '/employee/eid/' . $site->DOCHAZKA_EID_OF_ROOT );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
+ok( exists $status->payload->{'nick'} );
+is( $status->payload->{'nick'}, 'root' );
+ok( exists $status->payload->{'fullname'} );
+is( $status->payload->{'fullname'}, 'Root Immutable' );
+
+# "/employee/eid/:eid" with EID == 2 (demo)
+$res = $test->request( req_root GET => "/employee/eid/2" );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+ok( exists $status->payload->{'eid'} );
+is( $status->payload->{'eid'}, 2 );
+ok( exists $status->payload->{'nick'} );
+is( $status->payload->{'nick'}, 'demo' );
+ok( exists $status->payload->{'fullname'} );
+is( $status->payload->{'fullname'}, 'Demo Employee' );
+
+# the same, but as the demo user
+$res = $test->request( req_demo GET => "/employee/eid/2" );
+is( $res->code, 403 );
+
+# "/employee/eid/53432" as root
+$res = $test->request( req_root GET => '/employee/eid/53432' );
+is( $res->code, 404 );
+
+# the same, but as the demo user
+$res = $test->request( req_demo GET => "/employee/eid/53432" );
+is( $res->code, 403 );
+
+# "employee/help" as demo
+$res = $test->request( req_demo GET => '/employee/help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( keys %{ $status->payload->{'resources'} } >= 2 );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# "employee/help" as root
+$res = $test->request( req_root GET => '/employee/help' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( keys %{ $status->payload->{'resources'} } >= 6 );
+ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# "employee/nick/root" as root
+$res = $test->request( req_root GET => 'employee/nick/root' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+my $emp = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+is( ref $emp, 'App::Dochazka::REST::Model::Employee' );
+is( $emp->eid, $site->DOCHAZKA_EID_OF_ROOT );
+is( $emp->nick, 'root' );
+
+# "employee/nick/demo" as root
+$res = $test->request( req_root GET => '/employee/nick/demo' );
+is( $res->code, 200 );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
+ok( defined $status->payload );
+$emp->reset( %{ $status->payload } );
+is( ref $emp, 'App::Dochazka::REST::Model::Employee' );
+is( $emp->nick, 'demo' );
+
+# "employee/nick/heathledger" (non-existent resource - should return 404)
+$res = $test->request( req_root GET => '/employee/nick/heathledger' );
 is( $res->code, 404 );
 
 done_testing;

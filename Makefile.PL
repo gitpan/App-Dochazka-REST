@@ -6,7 +6,7 @@ WriteMakefile
   'NAME' => 'App::Dochazka::REST',
   'VERSION_FROM' => 'lib/App/Dochazka/REST.pm',
   'PREREQ_PM' => {
-                   'App::CELL' => '0.199',
+                   'App::CELL' => '0.2',
                    'App::Dochazka' => '0.17',
                    'DBD::Pg' => 0,
                    'DBI' => 0,
@@ -32,6 +32,9 @@ WriteMakefile
   'EXE_FILES' => [
                    'bin/dochazka-rest'
                  ],
-  'PL_FILES' => {}
+  'PL_FILES' => {},
+  'test' => {
+              'TESTS' => 't/*.t t/dispatch/*.t'
+            }
 )
 ;

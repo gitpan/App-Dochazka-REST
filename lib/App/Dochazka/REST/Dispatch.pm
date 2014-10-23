@@ -66,11 +66,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.195
+Version 0.207
 
 =cut
 
-our $VERSION = '0.195';
+our $VERSION = '0.207';
 
 
 
@@ -84,121 +84,16 @@ C<config/dispatch/dispatch_Top_Config.pm>.
 
 
 
-=head1 RESOURCES
+=head1 RESOURCE TARGETS
 
-This section documents the resources whose dispatch targets are contained
-in this source module. For the resource definitions, see
-C<config/dispatch/dispatch_Top_Config.pm>.
-
-Each resource can have up to four targets (one each for the four supported
-HTTP methods GET, POST, PUT, and DELETE). That said, target routines may be
-written to handle more than one HTTP method and/or more than one resoure.
-
-
-=head2 C<""> or C</>
-
-B<Works with:> GET, POST, PUT, DELETE
-
-This is the toppest of the top-level targets or, if you wish, the "root
-target". If the base UID of your L<App::Dochazka::REST> instance is
-C<http://dochazka.site:5000> and your username/password are "demo/demo",
-then this resource is triggered by either of the URLs:
-
-    http://demo:demo@dochazka.site:5000
-    http://demo:demo@dochazka.site:5000/
-
-In terms of behavior, this resource is identical to C<help> (see below).
-
-
-=head2 C<help>
-
-B<Works with:> GET, POST, PUT, DELETE
-
-If the base UID of your L<App::Dochazka::REST> instance is
-C<http://dochazka.site:5000> and your username/password are "demo/demo",
-then this resource is triggered by either of the URLs:
-
-    http://demo:demo@dochazka.site:5000/help
-    http://demo:demo@dochazka.site:5000/help/
-    
-(This information applies analogously to all the resources described
-herein.)
-
-The purpose of the C<help> resource is to give the user an overview of all
-the top-level resources available to her, with regard to her privlevel and
-the HTTP method being used.
-
-That means, for example:
-
-=over
-
-=item * If the HTTP method is GET, only resources with GET targets will be
-displayed (same applies to other HTTP methods)
-
-=item * If the user's privlevel is 'inactive', only resources whose ACL
-profile is 'inactive' or lower (i.e., 'inactive' or 'passerby') will be
-displayed
-
-=back
-
-The information provided is sent as a JSON string in the HTTP response
-body, and includes the resource's name, full URI, ACL profile, and brief
-description, as well as a link to the L<App::Dochazka::REST> on-line
-documentation.
-
-
-=head2 C<bugreport>
-
-B<Works with:> GET
-
-Returns a C<report_bugs_to> key in the payload, containing the address to
-report bugs to.
-
-
-=head2 C<echo>
-
-B<Works with:> POST, PUT, DELETE
-
-This resource simply takes whatever content body was sent and echoes it
-back in the response body.
-
-
-=head2 C<version>
-
-B<Works with:> GET
-
-Returns a C<version> key in the payload, containing the version number of
-the running L<App::Dochazka::REST> instance.
-
-
-=head2 C<siteparam/:param>
-
-B<Works with:> GET
-
-Assuming that the argument C<:param> is the name of an existing site
-parameter, displays the parameter's value. This resource is available only
-to users with C<admin> privileges.
-
-
-=head2 C<metaparam/:param>
-
-B<Works with:> GET, PUT
-
-Assuming that the argument C<:param> is the name of an existing meta
-parameter, displays the parameter's value. This resource is available only
-to users with C<admin> privileges.
-
-
-
-
-
-=head1 TARGETS
+This section documents the resource targets whose source code resides in
+this module.
 
 =cut
 
+# the following BEGIN block generates the _get_default, _post_default,
+# _put_default, and delete_default subroutines (targets) at runtime
 BEGIN {
-    # generate four subroutines: _get_default, _post_default, _put_default,
-    # delete_default
     no strict 'refs';
     *{"_get_default"} = 
         App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_TOP', http_method => 'GET' );
@@ -211,87 +106,12 @@ BEGIN {
 }
 
 
-sub _get_param {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    # generate content
-    my ( $param, $path, $value, $status, $type );
-    $param = $context->{'mapping'}->{'param'};
-    $path = $context->{'path'};
-    if ( $path =~ m/siteparam/ ) {
-        $type = 'site';
-        $value = $site->get_param( $param ), 
-    } elsif ( $path =~ m/metaparam/ ) {
-        $type = 'meta';
-        $value = $meta->get_param( $param );
-    }
-    $status = defined( $value )
-        ? $CELL->status_ok( 
-              'DISPATCH_PARAM_FOUND', 
-              args => [ $type, $param ], 
-              payload => { 
-                  type => $type,
-                  name => $param,
-                  value => $value,
-              } 
-          )
-        : $CELL->status_err( 
-              'DISPATCH_PARAM_NOT_DEFINED', 
-              args => [ $type, $param ] 
-          );
-    return $status;
-}
-
-# PUT is only for meta parameters
-sub _put_param {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my ( $param, $path, $value, $status, $type );
-    $param = $context->{'mapping'}->{'param'};
-    $path = $context->{'path'};
-    my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
-    $value = $body->{'value'};
-    $log->debug("_put_param: about to set metaparam $param to " . Dumper( $value ) );
-    if ( $path =~ m/metaparam/ ) {
-        $type = 'meta';
-        $meta->set( $param, $value );
-    }
-    $status = ( eq_deeply( $meta->get_param( $param ), $value ) )
-        ? $CELL->status_ok( 
-              'DISPATCH_PARAM_SET', 
-              args => [ $type, $param ], 
-              payload => { 
-                  type => $type,
-                  name => $param,
-                  value => $value,
-              } 
-          )
-        : $CELL->status_err( 
-              'DISPATCH_PARAM_NOT_SET', 
-              args => [ $type, $param ],
-              payload => {
-                  type => $type,
-                  name => $param,
-                  value => $meta->get_param( $param ),
-              }
-          );
-    return $status;
-}
-
-sub _get_session {
-
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    return $CELL->status_ok( 'DISPATCH_SESSION_DATA', payload => {
-        session_id => $context->{'session_id'},
-        session => $context->{'session'},
-    } );
-}
-
 sub _get_bugreport {
     return $CELL->status_ok( 'DISPATCH_BUGREPORT', payload => {
         report_bugs_to => $site->DOCHAZKA_REPORT_BUGS_TO
     } );
 }
+
 
 sub _echo {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
@@ -307,12 +127,131 @@ sub _echo {
 }
 
 
-sub _forbidden { die "Das ist streng verboten"; }
+sub _help_post {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my $resource = $context->{'request_body'};
+    my $docs = $context->{'documentation'} || 'NONE WRITTEN YET';
+    chomp($docs);
+    $docs =~ s/\R/ /g;
+    if ( exists $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} ) {
+        return $CELL->status_ok( 'DISPATCH_ONLINE_DOCUMENTATION',
+            payload => {
+               'resource' => $resource,
+               'documentation' => $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource},
+            },
+        );
+    } else {
+        return $CELL->status_err( 'DISPATCH_BAD_RESOURCE' );
+    }
+}
+
+
+sub _forbidden { 
+    die <<'EOH';
+This message should never be displayed, because the lack of an acl_profile
+property in the resource definition should be enough to guarantee that all
+requests get resolved to 405 Method Not Allowed
+EOH
+}
+
+
+
+sub _get_param {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    # generate content
+    my ( $param, $path, $value, $status, $type );
+    $param = $context->{'mapping'}->{'param'};
+    $path = $context->{'path'};
+    if ( $path =~ m/siteparam/ ) {
+        $type = 'site';
+        $value = $site->get_param_metadata( $param ), 
+    } elsif ( $path =~ m/metaparam/ ) {
+        $type = 'meta';
+        $value = $meta->get_param_metadata( $param );
+    }
+    $status = defined( $value )
+        ? $CELL->status_ok( 
+              'DISPATCH_PARAM_FOUND', 
+              args => [ $type, $param ], 
+              payload => { 
+                  type => $type,
+                  name => $param,
+                  value => $value->{'Value'},
+                  where_defined => {
+                      file => $value->{'File'},
+                      line => $value->{'Line'},
+                  }
+              } 
+          )
+        : $CELL->status_err( 
+              'DISPATCH_PARAM_NOT_DEFINED', 
+              args => [ $type, $param ] 
+          );
+    return $status;
+}
+
+# PUT is only for meta parameters
+sub _put_param {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my ( $param, $path, $status, $type );
+    $param = $context->{'mapping'}->{'param'};
+    $path = $context->{'path'};
+    my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
+    $log->debug("_put_param: request body is " . Dumper( $body ) );
+    $log->debug("_put_param: about to set metaparam $param to " . Dumper( $body ) );
+    if ( $path =~ m/metaparam/ ) {
+        $type = 'meta';
+        $meta->set( $param, $body );
+    }
+    $status = ( eq_deeply( $meta->get_param( $param ), $body ) )
+        ? $CELL->status_ok( 
+              'DISPATCH_PARAM_SET', 
+              args => [ $type, $param ], 
+              payload => { 
+                  type => $type,
+                  name => $param,
+                  value => $body,
+              } 
+          )
+        : $CELL->status_err( 
+              'DISPATCH_PARAM_NOT_SET', 
+              args => [ $type, $param ],
+              payload => {
+                  type => $type,
+                  name => $param,
+                  value => $meta->get_param( $param ),
+              }
+          );
+    return $status;
+}
+
+
+sub _not_implemented {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug("Entering _not_implemented, path is " . $context->{path} );
+    return $CELL->status_notice( 
+        'DISPATCH_RESOURCE_NOT_IMPLEMENTED',
+        payload => { "resource" => $context->{'path'} }
+    );
+}
+
+
+sub _get_session {
+
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    return $CELL->status_ok( 'DISPATCH_SESSION_DATA', payload => {
+        session_id => $context->{'session_id'},
+        session => $context->{'session'},
+    } );
+}
 
 
 sub _get_version {
     return $CELL->status_ok( 'DISPATCH_DOCHAZKA_REST_VERSION', 
         payload => { version => $VERSION } );
 }
+
 
 1;

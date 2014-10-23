@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.195
+Version 0.207
 
 =cut
 
-our $VERSION = '0.195';
+our $VERSION = '0.207';
 
 
 
@@ -82,56 +82,30 @@ which functions in this module correspond to which resources, see.
 
 
 
-=head1 TARGET FUNCTIONS
+=head1 RESOURCES
 
-The following functions implement targets for the various routes.
+This section documents the resources whose dispatch targets are contained
+in this source module - i.e., employee resources. For the resource
+definitions, see C<config/dispatch/dispatch_Employee_Config.pm>.
 
-
-=head2 Default targets
-
-=cut
-
-BEGIN {
-    no strict 'refs';
-    # dynamically generate four routines: _get_default, _post_default,
-    # _put_default, _delete_default
-    *{"_get_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'GET' );
-    *{"_post_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'POST' );
-    *{"_put_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'PUT' );
-    *{"_delete_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'DELETE' );
-}
-
-=head2 GET targets
+Each resource can have up to four targets (one each for the four supported
+HTTP methods GET, POST, PUT, and DELETE). That said, target routines may be
+written to handle more than one HTTP method and/or more than one resoure.
 
 =cut
 
-sub _get_nick {
+
+sub _get_count {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick with mapping " . Dumper $context->{'mapping'} ); 
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_count" ); 
 
-    my $nick = $context->{'mapping'}->{'nick'};
-
-    return App::Dochazka::REST::Model::Employee->load_by_nick( $nick ) 
-        unless $nick =~ m/%/;
-    
-    my $status = App::Dochazka::REST::Model::Employee->
-        select_multiple_by_nick( $nick );
-    foreach my $emp ( @{ $status->payload->{'result_set'} } ) {
-        $emp = $emp->expurgate;
+    my $result;
+    if ( my $priv = $context->{'mapping'}->{'priv'} ) {;
+        $result = noof_employees_by_priv( $priv );
+    } else {
+        $result = noof_employees_by_priv( 'total' );
     }
-    return $status;
-}
-
-sub _get_eid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
-
-    my $eid = $context->{'mapping'}->{'eid'};
-    App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    return $result;
 }
 
 
@@ -162,20 +136,7 @@ sub _get_current_priv {
 }
 
 
-sub _get_count {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_count" ); 
-
-    my $result;
-    if ( my $priv = $context->{'mapping'}->{'priv'} ) {;
-        $result = noof_employees_by_priv( $priv );
-    } else {
-        $result = noof_employees_by_priv( 'total' );
-    }
-    return $result;
-}
-
-
+# a little piece of shared code
 sub _assemble_employee_object {
     my %hr = @_;
     my %r;
@@ -187,14 +148,92 @@ sub _assemble_employee_object {
     return %r;
 }
         
-sub _put_post_employee_by_nick {
+# target function for POST employee/eid, PUT employee/eid/:eid, and 
+# DELETE employee/eid/:eid
+sub _put_post_delete_employee_by_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    $log->debug( "Entering _put_post_delete_employee_by_eid" );
+
+    # get eid
+    my $eid;
+    if ( $context->{'method'} eq 'POST' ) {
+        $eid = $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
+    } elsif ( $context->{'method'} =~ /^(PUT)|(DELETE)/i ) {
+        $eid = $context->{'mapping'}->{'eid'} if exists $context->{'mapping'}->{'eid'};
+        delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
+    } else {
+        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
+    }
+
+    if ( $eid ) {
+        my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+            if ( $context->{'method'} =~ /^(PUT)|(POST)/i ) {
+                #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
+                my $oldemp = $status->payload;
+                _update_employee( $oldemp, $context->{'request_body'} );
+            } elsif ( $context->{'method'} =~ /^DELETE/i ) {
+                return $status->payload->delete;  # employee object is in the payload
+            }
+        } else {
+            return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', $eid );
+        }
+    } else {
+        return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ); 
+    }
+}
+
+# takes two arguments:
+# - "$emp" is an employee object (blessed hashref)
+# - "$over" is a hashref with zero or more employee properties and new values
+# the values from $over replace those in $emp
+sub _update_employee {
+    my ($emp, $over) = @_;
+    delete $over->{'eid'} if exists $over->{'eid'};
+    foreach my $prop (keys %$over) {
+        $emp->{$prop} = $over->{$prop} if exists $emp->{$prop};
+    }
+    return $emp->update;
+}
+
+
+sub _get_eid {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_eid" ); 
+
+    my $eid = $context->{'mapping'}->{'eid'};
+    App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+}
+
+# for PUT employee/eid/:eid, see the _put_post_delete_employee_by_eid routine, above
+
+
+# runtime generation of four routines: _get_default, _post_default,
+# _put_default, _delete_default (top-level resource targets)
+BEGIN {
+    no strict 'refs';
+    *{"_get_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'GET' );
+    *{"_post_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'POST' );
+    *{"_put_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'PUT' );
+    *{"_delete_default"} =
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'DELETE' );
+}
+
+
+sub _put_post_delete_employee_by_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    $log->debug( 'Entering _put_post_delete_employee_by_nick' );
 
     # get nick
     my $nick;
     if ( $context->{'method'} eq 'POST' ) {
         $nick = $context->{'request_body'}->{'nick'} if exists $context->{'request_body'}->{'nick'};
-    } elsif ( $context->{'method'} eq 'PUT' ) {
+    } elsif ( $context->{'method'} =~ /^(PUT)|(DELETE)/ ) {
         $nick = $context->{'mapping'}->{'nick'} if exists $context->{'mapping'}->{'nick'};
     } else {
         return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
@@ -203,45 +242,19 @@ sub _put_post_employee_by_nick {
     if ( $nick ) {
         my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
         if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-            my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
-            my $newemp = App::Dochazka::REST::Model::Employee->spawn(
-                _assemble_employee_object( %{ $context->{'request_body'} } ) 
-            );
-            _update_employee( $oldemp, $newemp );
+            if ( $context->{'method'} =~ /^(PUT)|(POST)/ ) {
+                #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
+                my $oldemp = $status->payload;
+                _update_employee( $oldemp, $context->{'request_body'} );
+            } elsif ( $context->{'method'} eq 'DELETE' ) {
+                return $status->payload->delete;  # employee object is in the payload
+            }
         } else {
+            delete $context->{'request_body'}->{'nick'} if exists $context->{'request_body'}->{'nick'};
             _insert_employee( _assemble_employee_object( nick => $nick, %{ $context->{'request_body'} } ) );
         }
     } else {
         return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ); 
-    }
-}
-
-sub _put_post_employee_by_eid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    # get eid
-    my $eid;
-    if ( $context->{'method'} eq 'POST' ) {
-        $eid = $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    } elsif ( $context->{'method'} eq 'PUT' ) {
-        $eid = $context->{'mapping'}->{'eid'} if exists $context->{'mapping'}->{'eid'};
-    } else {
-        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
-    }
-
-    if ( $eid ) {
-        my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-            my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
-            my $newemp = App::Dochazka::REST::Model::Employee->spawn(
-                _assemble_employee_object( %{ $context->{'request_body'} } ) 
-            );
-            _update_employee( $oldemp, $newemp );
-        } else {
-            return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', $eid );
-        }
-    } else {
-        return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'eid' ] ); 
     }
 }
 
@@ -271,12 +284,21 @@ sub _insert_employee {
     return $emp->insert;
 }
 
-# takes "emp" and "over" employee objects - $emp is overlayed by $over
-sub _update_employee {
-    my ($emp, $over) = @_;
+sub _get_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering App::Dochazka::REST::Dispatch::_get_nick with mapping " . Dumper $context->{'mapping'} ); 
 
-    $emp->overlay( $over ); # note that 'overlay' does not change EID
-    return $emp->update;
+    my $nick = $context->{'mapping'}->{'nick'};
+
+    return App::Dochazka::REST::Model::Employee->load_by_nick( $nick ) 
+        unless $nick =~ m/%/;
+    
+    my $status = App::Dochazka::REST::Model::Employee->
+        select_multiple_by_nick( $nick );
+    foreach my $emp ( @{ $status->payload->{'result_set'} } ) {
+        $emp = $emp->expurgate;
+    }
+    return $status;
 }
 
 1;

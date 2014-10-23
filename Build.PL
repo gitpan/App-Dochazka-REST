@@ -21,7 +21,7 @@ my $builder = Module::Build->new(
         'Module::Build'  => 0,
     },
     build_requires => {
-        'App::CELL'      => 0.199,
+        'App::CELL'      => 0.200,
         'App::Dochazka'  => 0.170,
         'HTTP::Request'  => 0,
         'Plack::Session' => 0,
@@ -32,7 +32,7 @@ my $builder = Module::Build->new(
     },
     requires => {
         'perl'           => 5.012,
-        'App::CELL'      => 0.194,
+        'App::CELL'      => 0.200,
         'App::Dochazka'  => 0.170,
         'Data::Structure::Util' => 0,
         'DBD::Pg'        => 0,
@@ -52,6 +52,7 @@ my $builder = Module::Build->new(
     },
     add_to_cleanup     => [ 'App-Dochazka-REST-*' ],
     create_makefile_pl => 'traditional',
+    recursive_test_files => 1,
 );
 
 $builder->create_build_script();

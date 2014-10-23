@@ -74,11 +74,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.195
+Version 0.207
 
 =cut
 
-our $VERSION = '0.195';
+our $VERSION = '0.207';
 
 
 
@@ -302,7 +302,7 @@ sub allowed_methods {
                 $target = $route->defaults->{'target_module'} . '::' . $target;
             }
             $log->debug( "Target is $target" );
-
+          
             my $push_hash = { 
                 'target' => \&{ $target },    # target is routine that will be called to process the request
                 'mapping' => $match->mapping, # mapping contains values of ':xyz' parts of path
@@ -315,7 +315,9 @@ sub allowed_methods {
         return \@allowed_methods;
 
     } else {
-        # Path doesn't match, so no methods allowed on this request -- sorry, Charlie.
+        #
+        # path doesn't match
+        #
         $log->debug("Path $path does not match any target. For PUT this will result in 405 Method Not Allowed.");
         return [ 'GET', 'POST', 'DELETE' ];
     }
@@ -614,7 +616,8 @@ sub resource_exists {
     # mapping in the PARAMHASH
     if ( exists $self->context->{'target'} and exists $self->context->{'mapping'} ) {
 
-        $log->debug( $self->request->method . " request for resource " . $self->context->{'path'} );
+        $log->debug( $self->request->method . " request for resource " . 
+            $self->context->{'path'} . ', body is ' . Dumper( $self->request->content ) );
 
         my $target = $self->context->{'target'};
 
@@ -731,6 +734,8 @@ sub delete_resource {
     return 1;
 };
 
+
+
 =head2 process_post
 
 This is where we construct responses to POST requests.
@@ -833,21 +838,28 @@ sub init_router {
 
             $log->debug("init_router: Processing resource $resource");
 
+            # add the resource's documentation to the list of valid resources
+            $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} = $list->{$resource}->{'documentation'};
+
             my $acl_profile = $list->{$resource}->{'acl_profile'};
             #$log->debug("init_router: acl_profile is $acl_profile ");
             my $target_module = $list->{$resource}->{'target_module'};
             #$log->debug("init_router: target_module is $target_module");
             my $target = $list->{$resource}->{'target'};
             #$log->debug("init_router: target is " . Dumper( $target ));
+            my $validations = $list->{$resource}->{'validations'};
 
+            my $ARGS = {
+                defaults => {
+                    acl_profile => $acl_profile,
+                    target_module => $target_module,
+                },
+                target => $target,
+            };
+            $ARGS->{'validations'} = $validations if $validations;
+            
             try {
-                $router->add_route( $resource, 
-                    defaults => {
-                        acl_profile => $acl_profile,
-                        target_module => $target_module,
-                    },
-                    target => $target,
-                );
+                $router->add_route( $resource, %$ARGS );
             } catch {
                 $log->crit( $_ );
             };

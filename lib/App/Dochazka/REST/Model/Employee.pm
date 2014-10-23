@@ -62,11 +62,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.195
+Version 0.207
 
 =cut
 
-our $VERSION = '0.195';
+our $VERSION = '0.207';
 
 
 
@@ -224,25 +224,6 @@ our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 =head1 METHODS
 
-=head2 overlay
-
-Overlay, or merge, "self" object with another object. Parameters from
-the latter overwrite the former.
-
-=cut
-
-sub overlay {
-    my ( $self, $over ) = @_;
-    foreach my $prop ( 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ) {
-        if ( $over->{$prop} ) {
-            if ( $self->{$prop} ) {
-                $log->debug( "overlay replacing $prop (" . $self->{$prop} .  ") with new value (" . $over->{$prop} . ")" );
-            }
-            $self->{$prop} = $over->{$prop};
-        }
-    }
-    return;
-}
 
 =head2 priv
 
@@ -292,7 +273,7 @@ sub insert {
         attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
     );
     return $status->ok
-        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_INSERT_OK', args => [ $self->nick ],
+        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_INSERT_OK', args => [ $self->nick, $self->eid ],
               payload => $status->payload )
         : $status;
 }
@@ -322,7 +303,7 @@ sub update {
     );
     return $status unless $status->ok;
     return $CELL->status_err( "UPDATE failed (no payload) for unknown reason" ) unless $status->payload;
-    $CELL->status_ok( 'DISPATCH_EMPLOYEE_UPDATE_OK', args => [ $self->nick ],
+    $CELL->status_ok( 'DISPATCH_EMPLOYEE_UPDATE_OK', args => [ $self->nick, $self->eid ],
         payload => $status->payload )
 }
 
@@ -344,10 +325,10 @@ sub delete {
         sql => $site->SQL_EMPLOYEE_DELETE,
         attrs => [ 'eid' ],
     );
-    $self->reset( eid => $self->eid ) if $status->ok;
+    #$self->reset( eid => $self->eid ) if $status->ok;
     return $status->ok
-        ? $status
-        : $CELL->status_ok( 'DISPATCH_EMPLOYEE_DELETE_OK' );
+        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_DELETE_OK', args => [ $self->nick, $self->eid ] )
+        : $status;
 }
 
 

@@ -1116,3 +1116,96 @@ Revision history for Dochazka-REST
   payload where it belongs
 - t/315-dispatch-employee-get.t: adapt existing test case
 
+0.196  2014-10-21 11:38 CEST
+- config/dispatch_Top_Config.pm: make "echo" work with POST only; put
+  resources in alphabetical order
+- t/: remove 'echo' tests from top-level PUT and DELETE units
+
+0.197  2014-10-21 11:47 CEST
+- work on development-checklist
+- t/: standardize method order (GET, PUT, POST, DELETE); adapt units
+
+0.198  2014-10-21 12:10 CEST
+- Dispatch.pm: document all target subroutines; put into alphabetical order
+  by resource name/path
+
+0.199  2014-10-21 16:31 CEST
+- Hackweek Day 2
+- dispatch_Message_en.conf: add DISPATCH_RESOURCE_NOT_IMPLEMENTED
+- dispatch_Top_Config.pm: implement 'not_implemented' resource
+- Dispatch.pm: implement 'not_implemented' resource, alphabetical order
+  tweak
+- t/: add missing top-level dispatch tests
+- new ../development-checklist chart to clarify and streamline
+  resource-implementation workflow
+
+0.200  2014-10-21 22:29 CEST
+- ../development-checklist: finish implementing top-level resources
+- Dispatch.pm: when getting site and meta params, show file and line
+  number along with other metadata; tweak resource documentation
+- t/: some tests failing due to bug in App::CELL::Config->get_param_meta
+
+0.201  2014-10-22 08:30 CEST
+- Build.PL: require App::CELL 0.200 for bug fix
+- t/: adjust two tests now that PUT metaparam/:param and PUT siteparam/:param
+  are assigning the request body to the parameter directly
+
+0.202  2014-10-22 16:47 CEST
+- Hackweek Day 3
+- lots of refinements to (plus documentation and test cases for) employee
+  resources
+- implement DELETE support for employee resources
+- eliminate problematic "short-cut" 'employee/:nick' and 'employee/:eid'
+  resources
+- make it possible to update an employee property to null
+- eliminate problematic 'overlay' method in Model/Employee.pm
+- improve debug message in Resource.pm
+- add negative and otherwise pathological test cases
+
+0.203  2014-10-22 17:15 CEST
+- t/317-dispatch-employee-post.t: got tests running again
+
+0.204  2014-10-23 10:57 CEST
+- t/: figure out how to run tests using 'prove -r'; make a 't/dispatch/'
+  directory for dispatch tests; merge all top-level dispatch tests into a
+  single file 't/dispatch/top.t'
+
+0.205  2014-10-23 14:02 CEST
+- Hackweek Day 4
+- Build.PL: make Module::Build walk t/ directory recursively
+- REST_MetaConfig.pm: make sure META_DOCHAZKA_VALID_RESOURCES is
+  initialized to an empty hashref
+- add on-line documentation infrastructure
+- config/dispatch/dispatch_Top_Config.pm: add HTML documentation strings
+  to all the top-level resources; add 'docu' resource definition
+- Dispatch.pm: remove POD sections corresponding to the HTML documentation
+  strings added to resource definition file; add target subroutine
+  for 'docu' resource; use heredoc in _forbidden
+- Resource.pm: enable validations to be specified in resource definitions
+  (see Path::Router) -- untested; during path/router initialization build
+  up META_DOCHAZKA_VALID_RESOURCES (hash of valid resources); push
+  'documentation' property onto context
+- t/dispatch/top.t: add tests for 'docu' resource
+
+0.206  2014-10-23 14:31 CEST
+- config/dispatch/dispatch_Employee_Config.pm: add HTML documentation
+  strings to all the employee resources
+- Dispatch/Employee.pm: remove POD documentation that has been moved to the
+  resource definition file
+- find bug "POST docu" returns same string, no matter which resource is
+  specified (should return the documentation string stipulated for the
+  resource in the resource definition)"
+- t/dispatch/top.t: add test cases for the bug
+
+0.207  2014-10-23 15:16 CEST
+- rename meta param META_DOCHAZKA_VALID_RESOURCES to
+  META_DOCHAZKA_RESOURCE_DOCS and store resource documentation strings
+  there during path router initialization
+- in the 'docu' target, get the HTML string from
+  META_DOCHAZKA_RESOURCE_DOCS meta param
+- Resource.pm: no longer need to push documentation HTML string onto the
+  context
+- Test.pm: add a 'docu_check' routine (to automate testing of each resource
+  for presence of documentation in the resource definition)
+- t/dispatch/top.t: run docu_check on each top-level resource
+

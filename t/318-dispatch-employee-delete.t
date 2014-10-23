@@ -64,7 +64,7 @@ ok( blessed $test );
 
 my $res;
 
-# 1. 'employee/help' - list employee DELETE resources available to passersby
+# 'employee/help' - list employee DELETE resources available to passersby
 $res = $test->request( req_json_demo DELETE => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -74,7 +74,7 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 
-# 1. 'employee/help' - list employee DELETE resources available to admins
+# 'employee/help' - list employee DELETE resources available to admins
 $res = $test->request( req_json_root DELETE => '/employee/help' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
@@ -83,5 +83,71 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
+
+# create a "cannon fodder" employee
+$res = $test->request( req_json_root PUT => '/employee/nick/cannonfodder' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_EMPLOYEE_INSERT_OK' );
+my $cf = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+ok( $cf->eid > 1 );
+my $eid_of_cf = $cf->eid;
+
+# get cannonfodder - no problem
+$res = $test->request( req_json_root GET => '/employee/nick/cannonfodder' );
+is( $res->code, 200 );
+$cf = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+is( $cf->eid, $eid_of_cf );
+is( $cf->nick, 'cannonfodder' );
+
+# 'employee/eid/:eid' - delete cannonfodder
+$res = $test->request( req_json_demo DELETE => '/employee/eid/' . $cf->eid );
+is( $res->code, 403 );
+$res = $test->request( req_json_root DELETE => '/employee/eid/' . $cf->eid );
+is( $res->code, 200 );
+
+# attempt to get cannonfodder - not there anymore
+$res = $test->request( req_json_root GET => '/employee/nick/cannonfodder' );
+is( $res->code, 404 );
+
+# create another "cannon fodder" employee
+$res = $test->request( req_json_root PUT => '/employee/nick/cannonfodder' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->ok );
+is( $status->code, 'DISPATCH_EMPLOYEE_INSERT_OK' );
+$cf = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+ok( $cf->eid > $eid_of_cf ); # EID will have incremented
+$eid_of_cf = $cf->eid;
+
+# get cannonfodder - no problem
+$res = $test->request( req_json_root GET => '/employee/nick/cannonfodder' );
+is( $res->code, 200 );
+$cf = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
+is( $cf->eid, $eid_of_cf );
+is( $cf->nick, 'cannonfodder' );
+
+# 'employee/nick/:nick' - delete cannonfodder
+$res = $test->request( req_json_demo DELETE => '/employee/nick/cannonfodder' );
+is( $res->code, 403 );
+$res = $test->request( req_json_root DELETE => '/employee/nick/cannonfodder' );
+is( $res->code, 200 );
+
+# attempt to get cannonfodder - not there anymore
+$res = $test->request( req_json_root GET => '/employee/nick/cannonfodder' );
+is( $res->code, 404 );
+
+# attempt to delete 'root the immutable' (won't work)
+$res = $test->request( req_json_root DELETE => '/employee/nick/root' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, "DOCHAZKA_DBI_ERR" );
+like( $status->text, qr/immutable/i );
 
 done_testing;

@@ -228,11 +228,17 @@ $emp->fullname( "Mrs. Fu that's Ma'am to you" );
 is( $emp->fullname, "Mrs. Fu that's Ma'am to you" );
 $status = $emp->update;
 ok( $status->ok, "UPDATE status is OK" );
-# FIXME: re-load into another object and then compare the two objects using is_deeply
 $status = App::Dochazka::REST::Model::Employee->load_by_nick( 'mrsfu' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Nick mrsfu exists" );
 $emp2 = $status->payload;
 is_deeply( $emp, $emp2 );
+
+# pathologically change Mrs. Fu's nick to null
+$emp->{'nick'} = undef;
+$status = $emp->update;
+ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
 
 # test accessors
 is( $emp->eid, $emp->{eid}, "accessor: eid" );

@@ -43,6 +43,10 @@
 #    we set this to true when we are running unit tests
 set( 'META_DOCHAZKA_UNIT_TESTING', 0 );
 
+# META_DOCHAZKA_RESOURCE_DOCS
+#    at router initialization time, this will be filled with key:value
+#    pairs where key is resource name and value is documentation string
+set( 'META_DOCHAZKA_RESOURCE_DOCS', {} ); 
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

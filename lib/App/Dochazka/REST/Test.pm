@@ -43,6 +43,7 @@ use App::CELL qw( $CELL );
 use HTTP::Request;
 use JSON;
 use Test::JSON;
+use Test::More;
 
 
 
@@ -56,11 +57,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.195
+Version 0.207
 
 =cut
 
-our $VERSION = '0.195';
+our $VERSION = '0.207';
 
 
 
@@ -81,7 +82,7 @@ This module provides helper code for unit tests.
 
 use Exporter qw( import );
 our @EXPORT_OK = qw( req_root req_demo req_json_demo req_json_root req_html 
-req_bad_creds status_from_json );
+req_bad_creds status_from_json docu_check );
 
 
 
@@ -183,13 +184,38 @@ sub req_bad_creds {
 =head2 status_from_json
 
 Given a JSON string, check if it is valid JSON, blindly convert it into a
-Perl hashref, bless it into 'App::CELL::Status', and send it back to caller.
+Perl hashref, bless it into 'App::CELL::Status', and send it back to caller
 
 =cut
 
 sub status_from_json {
     my ( $json ) = @_;
     bless from_json( $json ), 'App::CELL::Status';
+}
+
+
+=head2 docu_check
+
+Check that the resource has on-line documentation (takes Plack::Test object
+and resource name without quotes)
+
+=cut
+
+sub docu_check {
+    my ( $test, $resource ) = @_;
+    my $res = $test->request( req_json_demo POST  => '/docu', undef, '"'.  $resource . '"' );
+    is( $res->code, 200 );
+    is_valid_json( $res->content );
+    my $status = status_from_json( $res->content );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+    ok( exists $status->payload->{'resource'} );
+    is( $status->payload->{'resource'}, $resource );
+    ok( exists $status->payload->{'documentation'} );
+    my $docustr = $status->payload->{'documentation'};
+    my $docustr_len = length( $docustr );
+    ok( $docustr_len > 10 );
+    isnt( $docustr, 'NOT WRITTEN YET' );
 }
 
 1;
