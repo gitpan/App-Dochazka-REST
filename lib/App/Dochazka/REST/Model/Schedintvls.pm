@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared; 
+use App::Dochazka::REST::Model::Shared;
 use Carp;
 use Data::Dumper;
 use DBI;
@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -94,6 +94,19 @@ our @EXPORT_OK = qw( );
 
 =head1 METHODS
 
+
+=head2 expurgate
+
+Non-destructively convert object into hashref
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_;
+    return App::Dochazka::REST::Model::Shared::expurgate( $self );
+}
+
+
 =head2 populate
 
 Populate the schedintvls object (called automatically by 'reset' method
@@ -105,7 +118,7 @@ sub populate {
     my ( $self ) = @_;
     my $ss = _next_scratch_sid();
     $log->debug( "Got next scratch SID: $ss" );
-    $self->{scratch_sid} = $ss;
+    $self->{ssid} = $ss;
     return;
 }
 
@@ -126,7 +139,7 @@ sub load {
 
     # prepare and execute statement
     my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_SELECT );
-    $sth->execute( $self->{scratch_sid} );
+    $sth->execute( $self->{ssid} );
 
     # since the statement returns n rows, we use a loop to fetch them
     my $counter = 0;
@@ -166,17 +179,25 @@ sub insert {
     # the transaction
     try {
         my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_INSERT );
+        my $intvls;
 
-        # the next sequence value is already in $self->{scratch_sid}
-        $sth->bind_param( 1, $self->{scratch_sid} );
+        # the next sequence value is already in $self->{ssid}
+        $sth->bind_param( 1, $self->{ssid} );
 
 	# execute SQL_SCHEDINTVLS_INSERT for each element of $self->{intvls}
         map {
                 $sth->bind_param( 2, $_ );
                 $sth->execute;
+                push @$intvls, $_;
             } @{ $self->{intvls} };
         $dbh->commit;
-        $status = $CELL->status_ok;
+        $status = $CELL->status_ok( 
+            'DOCHAZKA_SCHEDINTVLS_INSERT_OK', 
+            payload => {
+                intervals => $intvls,
+                ssid => $self->{ssid},
+            }
+        );
     } catch {
         $dbh->rollback;
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
@@ -213,7 +234,7 @@ sub delete {
     try {
         $dbh->{AutoCommit} = 0; 
         my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_DELETE );
-        $sth->bind_param( 1, $self->scratch_sid );
+        $sth->bind_param( 1, $self->ssid );
         $sth->execute;
         $dbh->commit;
         my $rows = $sth->rows;

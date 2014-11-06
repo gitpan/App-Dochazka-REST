@@ -58,11 +58,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -137,17 +137,31 @@ This module provides the following exports:
 
 =over 
 
+=item L<get_schedhistory>
+
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( );
-
+our @EXPORT_OK = qw( get_schedhistory );
 
 
 
 =head1 METHODS
+
+
+=head2 expurgate
+
+Non-destructively convert object into hashref
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_;
+    return App::Dochazka::REST::Model::Shared::expurgate( $self );
+}
+
 
 =head2 load_by_eid
 
@@ -245,6 +259,29 @@ sub delete {
     return $status;
 }
 
+
+=head2 get_schedhistory
+
+Takes a PARAMHASH which can have one or more of the properties 'eid', 'nick',
+and 'tsrange'.
+
+At least one of { 'eid', 'nick' } must be specified. If both are specified,
+the employee is determined according to 'eid'.
+
+The function returns the history of schedule changes for that employee
+over the given tsrange, or the entire history if no tsrange is supplied. 
+
+The return value will always be an L<App::CELL::Status|status> object.
+
+Upon success, the payload will be a reference to an array of C<schedhistory>
+objects. If nothing is found, the array will be empty. If there is a DBI error,
+the payload will be undefined.
+
+=cut
+
+sub get_schedhistory {
+    return App::Dochazka::REST::Model::Shared::get_history( 'schedule', @_ );
+}
 
 
 

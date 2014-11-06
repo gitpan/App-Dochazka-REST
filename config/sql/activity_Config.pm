@@ -31,43 +31,68 @@
 # ************************************************************************* 
 
 # -----------------------------------
-# Dochazka-REST
+# App::Dochazka::REST
 # -----------------------------------
 # activity_Config.pm
 #
 # configuration parameters related to activity
 # -----------------------------------
 
+#
+set( 'SQL_ACTIVITY_SELECT_ALL_INCLUDING_DISABLED', q/
+      SELECT aid, code, long_desc, remark, disabled
+      FROM activities
+      / );
+
+#
+set( 'SQL_ACTIVITY_SELECT_ALL_EXCEPT_DISABLED', q/
+      SELECT aid, code, long_desc, remark, disabled
+      FROM activities WHERE disabled != TRUE
+      / );
+
 # 
 set( 'SQL_ACTIVITY_SELECT_BY_AID', q/
-      SELECT aid, code, long_desc, remark
+      SELECT aid, code, long_desc, remark, disabled
       FROM activities WHERE aid = ?
+      / );
+
+# 
+set( 'SQL_ACTIVITY_SELECT_BY_AID_NOT_DISABLED', q/
+      SELECT aid, code, long_desc, remark, disabled
+      FROM activities WHERE aid = ? and disabled != TRUE
       / );
 
 #
 set( 'SQL_ACTIVITY_SELECT_BY_CODE', q/
-      SELECT aid, code, long_desc, remark
+      SELECT aid, code, long_desc, remark, disabled
       FROM activities WHERE code = upper(?)
+      / );
+
+#
+set( 'SQL_ACTIVITY_SELECT_BY_CODE_NOT_DISABLED', q/
+      SELECT aid, code, long_desc, remark, disabled
+      FROM activities WHERE code = upper(?) and disabled != TRUE
       / );
 
 #
 set( 'SQL_ACTIVITY_INSERT', q/
       INSERT INTO activities 
-                (code, long_desc, remark)
-      VALUES    (upper(?), ?, ?) 
-      RETURNING  aid, code, long_desc, remark
+                (code, long_desc, remark, disabled)
+      VALUES    (upper(?), ?, ?, FALSE) 
+      RETURNING  aid, code, long_desc, remark, disabled
       / );
 
 set( 'SQL_ACTIVITY_UPDATE', q/
-      UPDATE activities SET code = upper(?), long_desc = ?, remark = ?
+      UPDATE activities 
+      SET code = upper(?), long_desc = ?, remark = ?, disabled = ?
       WHERE aid = ?
-      RETURNING  aid, code, long_desc, remark
+      RETURNING  aid, code, long_desc, remark, disabled
       / );
 
 set( 'SQL_ACTIVITY_DELETE', q/
       DELETE FROM activities
       WHERE aid = ?
-      RETURNING  aid, code, long_desc, remark
+      RETURNING  aid, code, long_desc, remark, disabled
       / );
       
 

@@ -49,7 +49,7 @@ set( 'SQL_SCRATCH_SID', q/
 #     SQL to insert a single record in the 'scratchintvls' table
 #
 set( 'SQL_SCHEDINTVLS_INSERT', q/
-      INSERT INTO schedintvls (scratch_sid, intvl)
+      INSERT INTO schedintvls (ssid, intvl)
       VALUES (?, ?)
       / );
 
@@ -65,7 +65,7 @@ set( 'SQL_SCHEDINTVLS_SELECT', q/
           (translate_schedintvl(int_id)).high_dow, 
           (translate_schedintvl(int_id)).high_time
       FROM (
-          SELECT int_id FROM schedintvls WHERE scratch_sid = ?
+          SELECT int_id FROM schedintvls WHERE ssid = ?
           ORDER BY intvl
       ) AS int_ids
       / );
@@ -73,29 +73,37 @@ set( 'SQL_SCHEDINTVLS_SELECT', q/
 # SQL_SCHEDINTVLS_DELETE
 #     SQL to delete scratch intervals once they are no longer needed
 set( 'SQL_SCHEDINTVLS_DELETE', q/
-      DELETE FROM schedintvls WHERE scratch_sid = ?
+      DELETE FROM schedintvls WHERE ssid = ?
       / );
 
 # SQL_SCHEDULE_INSERT
 #     SQL to insert a single schedule
 #
 set( 'SQL_SCHEDULE_INSERT', q/
-      INSERT INTO schedules (schedule, remark) 
-      VALUES (?, ?)
-      RETURNING sid, schedule, remark
+      INSERT INTO schedules (schedule, remark, disabled) 
+      VALUES (?, ?, 'f')
+      RETURNING sid, schedule, remark, disabled
       / );
 
-# SQL_SCHEDULE_SELECT_BY_SID
-#     SQL query to retrieve entire row given a SID
-set( 'SQL_SCHEDULE_SELECT_BY_SID', q/
-      SELECT sid, schedule, remark FROM schedules WHERE sid = ? 
+# SQL_SCHEDULE_UPDATE
+#     SQL query to update remark and disabled fields of a schedule record
+set( 'SQL_SCHEDULE_UPDATE', q/
+      UPDATE schedules SET remark = ?, disabled = ?
+      WHERE sid = ?
+      RETURNING sid, schedule, remark, disabled
       / );
 
 # SQL_SCHEDULE_DELETE
 #     SQL query to delete a row given a SID
 set( 'SQL_SCHEDULE_DELETE', q/
       DELETE FROM schedules WHERE sid = ?
-      RETURNING sid, schedule, remark
+      RETURNING sid, schedule, remark, disabled
+      / );
+
+# SQL_SCHEDULE_SELECT_BY_SID
+#     SQL query to retrieve entire row given a SID
+set( 'SQL_SCHEDULE_SELECT_BY_SID', q/
+      SELECT sid, schedule, remark, disabled FROM schedules WHERE sid = ? 
       / );
 
 # SQL_SCHEDULES_SELECT_SID
@@ -108,6 +116,22 @@ set( 'SQL_SCHEDULES_SELECT_SID', q/
 #     SQL query to retrieve schedule (JSON string) given a SID
 set( 'SQL_SCHEDULES_SELECT_SCHEDULE', q/
       SELECT schedule FROM schedules WHERE sid = ?
+      / );
+
+# SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED
+#     SQL query to retrieve all schedule records (JSON strings), including disabled ones
+set( 'SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED', q/
+      SELECT sid, schedule, remark, disabled 
+      FROM schedules
+      ORDER BY sid
+      / );
+
+# SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED
+#     SQL query to retrieve all non-disabled schedule records (JSON strings)
+set( 'SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED', q/
+      SELECT sid, schedule, remark, disabled 
+      FROM schedules WHERE disabled != 't'
+      ORDER BY sid
       / );
 
 # SQL_SCHEDHISTORY_INSERT
@@ -151,6 +175,23 @@ set( 'SQL_SCHEDHISTORY_SELECT_CURRENT', q/
 set( 'SQL_SCHEDHISTORY_SELECT_BY_SHID', q/
       SELECT shid, eid, sid, effective, remark FROM schedhistory
       WHERE shid = ? 
+      / );
+
+# SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID
+#     SQL to select a range of SCHEDHISTORY records
+set( 'SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID', q/
+      SELECT shid, eid, sid, effective, remark FROM SCHEDHISTORY 
+      WHERE eid = ? AND effective <@ CAST( ? AS tsrange )
+      ORDER BY effective
+      / );
+
+# SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK
+#     SQL to select a range of SCHEDHISTORY records
+set( 'SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK', q/
+      SELECT sh.shid AS shid, sh.eid AS eid, sh.sid AS sid, sh.effective AS effective, sh.remark AS remark 
+      FROM SCHEDHISTORY sh, employees em
+      WHERE sh.eid = em.eid AND em.nick = ? AND sh.effective <@ CAST( ? AS tsrange )
+      ORDER BY sh.effective
       / );
 
 # -----------------------------------

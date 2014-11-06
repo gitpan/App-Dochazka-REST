@@ -1209,3 +1209,400 @@ Revision history for Dochazka-REST
   for presence of documentation in the resource definition)
 - t/dispatch/top.t: run docu_check on each top-level resource
 
+0.208  2014-10-24 08:43 CEST
+- convert portion of employee dispatch tests to new structure
+
+0.209  2014-10-24 10:49 CEST
+- complete development workflow for employee resources
+- dispatch_Employee_Config.pm: add missing documentation
+- Dispatch/Employee.pm: fix bug "DELETE employee/nick/:nick actually
+  inserts a new employee if :nick not found"
+- t/: continue migrating dispatch tests to new structure; disable old
+  units so ./Build test doesn't run them; add new unit
+  t/dispatch/employee/nick.t
+
+0.210  2014-10-24 15:33 CEST
+- Hackweek Day 5
+- implement privhistory resources using new development workflow
+- merge 'privhistory/current' and 'privhistory/current/:tsrange' into a
+  single resource 'privhistory/current/?:tsrange'
+- dispatch/dispatch_Privhistory_Config.pm: put resources in alphabetical
+  order; document resources; add more supported methods
+- t/dispatch/privhistory: add privhistory tests in new structure
+- Dispatch/Privhistory.pm: put targets in order according to their
+  corresponding resources; rename _get_nick and _get_eid to _nick and _eid,
+  respectively, and expand them to support PUT and DELETE
+- Model/Privhistory.pm: add some debug messages
+
+0.211  2014-10-24 22:40 CEST
+- Hackweek Day 5, continued
+- config/sql/dbinit_Config.pm: add UNIQUE (eid, effective) constraint to
+  privhistory table to avoid duplicate entries in a given employee's
+  privhistory listing
+- dispatch_Message_en.conf: add DISPATCH_PRIVHISTORY_COULD_NOT_SPAWN
+- Dispatch/Privhistory.pm: implement support for PUT and DELETE requests in
+  _eid and _nick targets
+- Model/Employee.pm: fix bug "get 500 Server Error when I send a request for
+  bogus resource 'privhistory/eid/asdf'"
+- t/dispatch/privhistory/: add quite a few tests
+
+0.212  2014-10-25 23:23 CEST
+- update MANIFEST to current state
+- change 'privhistory' to 'priv'
+- add new 'priv/current/?:ts' resource
+- t/: start adapting tests
+
+0.213  2014-10-26 22:36 CET
+- config/dispatch/priv_Config.pm: add "priv/current/eid/:eid/?:ts" and
+  "priv/current/nick/:nick/?:ts" resources; unclear how privhistory records
+  will be added and deleted
+- dispatch_Message_en.conf: remove duplicate message
+- Dispatch/Privhistory.pm: repurpose _current_priv so it works for the new
+  resources added in this commit; rename _eid and _nick to _history_eid and
+  _history_nick, respectively
+
+0.214  2014-10-27 13:12 CET
+- config/dispatch/top_Config.pm: add 'cli' property to all top-level
+  resource definitions; put into alphabetical order; rename 'privhistory'
+  to 'priv'
+- Dispatch.pm: make 'docu' resource return "resource => ''" when called
+  without an argument, instead of "resource => undef"; make
+  "not_implemented" resource include HTTP method in payload
+
+0.215  2014-10-27 13:39 CET
+- config/dispatch/employee_Config.pm, config/dispatch/priv_Config.pm: add
+  'cli' properties to all resource definitions
+- ../development-checklist: complete manual CLI testing of all top-level
+  and employee resources
+
+0.216  2014-10-27 14:29 CET
+- config/dispatch/priv_Config.pm: fix 'priv/eid/:eid/?:ts' and
+  'priv/nick/:nick/?:ts' resource definitions
+- config/dispatch_Message_en.conf: add DISPATCH_EMPLOYEE_CURRENT_PRIV_AT_TIMESTAMP
+- Dispatch/Privhistory.pm: fix bugs in _current_priv
+- Model/Shared.pm: fix bugs in priv_by_eid and _st_by_eid
+
+0.217  2014-10-27 17:53 CET
+- config/dispatch/priv_Config.pm: eliminate duplicate 'priv' resource
+  definition that was giving me grief; fix two wrong ACL profiles;
+  eliminate 'priv/history/?:tsrange' and replace it with
+  'priv/history/current/?:tsrange'; add 'priv/history/phid/:phid' resource
+- config/dispatch/top_Config.pm: tweak resource documentation
+- dispatch_Message_en.conf: tweak priv-related messages
+- Dispatch/Privhistory.pm: tweak priv-related messages, add
+  'priv/history/phid/:phid' resource target
+- t/: add new tests; adapt existing tests to current state
+
+0.218  2014-10-27 20:31 CET
+- config/dispatch_Message_en.conf: tweak bad/missing parameter message
+- Dispatch/Employee.pm: handle non-integer EID values more gracefully
+- Test.pm: add descriptions to docu_check tests
+- t/dispatch/employee/eid.t: add descriptions to tests; add some new "negative"
+  test cases
+
+0.219  2014-10-27 22:33 CET
+- t/: clean up units; merge all employee tests into a single unit (employee.t);
+  merge all priv tests into a single unit (priv.t)
+- config/dispatch/priv_Config.pm: alphabetical order tweak
+- Test.pm: export all the test functions (EXPORT instead of EXPORT_OK); bring
+  in create_testing_employee and delete_testing_employee
+- STATUS: all top-level, employee, and priv resources implemented and tested,
+  ready to start work on activity, interval, etc. resources
+
+0.220  2014-10-28 09:35 CET
+- MANIFEST: add Dispatch/Activity.pm
+- config/dispatch/activity_Config.pm: add 'activity/all' resource definition
+- config/dispatch/top_Config.pm: add 'activity' resource definition; rename
+  '_not_implemented' target to 'not_implemented' because we are now exporting
+  it from Dispatch/Shared.pm
+- config/dispatch_Config.pm: uncomment DISPATCH_RESOURCES_ACTIVITY
+- Dispatch.pm: import not_implemented target from Dispatch/Shared.pm
+- Dispatch/Employee.pm: fix debug messages
+- Dispatch/Privhistory.pm: import priv_by_eid from the right module
+- Dispatch/Shared.pm: export 'not_implemented' routine
+- Resource.pm: add 'use App::Dochazka::REST::Dispatch::Activity' so activity
+  targets will work
+
+0.221  2014-10-28 12:08 CET
+- MANIFEST: add t/dispatch/activity.t 
+- config/sql/: add 'SQL_ACTIVITY_SELECT_ALL'; add 'disabled'
+  field to 'activities' table; adapt SQL statements where appropriate
+- t/dispatch/activity.t: new unit for activity dispatch tests
+
+0.222  2014-10-28 21:51 CET
+- config/dispatch/activity_Config.pm: activate 'activity/all' resource for GET
+  requests
+- config/sql/activity_Config.pm: divide 'activity/all' SELECT into two variants
+  (with and without disabled activities)
+- Dispatch/Activity.pm: implement _get_all_without_disabled and
+  _get_all_including_disabled dispatch targets
+- Model/Activity.pm: eliminate superfluous 'use' lines; implement
+  'get_all_activities' routine
+- t/dispatch/activity.t: add tests for GET activity/all
+
+0.223  2014-10-28 22:37 CET
+- REST_MetaConfig.pm: add META_DOCHAZKA_RESOURCE_ACLS
+- config/dispatch/top_Config.pm: bring comments up-to-date
+- Dispatch.pm: modify "_help_post" ('docu' dispatch target) to display ACL
+  profile of queried resource as well as its documentation
+- Resource.pm: modify path initializer to populate META_DOCHAZKA_RESOURCE_ACLS
+
+0.224  2014-10-29 08:07 CET
+- activity_Config.pm: add 'activity/all/disabled' resource definition
+- Dispatch/Activity.pm: comment out 'get_all' target
+- t/dispatch/activity.t: add basic tests for 'activity/all/disabled'; add FIXME
+  lines for future tests
+
+0.225  2014-10-29 09:33 CET
+- dispatch/activity_Config.pm: add 'activity/aid/:aid' resource definition
+- t/dispatch/activity.t: add initial tests for 'activity/aid/:aid'
+
+0.226  2014-10-29 10:34 CET
+- Build.PL: require 0.172 of App::Dochazka (for 'disabled' field)
+- config/sql/activity_Config.pm: make SELECTs return disabled field
+- t/dispatch/activity.t: add some tests for 'activity/aid/:aid' resource (GET)
+- Dispatch/Activity.pm: implement 'activity/aid/:aid' resource for GET requests
+
+0.227  2014-10-29 13:54 CET
+- Dispatch/{Employee,Activity}.pm: fix bug where PUT request with request body
+  consisting of just a number or just a string (e.g. '9', or '"asdf"') was
+  causing the server to vomit 500
+- activity_Config.pm: support PUT and DELETE requests for 'activity/aid/:aid';
+  add resource definition for 'activity/code/:code'
+- dispatch_Message_en.conf: add DISPATCH_CODE_DOES_NOT_EXIST
+- Dispatch/Activity.pm: support PUT and DELETE requests for 'activity/aid/:aid';
+  add support for 'activity/code/:code'
+- Model/Activity.pm: fix 'update' routine to support the new 'disabled' field
+- Model/Shared.pm: make a note in 'cud' routine that order of attrs must match
+  the '?' characters in the SQL statement
+- Test.pm: add 'create_testing_activity' and 'delete_testing_activity'
+- t/dispatch/activity.t: add a bunch of tests
+
+0.228  2014-10-29 16:43 CET
+- Dispatch/Activity.pm: trying to get _insert_activity to deal gracefully with
+  bogus JSON
+- t/: add DELETE tests for 'activity/aid/:aid'; add tests for
+  'activity/code/:code'; tweak tests
+
+0.229  2014-10-30 13:07 CET
+- Build.PL: require App::Dochazka 0.174 for new 'filter' routine
+- config/sql/dbinit_Config.pm: add check constraints for 'nick' (employees) and
+  'code' (activities) fields because folks might try to insert an activity code
+  like '!!!' or commit other similar bogusness
+- Dispatch/Shared.pm: add new 'pre_update_comparison' routine for validating
+  updates
+- Dispatch/Activity.pm: refactor _update_activity and _insert_activity so they
+  filter out bogus properties
+- Dispatch/Employee.pm: refactor _update_employee and _insert_employee so they
+  filter out bogus properties
+- t/: adapt tests to current state; add some tests that attempt to
+  insert/update bogus properties
+
+0.230  2014-10-30 18:21 CET
+- activity_Config.pm: add resource definitions for 'activity/aid' and 'activity/code'
+- t/dispatch/activity.t: add DELETE tests for 'activity/code/:code'
+
+0.231  2014-10-30 19:37 CET
+- Dispatch/Employee.pm: handle an edge case ($eid might be undefined due to
+  bogus user input)
+- t/dispatch/employee.t: label some tests; add tests for some edge cases
+- t/dispatch/activity.t: add tests for some edge cases
+
+0.232  2014-10-30 22:07 CET
+- activity_Config.pm: activate 'activity/code' dispatch target
+- Dispatch/Activity.pm: adapt '_code' dispatch target to handle POST
+- t/dispatch/activity.t: add tests
+
+0.233  2014-10-31 13:30 CET
+- realize that there are resources where the GET method needs ACL profile of,
+  e.g., "active" but the remaining methods (PUT, POST, DELETE) need to be
+  available only to administrators
+- Resource.pm: modify 'forbidden' method to handle resources with ACL profiles
+  defined for each HTTP method separately
+- config/dispatch/activity_Config.pm: define per-method ACL profiles where needed
+- Model/Privhistory.pm: improve documentation of 'get_privhistory' routine
+- Test.pm: add 'req_active', 'req_json_active', 'create_active_employee', and
+  'delete_active_employee' routines
+- t/dispatch/activity.t: adapt tests to use the new routines in Test.pm and to
+  test the per-method ACL profile definitions
+
+0.234  2014-10-31 16:48 CET
+- config/dispatch/: convert 'documentation' property of resource definitions
+  from HTML to POD
+- t/dispatch/activity.t: provide some tests for 'activity/aid' and
+  'activity/code' resources
+
+0.235  2014-10-31 17:29 CET
+- Dispatch.pm: do not chomp off linebreaks when processing resource
+  documentation string
+
+0.236  2014-10-31 21:29 CET
+- Build.PL: require Pod::Simple::HTML (needed by 'docu/html' target)
+- config/dispatch/: activate 'activity/aid' resource for POST; add '=pod' 
+  line at top of documentation string on each resource; rename 'docu' target
+  from '_help_post' to '_docu'; add 'docu/html' resource definition; convert
+  some remaining documentation from HTML to POD
+- Dispatch.pm: add a '_docu_html' target
+- Dispatch/Activity.pm: adapt '_aid' target for POST
+- Test.pm: expand 'docu_check' routine to cover 'docu/html' resource as well as
+  straight 'docu'
+- Util.pm: add a 'pod_to_html' conversion routine
+- t/dispatch/activity.t: fill in remaining tests necessary to meet minimal
+  workflow expectations
+- t/dispatch/top.t: add battery of 'docu/html' tests, mostly plagiarized from
+  'docu'
+
+0.237  2014-11-01 14:11 CET
+- rename Dispatch/Privhistory.pm to Dispatch/Priv.pm to match 'priv' resource
+
+0.238  2014-11-03 10:30 CET
+- add many schedule-related resources to development-checklist
+- in new schedule_Config.pm file with schedule resource definitions
+  copied from priv_Config.pm, edit resource descriptions and documentation
+  strings 
+- in Model/Privhistory.pm, move 'get_privhistory' routine to Model/Shared.pm
+  and generalize into 'get_history'; make 'get_privhistory' and
+  'get_schedhistory' in Model/{Privhistory, Schedhistory}.pm be wrappers for this
+  new shared routine
+- t/: adapt to current state
+
+0.239  2014-11-03 12:15 CET
+- renamed all 'priv/current/...' and 'schedule/current/...' resources
+  to 'priv/self/...' and 'schedule/self/...', respectively
+- Dispatch/Priv.pm: renamed _get_current to _get_history_self; move
+  _current_priv logic to Dispatch/Shared.pm->current because we will call it
+  from Dispatch/Schedule.pm as well;
+- Dispatch/Schedule.pm: ongoing adaptations
+- t/: adapt to current state
+
+0.240  2014-11-03 16:19 CET
+- MANIFEST: add Dispatch/Schedule.pm, t/dispatch/schedule.t
+- activity_Config.pm: add 'activity/help' resource definition
+- priv_Config.pm, etc.: rename some resources and targets
+  (in particular s/current/self/ in resource names)
+- dispatch_Config.pm, Resource.pm: activate schedule resources
+- dispatch_Message_en.pm: add new DISPATCH_EMPLOYEE_SCHEDULE and
+  DISPATCH_EMPLOYEE_SCHEDULE_AS_AT messages
+- config/sql/schedule_Config.pm: add new SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID
+  and SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK params
+- Dispatch/Shared.pm: adapt 'current' routine to work for both priv and
+  schedule resources
+- Model/Shared.pm: fix some bugs
+- Resource.pm: activate schedule resources
+- t/dispatch/activity.t: add tests for 'activity/help'
+- t/dispatch/schedule.t: add tests for "/schedule/eid/:eid/?:ts",
+  "/schedule/help", "/schedule/nick/:nick/?:ts", and "/schedule/self/?:ts"
+  resources
+
+0.241  2014-11-03 22:32 CET
+- Dispatch/Shared.pm: "numify" $eid in return value payload from dispatch
+  target 'current'; check for hashref instead of scalar now that we are
+  converting the schedule from JSON string into Perl hashref
+- Model/Schedule.pm: rename 'get_json' to 'get_schedule_json' and add
+  'decode_schedule_json' for converting the schedule JSON string into a Perl
+  hashref
+- Model/Shared.pm: return decoded schedule (hashref) from schedule_by_eid
+- t/dispatch/schedule.t: uncomment/adapt some tests
+- t/: get model units to run cleanly again
+
+0.242  2014-11-04 08:30 CET
+- config/dispatch/schedule_Config.pm: put resource definitions in alphabetical order;
+  add missing POD; add missing 'schedule/intervals' resource definition
+
+0.243  2014-11-04 09:56 CET
+- schedule_Config.pm, Dispatch/Schedule.pm: make 'schedule/history/...'
+  resources use "not_implemented" dispatch target so they don't vomit 500
+
+0.244  2014-11-04 11:32 CET
+- schedule_Config.pm: split 'schedule/intervals/?:shid' into two separate
+  resources for parsing clarity
+
+0.245  2014-11-04 17:50 CET
+- Build.PL: require App::Dochazka 0.175 for 'ssid' (instead of 'scratch_sid')
+- schedule_Config.pm: 'schedule/intervals' is POST and DELETE only; activate
+  DELETE on 'schedule/intervals/:sid'; rename ':shid' parameter to ':sid'
+- rename 'scratch_sid' field/property of intervals to 'ssid'
+- dispatch_Message_en.conf: add DISPATCH_SCHEDINTVLS_MISSING,
+  DISPATCH_SCHEDULE_INSERT_OK, DISPATCH_SCHEDULE_NO_UPDATE
+- too many other changes to count; not testing cleanly
+- Dispatch/Schedule.pm: add _intervals_post and _intervals_delete dispatch
+  targets
+- move 'expurgate' logic to Model/Shared.pm and implement a wrapper method
+  in each model module
+- Model/Schedintvls.pm: fix 'insert' method so it returns a sensible status
+  payload
+- Test.pm: in docu_check, run 'payload' tests only if there is a payload;
+  add as-yet untested 'create_testing_schedule' and 'delete_testing_schedule'
+  routines
+- t/: add new 'intervals.t' unit; adapt existing units to current state
+
+0.246  2014-11-04 21:08 CET
+- stabilization after the last commit
+- t/dispatch/intervals.t: add some tests called for by development workflow
+
+0.247  2014-11-04 22:21 CET
+- add 'DISPATCH_SCHEDULE_EXISTS' message
+- add 'schedule/all' and 'schedule/all/disabled' resource definitions
+- add 'disabled' field to 'schedules' table
+- Dispatch/Schedule.pm: when schedule already exists, return
+  'DISPATCH_SCHEDULE_OK'
+- t/dispatch/intervals.t: test for 'DISPATCH_SCHEDULE_OK' when inserting the
+  same schedule a second time
+
+0.248  2014-11-05 11:05 CET
+- Build.PL: require App::Dochazka 0.176 to ensure Schedule objects have a
+  'disabled' property
+- config/dispatch/schedule_Config.pm: activate 'schedule/all' and 
+  'schedule/all/disabled' resources
+- config/sql/schedule_Config.pm: add 'disabled' field to SQL statements;
+  add two new SQL statements to get all schedule records
+- Dispatch/Schedule.pm: import 'get_all_schedules' and
+  'get_all_schedules_including_disabled' routines
+- Model/Schedule.pm: implement 'get_all_schedules' and
+  'get_all_schedules_including_disabled' routines
+
+0.249  2014-11-05 12:18 CET
+- give 'schedule/all/...' dispatch targets more sensible names
+- enable POST on 'schedule/intervals/:sid', including documentation
+- t/dispatch/schedule.t: add 405 tests for 'schedule/all/...'
+
+0.250  2014-11-05 17:54 CET
+- Build.PL: require App::Dochazka 0.177 for TO_JSON method; require
+  App::CELL 0.201 to get rid of Data::Structure::Util
+- Resource.pm: get rid of wacky debug code; add 'convert_blessed' to our
+  JSON 'encode' method call now that we have TO_JSON methods in all models;
+  this obviates the need to call 'unblessed'
+- Data::Structure::Util does not work with perl 5.20, so it needs to go;
+  remove all mentions of it; fix resulting brokenness 
+- Util.pm: get rid of jury-rigged 'deep_copy' routine (use Storable::dclone
+  instead!)
+
+0.251  2014-11-06 09:42 CET
+- Dispatch/Schedule.pm->_intervals_delete was reporting success even when
+  nothing was actually deleted - fixed
+- Model/Schedule.pm->schedule_all was crashing when no records found (because
+  $counter was not initialized) - fixed
+- t/104-employee.t: deprecate expurgate in favor of TO_JSON
+- t/dispatch/intervals.t: when no schedule records are in the database,
+  'schedule/all/...' will return 404 - fixed
+- t/dispatch/schedule.t: add basic tests for 'schedule/all' and
+  'schedule/all/disabled'
+
+0.252  2014-11-06 16:43 CET
+- Build.PL: require App::Dochazka 0.181 for new boilerplate code
+- schedule_Config.pm: rename '/schedule/intervals/:sid' to 
+  '/schedule/sid/:sid'
+- dbinit_Config.pm: add a trigger to make immutable/unupdatable the 'schedule'
+  field of the 'shedules' table 
+- add a 'SQL_SCHEDULE_UPDATE' statement to support updates on the
+  'schedules' table
+- replace calls to 'expurgate' method with 'TO_JSON'
+- Dispatch/Schedule.pm: implement _intervals_get and _schedule_post dispatch
+  targets and '_update_schedule' routine adapted from Employee.pm
+- Model/Shedule.pm: override the boilerplate 'compare' method for this
+  model because the 'disabled' field needs special handling; implement
+  an 'update' method
+- Resource.pm: fix a debug message
+- t/107-schedule.t: add test case for 'update' method
+- t/dispatch/intervals.t: add GET test case for '/schedule/sid/:sid' resource
+

@@ -36,13 +36,11 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-#use App::Dochazka::REST::dbh qw( $dbh );
+use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid );
-use Carp;
-use Data::Dumper;
 use DBI;
 use Params::Validate qw{:all};
-use Scalar::Util qw( blessed );
+use Try::Tiny;
 
 # we get 'spawn', 'reset', and accessors from parent
 use parent 'App::Dochazka::Model::Activity';
@@ -59,11 +57,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -113,6 +111,8 @@ before every INSERT and UPDATE on this table.
 
 =item * L<load_by_code> (loads a single activity into an object)
 
+=item * L<get_all_activities> (load all activities)
+
 =back
 
 L<App::Dochazka::REST::Model::Activity> also exports some convenience
@@ -148,6 +148,19 @@ our @EXPORT_OK = qw( aid_by_code );
 
 
 =head1 METHODS
+
+
+=head2 expurgate
+
+Non-destructively convert object into hashref
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_;
+    return App::Dochazka::REST::Model::Shared::expurgate( $self );
+}
+
 
 =head2 insert
 
@@ -187,7 +200,7 @@ sub update {
     my $status = cud(
         object => $self,
         sql => $site->SQL_ACTIVITY_UPDATE,
-        attrs => [ 'code', 'long_desc', 'remark', 'aid' ],
+        attrs => [ 'code', 'long_desc', 'remark', 'disabled', 'aid' ],
     );
 
     return $status;
@@ -282,6 +295,57 @@ sub aid_by_code {
     my $status = __PACKAGE__->load_by_code( $code );
     return $status->payload->{'aid'} if $status->code eq 'DISPATCH_RECORDS_FOUND';
     return;
+}
+
+
+=head2 get_all_activities
+
+Optionally takes a PARAMHASH that can contain a 'disabled' key which can be
+either true or false (defaults to false).
+
+Returns a reference to a hash of hashes, where each hash is one activity object.
+If 'disabled' is true, all activities including disabled ones will be included, 
+otherwise only the non-disabled activities will be retrieved.
+
+=cut
+
+sub get_all_activities {
+    my %PH = validate( @_, { 
+        disabled => { type => SCALAR, default => 1 }
+    } );
+    
+    my $sql = $PH{disabled}
+        ? $site->SQL_ACTIVITY_SELECT_ALL_INCLUDING_DISABLED
+        : $site->SQL_ACTIVITY_SELECT_ALL_EXCEPT_DISABLED;
+    my ( $result, $status );
+
+    my $counter = 0;
+    $dbh->{RaiseError} = 1;
+    try {
+        my $sth = $dbh->prepare( $sql );
+        $sth->execute();
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+            $counter += 1;
+            push @{ $result->{'activities'} }, $tmpres;
+        }
+    } catch {
+        my $arg = $dbh->err
+            ? $dbh->errstr
+            : $_;
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+    };
+    $dbh->{RaiseError} = 0;
+    return $status if defined $status;
+    if ( $counter > 0 ) {
+        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args =>
+            [ $counter ], payload => $result, count => $counter );
+    } else {
+        $result->{'privhistory'} = [];
+        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND',
+            payload => $result, count => $counter );
+    }
+    $dbh->{RaiseError} = 0;
+    return $status;
 }
 
 

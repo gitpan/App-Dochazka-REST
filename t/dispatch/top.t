@@ -40,7 +40,7 @@ use warnings FATAL => 'all';
 
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
-use App::Dochazka::REST::Test qw( req_root req_json_root req_demo req_json_demo status_from_json docu_check );
+use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -80,7 +80,7 @@ ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'bugreport'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'whoami'} );
@@ -103,7 +103,7 @@ ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 # plus admin-only resources
 ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
@@ -140,7 +140,7 @@ ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST "" 
@@ -155,7 +155,7 @@ ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'echo'} );
@@ -305,6 +305,93 @@ $res = $test->request( req_json_demo DELETE => 'docu' );
 is( $res->code, 405 );
 $res = $test->request( req_json_root DELETE => 'docu' );
 is( $res->code, 405 );
+
+
+#=============================
+# "docu/html" resource
+#=============================
+docu_check($test, "docu/html");
+#
+# GET docu
+#
+$res = $test->request( req_demo GET => 'docu/html' );
+is( $res->code, 405 );
+$res = $test->request( req_root GET => 'docu/html' );
+is( $res->code, 405 );
+#
+# PUT docu
+#
+$res = $test->request( req_json_demo PUT => 'docu/html' );
+is( $res->code, 405 );
+$res = $test->request( req_json_root PUT => 'docu/html' );
+is( $res->code, 405 );
+#
+# POST docu
+#
+# - be nice
+$res = $test->request( req_json_demo POST => 'docu/html', undef, '"echo"' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+ok( exists $status->payload->{'resource'} );
+is( $status->payload->{'resource'}, 'echo' );
+ok( exists $status->payload->{'documentation'} );
+$docustr = $status->payload->{'documentation'};
+$docustr_len = length( $docustr );
+ok( $docustr_len > 10 );
+like( $docustr, qr/echoes/ );
+#
+# - ask nicely for documentation of a slightly more complicated resource
+$res = $test->request( req_json_demo POST => 'docu/html', undef, '"metaparam/:param"' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+ok( exists $status->payload->{'resource'} );
+is( $status->payload->{'resource'}, 'metaparam/:param' );
+ok( exists $status->payload->{'documentation'} );
+ok( length( $status->payload->{'documentation'} ) > 10 );
+isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
+isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
+#
+# - ask nicely for documentation of the "" resource
+$res = $test->request( req_json_demo POST => 'docu/html', undef, '""' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+ok( exists $status->payload->{'resource'} );
+is( $status->payload->{'resource'}, '' );
+ok( exists $status->payload->{'documentation'} );
+ok( length( $status->payload->{'documentation'} ) > 10 );
+isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
+isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
+#
+# - be nice but not careful (non-existent resource)
+$res = $test->request( req_json_demo POST => 'docu/html', undef, '"echop"' );
+is( $res->code, 200 );
+is_valid_json( $res->content );
+$status = status_from_json( $res->content );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_BAD_RESOURCE' );
+#
+# - be pathological (invalid JSON)
+$res = $test->request( req_json_demo POST => 'docu/html', undef, 'bare, unquoted string will never pass for JSON' );
+is( $res->code, 400 );
+$res = $test->request( req_json_demo POST => 'docu/html', undef, '[ 1, 2' );
+is( $res->code, 400 );
+#
+# DELETE docu
+#
+$res = $test->request( req_json_demo DELETE => 'docu/html' );
+is( $res->code, 405 );
+$res = $test->request( req_json_root DELETE => 'docu' );
+is( $res->code, 405 );
+
 
 #=============================
 # "echo" resource
@@ -521,7 +608,7 @@ ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'whoami'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 #
 # GET help 
 # - as root
@@ -542,7 +629,7 @@ ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 # plus admin-only resources
 ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
@@ -578,7 +665,7 @@ ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # - as root
@@ -592,7 +679,7 @@ ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{''} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
-ok( exists $status->payload->{'resources'}->{'privhistory'} );
+ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'echo'} );
@@ -786,13 +873,13 @@ is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
 
 
 #=============================
-# "privhistory" resource
+# "priv" resource
 #=============================
-docu_check($test, "privhistory");
+docu_check($test, "priv");
 #
-# GET privhistory
+# GET priv
 #
-$res = $test->request( req_demo GET => '/privhistory' );
+$res = $test->request( req_demo GET => '/priv' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 $status = status_from_json( $res->content );
@@ -800,9 +887,9 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # 
-$res = $test->request( req_root GET => '/privhistory' );
+$res = $test->request( req_root GET => '/priv' );
 is( $res->code, 200 );
 is_valid_json( $res->content );
 $status = status_from_json( $res->content );
@@ -810,78 +897,80 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # additional admin-level resources
-ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid/:tsrange'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/current/:tsrange'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/eid/:eid'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/nick/:nick/:tsrange'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/current'} );
+ok( exists $status->payload->{'resources'}->{'priv/self/?:ts'} );
+ok( exists $status->payload->{'resources'}->{'priv/eid/:eid/?:ts'} );
+ok( exists $status->payload->{'resources'}->{'priv/nick/:nick/?:ts'} );
+ok( exists $status->payload->{'resources'}->{'priv/history/self/?:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'priv/history/eid/:eid'} );
+ok( exists $status->payload->{'resources'}->{'priv/history/eid/:eid/:tsrange'} );
+ok( exists $status->payload->{'resources'}->{'priv/history/nick/:nick'} );
+ok( exists $status->payload->{'resources'}->{'priv/history/nick/:nick/:tsrange'} );
 #
-# PUT privhistory
+# PUT priv
 #
-$res = $test->request( req_json_demo 'PUT', 'privhistory' );
+$res = $test->request( req_json_demo 'PUT', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 #
-$res = $test->request( req_json_root 'PUT', 'privhistory' );
+$res = $test->request( req_json_root 'PUT', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 #
-# POST privhistory
+# POST priv
 #
-$res = $test->request( req_json_demo 'POST', 'privhistory' );
+$res = $test->request( req_json_demo 'POST', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'method'} );
 is( $status->payload->{'method'}, 'POST' );
 #
-$res = $test->request( req_json_root 'POST', 'privhistory' );
+$res = $test->request( req_json_root 'POST', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'method'} );
 is( $status->payload->{'method'}, 'POST' );
 # additional admin-only resources
 # none yet
 #
-# DELETE privhistory
+# DELETE priv
 #
-$res = $test->request( req_json_demo 'DELETE', 'privhistory' );
+$res = $test->request( req_json_demo 'DELETE', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 #
-$res = $test->request( req_json_root 'DELETE', 'privhistory' );
+$res = $test->request( req_json_root 'DELETE', 'priv' );
 is( $res->code, 200 );
 $status = status_from_json( $res->content );
 ok( $status->ok );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{'privhistory/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 

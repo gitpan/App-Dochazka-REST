@@ -37,11 +37,13 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( load cud );
+use App::Dochazka::REST::Model::Shared;
 use Carp;
 use Data::Dumper;
 use DBI;
+use JSON;
 use Params::Validate qw( :all );
+use Test::Deep::NoTest;
 use Try::Tiny;
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -59,11 +61,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -95,25 +97,26 @@ employees on a single, unified schedule.)
       CREATE TABLE IF NOT EXISTS schedules (
         sid        serial PRIMARY KEY,
         schedule   text UNIQUE NOT NULL,
+        disabled   boolean,
         remark     text
       );
 
 The value of the 'schedule' field is a JSON array which looks something like this:
 
     [
-        { low_dow:"MON", low_time:"08:00", high_dow:"MON", high_time:"12:00" ],  
-        { low_dow:"MON", low_time:"12:30", high_dow:"MON", high_time:"16:30" ],  
-        { low_dow:"TUE", low_time:"08:00", high_dow:"TUE", high_time:"12:00" ],  
-        { low_dow:"TUE", low_time:"12:30", high_dow:"TUE", high_time:"16:30" ],
+        { low_dow:"MON", low_time:"08:00", high_dow:"MON", high_time:"12:00" },  
+        { low_dow:"MON", low_time:"12:30", high_dow:"MON", high_time:"16:30" },  
+        { low_dow:"TUE", low_time:"08:00", high_dow:"TUE", high_time:"12:00" },  
+        { low_dow:"TUE", low_time:"12:30", high_dow:"TUE", high_time:"16:30" },
         ...
     ]   
 
 Or, to give an example of a more convoluted schedule:
 
     [   
-        { low_dow:"WED", low_time:"22:15", high_dow:"THU", high_time:"03:25" ], 
-        { low_dow:"THU", low_time:"05:25", high_dow:"THU", high_time:"09:55" ],
-        { low_dow:"SAT", low_time:"19:05", high_dow:"SUN", high_time:"24:00" ] 
+        { low_dow:"WED", low_time:"22:15", high_dow:"THU", high_time:"03:25" }, 
+        { low_dow:"THU", low_time:"05:25", high_dow:"THU", high_time:"09:55" },
+        { low_dow:"SAT", low_time:"19:05", high_dow:"SUN", high_time:"24:00" } 
     ] 
 
 The intervals in the JSON string must be sorted and the whitespace, etc.
@@ -121,6 +124,13 @@ must be consistent in order for the UNIQUE constraint in the 'schedule'
 table to work properly. However, these precautions will no longer be
 necessary after PostgreSQL 9.4 comes out and the field type is changed to
 'jsonb'.
+
+The 'disabled' field is intended go be used to control which schedules get
+offered in, e.g., front-end dialogs when administrators choose which schedule
+to assign to a new employee, and the like. For example, there may be schedules
+in the database that were used in the past, but it is no longer desirable to 
+offer these schedules in the front-end dialog, so the administrator can "remove"
+them from the dialog by setting this field to 'true'.
 
 
 =head3 Process for creating new schedules
@@ -139,19 +149,21 @@ more need be done -- we can skip to L<Schedhistory>
 
 If the schedule we need is not yet in the database, we will have to create it.
 This is a three-step process: (1) build up the schedule in the C<schedintvls>
-table (sometimes referred to as the "scratch schedule" table); (2) translate
-the schedule to form the schedule's JSON representation; (3) insert the JSON
-string into the C<schedules> table.
+table (sometimes referred to as the "scratch schedule" table because it is used
+to store an intermediate product with only a short lifespan); (2) translate the
+schedule to form the schedule's JSON representation; (3) insert the JSON string
+into the C<schedules> table.
 
 The C<schedintvls>, or "scratch schedule", table:
 
       CREATE SEQUENCE scratch_sid_seq;
 
       CREATE TABLE IF NOT EXISTS schedintvls (
-          scratch_sid  integer NOT NULL,
-          intvl        tsrange NOT NULL,
-          EXCLUDE USING gist (scratch_sid WITH =, intvl WITH &&)
-      );
+        int_id  serial PRIMARY KEY,
+        ssid    integer NOT NULL,
+        intvl   tsrange NOT NULL,
+        EXCLUDE USING gist (ssid WITH =, intvl WITH &&)
+      )/,
 
 As stated above, before the C<schedule> table is touched, a "scratch schedule"
 must first be created in the C<schedintvls> table. Although this operation
@@ -197,7 +209,7 @@ At this point, the scratch schedule is deleted from the C<schedintvls> table.
 
 =item * L<reset> method (recycles an existing object)
 
-=item * basic accessors (L<scratch_sid> and L<remark>)
+=item * basic accessor (L<ssid>)
 
 =item * L<intvls> accessor (arrayref containing all tsrange intervals in schedule) 
 
@@ -213,7 +225,7 @@ At this point, the scratch schedule is deleted from the C<schedintvls> table.
 
 =back
 
-For basic workflow, see C<t/007-schedule.t>.
+For basic workflow, see C<t/107-schedule.t>.
 
 
 =head3 C<Schedule> class
@@ -232,11 +244,13 @@ For basic workflow, see C<t/007-schedule.t>.
 
 =item * L<load> method (not implemented yet) 
 
-=item * L<get_json> function (get JSON string associated with a given SID)
+=item * L<get_schedule_json> function (get JSON string associated with a given SID)
+
+=item * L<decode_schedule_json> function (given JSON string, return corresponding hashref)
 
 =back
 
-For basic workflow, see C<t/007-schedule.t>.
+For basic workflow, see C<t/107-schedule.t>.
 
 
 
@@ -247,18 +261,60 @@ This module provides the following exports:
 
 =over 
 
+=item C<schedule_all> 
+
+=item C<schedule_all_disabled> 
+
 =item C<get_json>
+
+=item C<decode_schedule_json>
 
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( get_json );
+our @EXPORT_OK = qw( 
+    schedule_all schedule_all_disabled
+    get_schedule_json decode_schedule_json 
+);
 
 
 
 =head1 METHODS
+
+
+=head2 compare
+
+Override the compare method inherited from App::Dochazka
+
+=cut
+
+sub compare {
+    my ( $self, $other ) = @_;
+    return if ref( $self) ne __PACKAGE__;
+    return if ref( $other) ne __PACKAGE__;
+    my $self_disabled = $self->{'disabled'};
+    delete $self->{'disabled'};
+    my $other_disabled = $other->{'disabled'};
+    delete $other->{'disabled'};
+    return 0 unless eq_deeply( $self, $other );
+    return 0 unless ( ! $self_disabled and ! $other_disabled ) or ( $self_disabled and $other_disabled );
+    return 1;
+}
+
+
+=head2 expurgate
+
+Non-destructively convert object into hashref
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_;
+    return App::Dochazka::REST::Model::Shared::expurgate( $self );
+}
+
 
 =head2 insert
 
@@ -274,16 +330,17 @@ sub insert {
     # don't insert it again
     $self->{sid} = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SID, 
                    undef, $self->{schedule} );    
-    return $CELL->status_ok( "This schedule has SID " . $self->{sid} ) 
+    return $CELL->status_ok( 'DOCHAZKA_SCHEDULE_EXISTS', args => [ $self->{sid} ] ) 
         if defined $self->{sid};
     return $CELL->status_err( $dbh->errstr ) if $dbh->err;
 
     # no exact match found, insert a new record
-    my $status = cud(
+    my $status = App::Dochazka::REST::Model::Shared::cud(
         object => $self,
         sql => $site->SQL_SCHEDULE_INSERT,
         attrs => [ 'schedule', 'remark' ],
     );
+
     $log->info( "Inserted new schedule with SID" . $self->{sid} ) if $status->ok;
 
     return $status;
@@ -292,9 +349,23 @@ sub insert {
 
 =head2 update
 
-There is no update method for schedules. To update a schedule, delete it
-and then re-create it (see Spec.pm for a description of how to do this, 
-or refer to t/007-schedule.t).
+Although we do not allow the 'sid' or 'schedule' fields to be updated, schedule
+records have 'remark' and 'disabled' fields that can be updated via this
+method. 
+
+=cut
+
+sub update {
+    my ( $self ) = @_;
+
+    my $status = App::Dochazka::REST::Model::Shared::cud(
+        object => $self,
+        sql => $site->SQL_SCHEDULE_UPDATE,
+        attrs => [ 'remark', 'disabled', 'sid' ],
+    );
+
+    return $status;
+}
 
 
 =head2 delete
@@ -306,14 +377,16 @@ if no other records in the database refer to this schedule.
 
 sub delete {
     my ( $self ) = @_;
+    $log->debug( "Entering " . __PACKAGE__ . "::delete" );
 
-    my $status = cud(
+    my $status = App::Dochazka::REST::Model::Shared::cud(
         object => $self,
         sql => $site->SQL_SCHEDULE_DELETE,
         attrs => [ 'sid' ],
     );
     $self->reset( sid => $self->{sid} ) if $status->ok;
 
+    $log->debug( "Entering " . __PACKAGE__ . "::delete with status " . Dumper( $status ) );
     return $status;
 }
 
@@ -328,7 +401,7 @@ sub load_by_sid {
     my $self = shift;
     my ( $sid ) = validate_pos( @_, { type => SCALAR } );
 
-    return load( 
+    return App::Dochazka::REST::Model::Shared::load( 
         class => __PACKAGE__, 
         sql => $site->SQL_SCHEDULE_SELECT_BY_SID,
         keys => [ $sid ],
@@ -339,24 +412,95 @@ sub load_by_sid {
 
 =head1 FUNCTIONS
 
-=head2 get_json
+
+=head2 schedule_all
+
+Returns a list of all non-disabled schedule objects, ordered by sid.
+
+=cut
+
+sub schedule_all {
+    my ( $including_disabled ) = @_;
+    my $sql = $including_disabled
+        ? $site->SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED
+        : $site->SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED;
+    my @result;
+    my $status;
+    my $counter = 0;
+    try {
+        my $sth = $dbh->prepare( $sql );
+        $sth->execute;
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+            $counter += 1;
+            push @result, $tmpres;
+        }
+    } catch {
+        my $arg = $dbh->err
+            ? $dbh->errstr
+            : $_;
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+    };
+    $dbh->{RaiseError} = 0;
+    return $status if defined $status;
+    if ( $counter > 0 ) {
+        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
+            [ $counter ], payload => \@result, count => $counter );
+    } else {
+        @result = ();
+        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+            payload => \@result, count => $counter );
+    }
+    $dbh->{RaiseError} = 0;
+    return $status;
+}
+
+
+=head2 schedule_all_disabled
+
+Returns a list of all schedule objects, ordered by sid. The list includes all
+schedules regardless of 'disabled' status.
+
+=cut
+
+sub schedule_all_disabled {
+     return schedule_all( 'including_disabled' );
+}
+
+
+=head2 decode_json
+
+Given JSON string representation of the schedule, return corresponding HASHREF.
+
+=cut
+
+sub decode_schedule_json {
+    my ( $json_str ) = @_;
+
+    return JSON->new->utf8->canonical(1)->decode( $json_str );
+}
+
+
+=head2 get_schedule_json
 
 Given a SID, queries the database for the JSON string associated with the SID.
 Returns undef if not found.
 
 =cut
 
-sub get_json {
+sub get_schedule_json {
     my ( $sid ) = @_;
-    die "Problem with arguments in get_json" if not defined $sid;
+    die "Problem with arguments in get_schedule_json" if not defined $sid;
 
     my ( $json ) = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
                                          undef,
                                          $sid );
-    return $json;
+    
+    if ( $json ) {
+        $log->debug( __PACKAGE__ . "::get_schedule_json got schedule from database: $json" );
+        return decode_schedule_json( $json );
+    }
+    return;
 }
-
-
 
 
 

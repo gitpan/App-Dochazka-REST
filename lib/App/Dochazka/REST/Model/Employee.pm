@@ -41,11 +41,8 @@ use App::Dochazka::REST::LDAP;
 use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid schedule_by_eid noof );
 use Carp;
 use Data::Dumper;
-use Data::Structure::Util qw( unbless );
 use DBI qw(:sql_types);
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
-use Storable qw( dclone );
 use Try::Tiny;
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -62,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -223,6 +220,18 @@ our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 
 =head1 METHODS
+
+
+=head2 expurgate
+
+Non-destructively convert object into hashref
+
+=cut
+
+sub expurgate {
+    my ( $self ) = @_;
+    return App::Dochazka::REST::Model::Shared::expurgate( $self );
+}
 
 
 =head2 priv
@@ -434,30 +443,6 @@ sub select_multiple_by_nick {
 }
 
 
-=head2 expurgate
-
-1. make deep copy of the object, 2. unbless it, 3. return it
-
-=cut
-
-sub expurgate {
-    my ( $self ) = @_; 
-    return unless blessed( $self );
-
-    my $udc;
-    try {
-        $udc = dclone( $self );
-        unbless $udc;
-    } catch {
-        $log->err( "AAAAAAAAHHHHHHH: $_" );
-    };
-
-    #die "Expurgated employee contains passhash?" if $udc->{'passhash'};
-    #die "Expurgated employee contains salt?" if $udc->{'salt'};
-    return $udc;
-}
-
-
 
 =head1 EXPORTED FUNCTIONS
 
@@ -492,7 +477,7 @@ Analogous function to L<"nick_exists">.
 sub eid_exists {
    my ( $eid ) = @_;
    my $status = __PACKAGE__->load_by_eid( $eid );
-   die $status->text unless $status->ok;
+   return $status unless $status->ok;
    return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
        ? $status->payload
        : undef;

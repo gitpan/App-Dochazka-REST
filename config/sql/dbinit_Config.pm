@@ -71,7 +71,8 @@ set( 'DBINIT_CREATE', [
         passhash  text,
         salt      text,
         remark    text,
-        stamp     json
+        stamp     json,
+        CONSTRAINT kosher_nick CHECK (nick ~* '^[A-Za-z0-9][A-Za-z0-9]+$')
       )/,
 
     q/-- sequence for use with the schedintvls table -- this is a 
@@ -84,10 +85,10 @@ set( 'DBINIT_CREATE', [
       -- them in the 'schedules' table: records inserted into schedintvls
       -- should be deleted after use
       CREATE TABLE IF NOT EXISTS schedintvls (
-        int_id       serial PRIMARY KEY,
-        scratch_sid  integer NOT NULL,
-        intvl        tsrange NOT NULL,
-        EXCLUDE USING gist (scratch_sid WITH =, intvl WITH &&)
+        int_id  serial PRIMARY KEY,
+        ssid    integer NOT NULL,
+        intvl   tsrange NOT NULL,
+        EXCLUDE USING gist (ssid WITH =, intvl WITH &&)
       )/,
 
     q/CREATE OR REPLACE FUNCTION valid_schedintvl() RETURNS trigger AS $$
@@ -128,7 +129,7 @@ set( 'DBINIT_CREATE', [
       -- strings (e.g., "WED" "08:00") denotes the lower bound of the
       -- range, while the second pair denotes the upper bound
       CREATE OR REPLACE FUNCTION translate_schedintvl ( 
-          scratch_sid int,
+          ssid int,
           OUT low_dow text,
           OUT low_time text,
           OUT high_dow text,
@@ -148,9 +149,24 @@ set( 'DBINIT_CREATE', [
       CREATE TABLE IF NOT EXISTS schedules (
         sid        serial PRIMARY KEY,
         schedule   text UNIQUE NOT NULL,
+        disabled   boolean,
         remark     text
       )/,
 
+    q/-- trigger function to detect attempts to change 'schedule' field
+    CREATE OR REPLACE FUNCTION schedule_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.schedule <> NEW.schedule THEN
+              RAISE EXCEPTION 'schedule field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_schedule_update BEFORE UPDATE ON schedules
+      FOR EACH ROW EXECUTE PROCEDURE schedule_immutable()/,
+    
     q/CREATE TABLE IF NOT EXISTS schedhistory (
         shid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
@@ -168,7 +184,8 @@ set( 'DBINIT_CREATE', [
         priv       privilege NOT NULL,
         effective  timestamp NOT NULL,
         remark     text,
-        stamp      json
+        stamp      json,
+        UNIQUE (eid, effective)
     )/,
 
     q/CREATE OR REPLACE FUNCTION round_effective() RETURNS trigger AS $$
@@ -236,7 +253,9 @@ set( 'DBINIT_CREATE', [
           aid        serial PRIMARY KEY,
           code       varchar(32) UNIQUE NOT NULL,
           long_desc  text,
-          remark     text
+          remark     text,
+          disabled   boolean,
+          CONSTRAINT kosher_code CHECK (code ~* '^[A-Za-z][A-Za-z0-9_]+$')
       )/,
   
     q/CREATE OR REPLACE FUNCTION code_to_upper() RETURNS trigger AS $$

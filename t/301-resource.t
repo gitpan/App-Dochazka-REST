@@ -43,7 +43,7 @@ use App::CELL qw( $log $meta $site );
 use App::CELL::Status;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Resource;
-use App::Dochazka::REST::Test qw( req_json_demo req_html req_bad_creds );
+use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
 use Plack::Test;

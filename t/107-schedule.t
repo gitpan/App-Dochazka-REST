@@ -44,7 +44,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Schedule qw( get_json );
+use App::Dochazka::REST::Model::Schedule qw( get_schedule_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
 use App::Dochazka::REST::Model::Shared qw( noof );
@@ -83,8 +83,8 @@ is( noof( 'schedintvls' ), 0 );
 my $schedintvls = App::Dochazka::REST::Model::Schedintvls->spawn;
 ok( ref($schedintvls), "object is a reference" );
 ok( blessed($schedintvls), "object is a blessed reference" );
-ok( defined( $schedintvls->{scratch_sid} ), "Scratch SID is defined" ); 
-ok( $schedintvls->{scratch_sid} > 0, "Scratch SID is > 0" ); 
+ok( defined( $schedintvls->{ssid} ), "Scratch SID is defined" ); 
+ok( $schedintvls->{ssid} > 0, "Scratch SID is > 0" ); 
 
 # insert a schedule (i.e. a list of schedintvls)
 $schedintvls->{intvls} = [
@@ -100,7 +100,7 @@ $schedintvls->{intvls} = [
 $status = $schedintvls->insert;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok, "OK scratch intervals inserted OK" );
-ok( $schedintvls->scratch_sid, "OK there is a scratch SID" );
+ok( $schedintvls->ssid, "OK there is a scratch SID" );
 is( scalar @{ $schedintvls->{intvls} }, 6, "Object now has 6 intervals" );
 
 # after insert, count of schedintvls should be 6
@@ -126,6 +126,17 @@ ok( $status->ok, "Schedule insert OK" );
 ok( $schedule->sid > 0, "There is an SID" );
 is_valid_json( $schedule->schedule );
 is( $schedule->remark, 'TESTING' );
+
+# Attempt to change the 'schedule' field to a bogus string
+my $saved_sched_obj = $schedule->clone;
+$schedule->schedule( 'BOGUS STRING' );
+is( $schedule->schedule, 'BOGUS STRING' );
+$status = $schedule->update;
+is( $status->level, 'OK' );
+my $new_sched_obj = App::Dochazka::REST::Model::Schedule->spawn( $status->payload );
+ok( $schedule->compare( $saved_sched_obj ) );
+
+# in other words, nothing changed
 
 # And now we can delete the schedintvls object and its associated database rows
 $status = $schedintvls->delete;
@@ -163,10 +174,10 @@ ok( $status->ok, "Schedule insert OK" );
 is( $schedule2->sid, $sid_copy, "But SID is the same as before" );
 is( noof( 'schedules' ), 1, "schedules row count is still 1" );
 
-# tests for get_json function
-my $json = get_json( $sid_copy );
-is_valid_json( $json );
-is( get_json( 994), undef, "Non-existent SID" );
+# tests for get_schedule_json function
+my $json = get_schedule_json( $sid_copy );
+is( ref( $json ), 'ARRAY' );
+is( get_schedule_json( 994), undef, "Non-existent SID" );
 
 # Now that we finally have the schedule safely in the database,
 # we can assign it to the employee (Mr. Sched) by inserting a record 

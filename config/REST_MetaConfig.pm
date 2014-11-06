@@ -31,9 +31,9 @@
 # ************************************************************************* 
 
 # -----------------------------------
-# Dochazka-REST
+# App::Dochazka::REST
 # -----------------------------------
-# Dochazka_MetaConfig.pm
+# REST_MetaConfig.pm
 #
 # Configuration file for meta params
 # -----------------------------------
@@ -47,6 +47,11 @@ set( 'META_DOCHAZKA_UNIT_TESTING', 0 );
 #    at router initialization time, this will be filled with key:value
 #    pairs where key is resource name and value is documentation string
 set( 'META_DOCHAZKA_RESOURCE_DOCS', {} ); 
+
+# META_DOCHAZKA_RESOURCE_ACLS
+#    at router initialization time, this will be filled with key:value
+#    pairs where key is resource name and value is the ACL profile
+set( 'META_DOCHAZKA_RESOURCE_ACLS', {} ); 
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

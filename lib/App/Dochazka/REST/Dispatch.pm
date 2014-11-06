@@ -43,7 +43,9 @@ use App::CELL qw( $CELL $log $site $meta );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Employee;
-use App::Dochazka::REST::Dispatch::Privhistory;
+use App::Dochazka::REST::Dispatch::Priv;
+use App::Dochazka::REST::Dispatch::Shared qw( not_implemented );
+use App::Dochazka::REST::Util qw( pod_to_html );
 use Carp;
 use Data::Dumper;
 #use JSON qw();
@@ -66,11 +68,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -127,17 +129,46 @@ sub _echo {
 }
 
 
-sub _help_post {
+sub _docu {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my $resource = $context->{'request_body'};
-    my $docs = $context->{'documentation'} || 'NONE WRITTEN YET';
-    chomp($docs);
-    $docs =~ s/\R/ /g;
+    my $resource = $context->{'request_body'} || "";
+    my $acl_profile = $meta->META_DOCHAZKA_RESOURCE_ACLS->{$resource} || '!?NONE?!';
+    my $docs = $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} || 'NONE WRITTEN YET';
+    #chomp($docs);
+    #$docs =~ s/\R/ /g;
     if ( exists $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} ) {
         return $CELL->status_ok( 'DISPATCH_ONLINE_DOCUMENTATION',
             payload => {
-               'resource' => $resource,
-               'documentation' => $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource},
+               'resource' => ( defined $resource )
+                   ? $resource
+                   : "",
+               'acl_profile' => $acl_profile,
+               'documentation_format' => 'POD',
+               'documentation' => $docs,
+            },
+        );
+    } else {
+        return $CELL->status_err( 'DISPATCH_BAD_RESOURCE' );
+    }
+}
+
+
+sub _docu_html {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my $resource = $context->{'request_body'} || "";
+    my $acl_profile = $meta->META_DOCHAZKA_RESOURCE_ACLS->{$resource} || '!?NONE?!';
+    my $docs = $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} || 'NONE WRITTEN YET';
+    #chomp($docs);
+    #$docs =~ s/\R/ /g;
+    if ( exists $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} ) {
+        return $CELL->status_ok( 'DISPATCH_ONLINE_DOCUMENTATION',
+            payload => {
+               'resource' => ( defined $resource )
+                   ? $resource
+                   : "",
+               'acl_profile' => $acl_profile,
+               'documentation_format' => 'HTML',
+               'documentation' => pod_to_html( $docs ),
             },
         );
     } else {
@@ -198,8 +229,8 @@ sub _put_param {
     $param = $context->{'mapping'}->{'param'};
     $path = $context->{'path'};
     my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
-    $log->debug("_put_param: request body is " . Dumper( $body ) );
-    $log->debug("_put_param: about to set metaparam $param to " . Dumper( $body ) );
+    $log->debug( __PACKAGE__ . "::_put_param: request body is " . Dumper( $body ) );
+    $log->debug( __PACKAGE__ . "::_put_param: about to set metaparam $param to " . Dumper( $body ) );
     if ( $path =~ m/metaparam/ ) {
         $type = 'meta';
         $meta->set( $param, $body );
@@ -227,16 +258,6 @@ sub _put_param {
 }
 
 
-sub _not_implemented {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug("Entering _not_implemented, path is " . $context->{path} );
-    return $CELL->status_notice( 
-        'DISPATCH_RESOURCE_NOT_IMPLEMENTED',
-        payload => { "resource" => $context->{'path'} }
-    );
-}
-
-
 sub _get_session {
 
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
@@ -252,6 +273,5 @@ sub _get_version {
     return $CELL->status_ok( 'DISPATCH_DOCHAZKA_REST_VERSION', 
         payload => { version => $VERSION } );
 }
-
 
 1;

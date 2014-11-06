@@ -40,6 +40,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
+use App::Dochazka::REST::Model::Shared qw( priv_by_eid schedule_by_eid );
 use Data::Dumper;
 use Params::Validate qw( :all );
 
@@ -55,11 +56,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -70,6 +71,16 @@ our $VERSION = '0.207';
 This module provides code that is shared within the various dispatch modules.
 
 =cut
+
+
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( not_implemented pre_update_comparison );
 
 
 
@@ -135,6 +146,175 @@ sub make_default {
         $log->debug("Dispatch/Shared.pm->make_default is finished, returning " . $status->code . " status" );
         return $status;
     };
+}
+
+
+=head2 not_implemented
+
+A generic function for handling resources that aren't implemented yet.
+
+=cut
+
+sub not_implemented {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug("Entering _not_implemented, path is " . $context->{path} );
+    return $CELL->status_notice( 
+        'DISPATCH_RESOURCE_NOT_IMPLEMENTED',
+        payload => { 
+            "resource" => $context->{'path'},
+            "method" => $context->{'method'},
+        },
+    );
+}
+
+
+=head2 pre_update_comparison
+
+Given an original object and a hashref of possible changed properties,
+compare the properties in the hashref with the corresponding properties 
+in the original object. If any properties really are changed, update
+the object. Return the number of properties so changed.
+
+=cut
+
+sub pre_update_comparison {
+    my ( $obj, $over ) = @_;
+    my $c = 0;
+    foreach my $prop (keys %$over) {
+        if ( exists $obj->{$prop} ) {
+            next if not defined $obj->{$prop} and not defined $over->{$prop};
+            next if ( defined $obj->{$prop} and defined $over->{$prop} ) and ( $obj->{$prop} eq $over->{$prop} );
+            if (
+                 ( defined $obj->{$prop} and not defined $over->{$prop} ) or
+                 ( not defined $obj->{$prop} and defined $over->{$prop} ) or
+                 ( $obj->{$prop} ne $over->{$prop} ) 
+               ) {
+                $obj->{$prop} = $over->{$prop};
+                $c += 1;
+            }
+        }
+    }
+    return $c;
+}
+
+
+=head2 current
+
+Generalized routine for the following resources:
+
+    /priv/current/?:ts
+    /schedule/current/?:ts
+    /priv/eid/:eid/?:ts
+    /schedule/eid/:eid/?:ts
+    /priv/nick/:nick/?:ts
+    /schedule/nick/:nick/?:ts
+    
+Takes a SCALAR that can be either 'priv' or 'schedule', plus a HASHREF that
+should contain the request context from Resource.pm
+
+=cut
+
+sub current {
+    my ( $t, $context ) = validate_pos( @_, 
+        { type => SCALAR },
+        { type => HASHREF } 
+    );
+
+    $log->debug( "Entering " . __PACKAGE__ . "::current with $t" );
+
+    my $ts = $context->{'mapping'}->{'ts'};
+    my $eid = $context->{'mapping'}->{'eid'};
+    my $nick = $context->{'mapping'}->{'nick'};
+    my $resource;
+    my $status;
+
+    # determine which resource was requested
+    if ( not $eid and not $nick ) {
+        $resource = "$t/current/?:ts";
+        $eid = $context->{'current'}->{'eid'};
+    } elsif ( $eid and not $nick ) {
+        $resource = "$t/current/eid/:eid/?:ts";
+    } elsif ( $nick and not $eid ) {
+        $resource = "$t/current/nick/:nick/?:ts";
+    } else {
+        die "AAAAAAAAAAAAHHHHHHH! Swallowed by the abyss";
+    }
+
+    # we have one of {EID,nick} but we need both
+    if ( $nick ) {
+        # "$t/current/nick/:nick/?:ts" resource
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        $eid = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
+            ? $status->payload->{'eid'}
+            : undef;
+        return $CELL->status_err('DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ]) unless $eid;
+    } else {
+        # "$t/current/?:ts" resource
+        # "$t/current/eid/:eid/?:ts" resource
+        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+        $nick = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
+            ? $status->payload->{'nick'}
+            : undef;
+        return $CELL->status_err('DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ]) unless $nick;
+    }
+
+    # employee exists and we have her EID and nick: get privlevel
+    if ( $t eq 'priv' ) {
+        $status = priv_by_eid( $eid, $ts );
+        # on success, $status will be a SCALAR like 'inactive'
+        if ( not ref($status) ) {
+            if ( $ts ) {
+                return $CELL->status_ok(
+                    'DISPATCH_EMPLOYEE_PRIV_AS_AT', 
+                    args => [ $ts, $nick, $status ],
+                    payload => { 
+                        eid => $eid += 0,  # "numify"
+                        nick => $nick,
+                        priv => $status,
+                        timestamp => $ts,
+                    }, 
+                );
+            } else {
+                return $CELL->status_ok(
+                    'DISPATCH_EMPLOYEE_PRIV', 
+                    args => [ $nick, $status ],
+                    payload => { 
+                        eid => $eid += 0,  # "numify"
+                        nick => $nick,
+                        priv => $status,
+                    }, 
+                );
+            }
+        }
+    } elsif ( $t eq 'schedule' ) {
+        $status = schedule_by_eid( $eid, $ts );
+        # on success, $status will be a HASHREF like {}
+        if ( ref($status) eq 'HASH' ) {
+            if ( $ts ) {
+                return $CELL->status_ok(
+                    'DISPATCH_EMPLOYEE_SCHEDULE_AS_AT', 
+                    args => [ $nick, $ts ],
+                    payload => { 
+                        eid => $eid += 0,
+                        nick => $nick,
+                        schedule => $status,
+                        timestamp => $ts,
+                    }, 
+                );
+            } else {
+                return $CELL->status_ok(
+                    'DISPATCH_EMPLOYEE_SCHEDULE', 
+                    args => [ $nick ],
+                    payload => { 
+                        eid => $eid += 0,
+                        nick => $nick,
+                        schedule => $status,
+                    }, 
+                );
+            }
+        }
+    }
+    return $status;
 }
 
 

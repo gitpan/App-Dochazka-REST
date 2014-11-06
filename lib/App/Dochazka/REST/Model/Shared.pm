@@ -38,10 +38,13 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::CELL::Util qw( stringify_args );
 use App::Dochazka::REST::dbh qw( $dbh );
+use App::Dochazka::REST::Model::Schedule qw( decode_schedule_json );
 use Carp;
 use Data::Dumper;
 use DBI;
 use Params::Validate qw( :all );
+use Scalar::Util qw( blessed );
+use Storable qw( dclone );
 use Try::Tiny;
 
 
@@ -57,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -85,6 +88,8 @@ This module provides the following exports:
 
 =item * C<cud> (Create, Update, Delete -- for single-record statements only)
 
+=item * C<expurgate> (return plain hashref clone of an object)
+
 =item * C<noof> (get total number of records in a data model table)
 
 =item * C<priv_by_eid> 
@@ -96,7 +101,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( load cud noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( load cud expurgate noof priv_by_eid schedule_by_eid );
 
 
 
@@ -154,7 +159,7 @@ sub cud {
     my %ARGS = validate( @_, {
         object => { can => [ qw( insert delete ) ] }, 
         sql => { type => SCALAR }, 
-        attrs => { type => ARRAYREF } 
+        attrs => { type => ARRAYREF }, # order of attrs must match SQL statement
     } );
 
     my $status;
@@ -238,7 +243,7 @@ database.
 
 sub priv_by_eid {
     my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
-        { type => SCALAR, optional => 1 } );
+        { type => SCALAR|UNDEF, optional => 1 } );
     $log->debug( "priv_by_eid: EID is " . (defined( $eid ) ? $eid : 'undef') . " - called from " . (caller)[1] . " line " . (caller)[2] );
     return _st_by_eid( 'priv', $eid, $ts );
 }
@@ -254,7 +259,7 @@ schedule will default to '{}' if it can't be determined from the database.
 
 sub schedule_by_eid {
     my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
-        { type => SCALAR, optional => 1 } );
+        { type => SCALAR|UNDEF, optional => 1 } );
     return _st_by_eid( 'schedule', $eid, $ts );
 }
 
@@ -267,7 +272,7 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 
 sub _st_by_eid {
     my ( $st, $eid, $ts ) = @_;
-    my $sql;
+    my ( $sql, $row );
     $log->debug( "Entering _st_by_eid with \$st == $st" );
     if ( $ts ) {
         # timestamp given
@@ -276,7 +281,7 @@ sub _st_by_eid {
         } elsif ( $st eq 'schedule' ) {
             $sql = $site->SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP;
         } 
-        ( $st ) = $dbh->selectrow_array( $sql, undef, $eid, $ts );
+        ( $row ) = $dbh->selectrow_array( $sql, undef, $eid, $ts );
     } else {
         # no timestamp given
         if ( $st eq 'priv' ) {
@@ -285,10 +290,124 @@ sub _st_by_eid {
             $sql = $site->SQL_EMPLOYEE_CURRENT_SCHEDULE;
         } 
         $log->debug("About to run SQL statement $sql with parameter $eid - called from " . (caller)[1] . " line " . (caller)[2] );
-        ( $st ) = $dbh->selectrow_array( $sql, undef, $eid );
+        ( $row ) = $dbh->selectrow_array( $sql, undef, $eid );
     }
-    return $st;
+    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
+        if $dbh->err;
+    $row = decode_schedule_json( $row ) if $st eq 'schedule';
+    return $row;
 }
+
+
+=head2 get_history
+
+Takes a SCALAR argument, which can be either 'priv' or 'schedule', followed by
+a PARAMHASH which can have one or more of the properties 'eid', 'nick', and
+'tsrange'.
+
+At least one of { 'eid', 'nick' } must be specified. If both are specified,
+the employee is determined according to 'eid'.
+
+The function returns the history of privilege level or schedule changes for
+that employee over the given tsrange, or the entire history if no tsrange is
+supplied. 
+
+The return value will always be an L<App::CELL::Status|status> object.
+
+Upon success, the payload will be a reference to an array of history
+objects. If nothing is found, the array will be empty. If there is a DBI error,
+the payload will be undefined.
+
+=cut
+
+sub get_history {
+    my $t = shift;
+    validate_pos( @_, 1, 1, 0, 0, 0, 0 );
+    my %ARGS = validate( @_, { 
+        eid => { type => SCALAR, optional => 1 },
+        nick => { type => SCALAR, optional => 1 },
+        tsrange => { type => SCALAR, optional => 1 },
+    } );
+
+    $log->debug("Entering get_history for $t");
+
+    my ( $sql, $sk, $status, $result, $tsr );
+    if ( exists $ARGS{'nick'} ) {
+        $sql = ($t eq 'priv') 
+            ? $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_NICK
+            : $site->SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK;
+        $result->{'nick'} = $ARGS{'nick'};
+        $sk = $ARGS{'nick'};
+    }
+    if ( exists $ARGS{'eid'} ) {
+        $sql = ($t eq 'priv') 
+            ? $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_EID
+            : $site->SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID;
+        $result->{'eid'} = $ARGS{'eid'};
+        $sk = $ARGS{'eid'};
+    }
+    $log->debug("sql == $sql");
+    $tsr = ( exists $ARGS{'tsrange'} )
+        ? $ARGS{'tsrange'}
+        : '[,)';
+    $result->{'tsrange'} = $tsr;
+    $log->debug("tsrange == $tsr");
+
+    die "AAAAAAAAAAAHHHHH! Engulfed by the abyss" unless $sk and $sql and $tsr;
+
+    my $counter = 0;
+    $dbh->{RaiseError} = 1;
+    try {
+        my $sth = $dbh->prepare( $sql );
+        $sth->execute( $sk, $tsr );
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+            $counter += 1;
+            push @{ $result->{'history'} }, $tmpres;
+        }
+    } catch {
+        my $arg = $dbh->err
+            ? $dbh->errstr
+            : $_;
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+    };
+    $dbh->{RaiseError} = 0;
+    return $status if defined $status;
+    if ( $counter > 0 ) {
+        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
+            [ $counter ], payload => $result, count => $counter );
+    } else {
+        $result->{'history'} = [];
+        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+            payload => $result, count => $counter );
+    }
+    $dbh->{RaiseError} = 0;
+    return $status;
+}
+
+
+=head2 expurgate
+
+Takes object as argument.  1. make deep copy of an object, 2. unbless it, 3. return it
+
+=cut
+
+sub expurgate {
+    my ( $obj ) = @_; 
+    return unless blessed( $obj );
+
+    my $udc;
+    try {
+        $udc = dclone( $obj );
+        foreach my $key ( keys %$obj ) {
+            $udc->{$key} = $obj->{$key};
+        }
+    } catch {
+        $log->err( "AAAAAAAAHHHHHHH: $_" );
+    };
+
+    return $udc;
+}
+
 
 
 =head1 AUTHOR

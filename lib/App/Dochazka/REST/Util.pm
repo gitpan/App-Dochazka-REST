@@ -36,6 +36,9 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 
+use App::CELL qw( $log );
+use Pod::Simple::HTML;
+
 
 
 =head1 NAME
@@ -47,11 +50,11 @@ App::Dochazka::REST::Util - miscellaneous utilities
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -73,47 +76,45 @@ This module provides the following exports:
 
 =over 
 
-=item L<deep_copy> (function)
+=item L<pod_to_html> (function)
 
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( deep_copy );
+our @EXPORT_OK = qw( pod_to_html );
 
 
 
 
 =head1 FUNCTIONS
 
-=head2 deep_copy
+=head2 pod_to_html
 
-Make a deep copy of a data structure, replacing code references with
-a scalar 'CODEREF' so they can be JSON->encoded. Taken from 
-
-    http://www.perlmonks.org/?node_id=620173
+Each L<App::Dochazka::REST> resource definition includes a 'documentation'
+property containing a POD string. Our 'docu/html' resource converts this
+POD string into HTML with a little help from this routine.
 
 =cut
 
-sub deep_copy {
-    my $this = shift;
-    return unless defined $this;
-    if ( not ref $this ) {
-        $this
-    }
-    elsif ( ref $this eq "HASH" ) {
-        +{ map { $_ => _deep_copy( $this->{ $_ } ) } keys %$this }
-    }
-    elsif ( ref $this eq "ARRAY" ) {
-        [map _deep_copy( $_ ), @$this]
-    }
-    elsif ( ref $this eq "CODE" ) {
-        'CODEREF'
-    }
-    else {
-        die "What's a " . ref $this . "?" 
-    }
+sub pod_to_html {
+    my ( $pod_str ) = @_;
+    $log->debug( "pod_to_html before: $pod_str" );
+    my $p = Pod::Simple::HTML->new;
+    $p->output_string(\my $html_str);
+    $p->parse_string_document($pod_str);
+
+    # now $html contains a full-blown HTML file, of which only one part is of
+    # interest to us. That part starts with the line <!-- start doc --> 
+    # and ends with <!-- end doc -->
+
+    $html_str =~ s/.*<!-- start doc -->//s;
+    $html_str =~ s/<!-- end doc -->.*//s;
+
+    $log->debug( "pod_to_html after: $html_str" );
+    return $html_str;
 }
+
 
 1;

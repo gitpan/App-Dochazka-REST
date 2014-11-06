@@ -31,9 +31,9 @@
 # ************************************************************************* 
 
 # -----------------------------------
-# Dochazka-REST
+# App::Dochazka::REST
 # -----------------------------------
-# dispatch_POST_Config.pm
+# config/dispatch/employee_Config.pm
 #
 # Path dispatch configuration file for POST resources
 # -----------------------------------
@@ -53,8 +53,11 @@ set( 'DISPATCH_RESOURCES_EMPLOYEE', {
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
+        cli => 'employee count',
         description => 'Display total count of employees (all privilege levels)',
         documentation => <<'EOH',
+=pod
+
 Gets the total number of employees in the database. This includes employees
 of all privilege levels, including not only administrators and active
 employees, but inactives and passerbies as well. Keep this in mind when
@@ -68,10 +71,25 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
+        cli => 'employee count $PRIV',
         description => 'Display total count of employees with given privilege level',
         documentation => <<'EOH',
-Display the number of employees with a given privilege level. Valid
-privlevels are: passerby, inactive, active, admin
+=pod
+
+Gets the number of employees with a given privilege level. Valid
+privlevels are: 
+
+=over
+
+=item * passerby
+
+=item * inactive
+
+=item * active
+
+=item * admin
+
+=back
 EOH
     },
     'employee/current' =>
@@ -81,9 +99,12 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'passerby', 
+        cli => 'employee current',
         description => 'Display the current employee (i.e. the one we authenticated with)',
         documentation => <<'EOH',
-Display the profile of the currently logged-in employee. The information
+=pod
+
+Displays the profile of the currently logged-in employee. The information
 is limited to just the employee object itself.
 EOH
     },
@@ -94,9 +115,12 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'passerby', 
+        cli => 'employee current priv',
         description => 'Display the privilege level of the current employee (i.e. the one we authenticated with)',
         documentation => <<'EOH',
-Display the "full profile" of the currently logged-in employee. The
+=pod
+
+Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
 the employee's privlevel in the 'priv' property.
 EOH
@@ -108,13 +132,18 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
+        cli => 'employee eid $JSON',
         description => 'Update existing employee (JSON request body with EID required)',
         documentation => <<'EOH',
+=pod
+
 This resource provides a way to update employee objects using the
 POST method, provided the employee's EID is provided in the content body.
-For example:<blockquote>POST employee/eid<br>{ "eid" : 43, "fullname" :
-"Foo Bariful" }<br></blockquote>
-changes the 'fullname' property of the employee with EID 43 to "Foo
+The properties to be modified should also be included, e.g.:
+
+    { "eid" : 43, "fullname" : "Foo Bariful" }
+
+This would change the 'fullname' property of the employee with EID 43 to "Foo
 Bariful" (provided such an employee exists).
 EOH
     },
@@ -127,18 +156,32 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
-        description => 'GET: look up employee by EID (exact match); PUT: update existing employee',
+        cli => 'employee eid $EID [$JSON]',
+        description => 'GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee',
         documentation => <<'EOH',
-<p>GET: Looks up employee by EID.  
-<p>PUT: Update the "employee profile" (employee object) of the employee with
-the given EID. For example:
-<blockquote>PUT employee/eid/43<br>{ "fullname" : "Foo Bariful"
-}</blockquote>
-changes the 'fullname' property of the employee with EID 43 to "Foo
+=over
+
+=item GET
+
+Retrieves an employee object by its EID.  
+
+=item PUT
+
+Updates the "employee profile" (employee object) of the employee with
+the given EID. For example, if the request body was:
+
+    { "fullname" : "Foo Bariful" }
+
+the reques would changesthe 'fullname' property of the employee with EID 43 to "Foo
 Bariful" (provided such an employee exists). Any 'eid' property provided in
 the content body will be ignored.
-<p>DELETE: deletes the employee with the given EID (will only work if the EID
-exists and nothing in the database refers to it)
+
+=item DELETE
+
+Deletes the employee with the given EID (will only work if the EID
+exists and nothing in the database refers to it).
+
+=back
 EOH
     },
     'employee/help' =>
@@ -151,9 +194,12 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'passerby', 
+        cli => 'employee help',
         description => 'Display available employee resources for given HTTP method',
         documentation => <<'EOH',
-Display information on all employee resources available to the logged-in
+=pod
+
+Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
 EOH
     },
@@ -164,16 +210,22 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
+        cli => 'employee nick $JSON',
         description => 'Insert new/update existing employee (JSON request body with nick required)',
         documentation => <<'EOH',
-<p>This resource provides a way to insert/update employee objects using the
+=pod
+
+This resource provides a way to insert/update employee objects using the
 POST method, provided the employee's nick is provided in the content body.
-<p>Consider the following example:
-<blockquote>POST employee/nick<br>{ "nick" : "foobar", "fullname" : "Foo
-Bariful" }</blockquote>
-<p>If an employee "foobar" exists, changes the 'fullname' property of that
-employee to "Foo Bariful". On the other hand, if the employee doesn't exist
-this HTTP request will cause a new employee profile to be created.
+
+Consider, for example, the following request body:
+
+    { "nick" : "foobar", "fullname" : "Foo Bariful" }
+
+If an employee "foobar" exists, such a request would change the 'fullname'
+property of that employee to "Foo Bariful". On the other hand, if the employee
+doesn't exist this HTTP request would cause a new employee 'foobar' to be
+created.
 EOH
     },
     'employee/nick/:nick' =>
@@ -185,20 +237,35 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
-        description => "GET: look up employee by nick (exact match); PUT: insert new employee or update existing",
+        cli => 'employee nick $NICK [$JSON]',
+        description => "Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter",
         documentation => <<'EOH',
-<p>GET: Looks up employee by nick.
-<p>PUT: Update the "employee profile" (employee object) of the employee with
-the given nick. Consider the following example:
-<blockquote>PUT employee/nick/foobar<br>{ "fullname" : "Foo Bariful" }</blockquote>
-<p>If the employee with nick "foobar" exists, this changes the "fullname"
-property of that employee to "Foo Bariful". If a 'nick' property is
-provided in the content body with a different value, the employee's nick
-will be changed!
-<p>If there is no employee with the given nick, it will be created. In this
-case, any 'nick' property in the content body will be ignored.
-<p>DELETE: deletes the employee with the given EID (will only work if the EID
-exists and nothing in the database refers to it)
+=over
+
+=item GET
+
+Retrieves employee object(s) by exact match or % wildcard. For example:
+
+    GET employee/nick/foobar
+
+would look for an employee whose nick is 'foobar'. Another example:
+
+    GET employee/nick/foo%
+
+would return a list of employees whose nick starts with 'foo'.
+
+=item PUT
+
+Inserts a new employee or updates an existing one (exact match only).
+If a 'nick' property is provided in the content body and its value is
+different from the nick provided in the URI, the employee's nick will be
+changed to the value provided in the content body.
+
+=item DELETE
+
+Deletes an employee (exact match only). This will work only if the
+exact nick exists and nothing else in the database refers to the employee
+in question.
 EOH
     },
 

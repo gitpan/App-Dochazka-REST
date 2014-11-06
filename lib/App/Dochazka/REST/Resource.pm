@@ -43,21 +43,20 @@ use warnings;
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
+use App::Dochazka::REST::Dispatch::Activity;
 use App::Dochazka::REST::Dispatch::Employee;
-use App::Dochazka::REST::Dispatch::Privhistory;
+use App::Dochazka::REST::Dispatch::Priv;
+use App::Dochazka::REST::Dispatch::Schedule;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::LDAP qw( ldap_exists ldap_auth );
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
-use App::Dochazka::REST::Util qw( deep_copy );
 use Carp;
 use Data::Dumper;
-use Data::Structure::Util qw( unbless );
 use Encode qw( decode_utf8 encode_utf8 );
 use JSON;
 use Params::Validate qw(:all);
 use Path::Router;
 use Plack::Session;
-use Scalar::Util qw( blessed );
 use Try::Tiny;
 use Web::Machine::Util qw( create_header );
 
@@ -74,11 +73,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 
@@ -358,13 +357,14 @@ sub is_authorized {
         return 1 if $self->_validate_session;
     }
     if ( $auth_header ) {
+        $log->debug("is_authorized: auth header is $auth_header" );
         my $username = $auth_header->username;
         my $password = $auth_header->password;
         my $auth_status = _authenticate( $username, $password );
         if ( $auth_status->ok ) {
             my $emp = $auth_status->payload;
             $self->_push_onto_context( { 
-                current => $emp->expurgate,
+                current => $emp->TO_JSON,
                 current_priv => $emp->priv
             } );
             $self->_init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
@@ -434,7 +434,7 @@ sub _validate_session {
         die "missing employee object in session management" 
             unless $emp->isa( "App::Dochazka::REST::Model::Employee" ); 
         $self->_push_onto_context( { 
-            current => $emp->expurgate, 
+            current => $emp->TO_JSON, 
             current_priv => $emp->priv
         } );
         $session->set('last_seen', time); 
@@ -575,8 +575,9 @@ action.
 
 sub forbidden {
     my ( $self ) = @_;
-
     $log->debug( "Entering Resource.pm->forbidden" );
+
+    my $method = $self->context->{'method'};
 
     # if there is no target on the context, the URL is invalid so we
     # just pass on the request 
@@ -584,11 +585,25 @@ sub forbidden {
         $log->debug("forbidden: no target on context, passing on this request");
         return 0;
     }
-    my $acl_profile = $self->context->{'acl_profile'} || "undefined";
-    my $acl_priv = $self->context->{'current_priv'};
 
+    # now we get the ACL profile.  There are two possibilities: single ACL
+    # profile for the entire resource or separate ACL profiles for each HTTP
+    # method
+    my $acl_profile;
+    if ( ! ref( $self->context->{'acl_profile'} ) ) {
+        $acl_profile = $self->context->{'acl_profile'} || "undefined";
+    } elsif ( ref( $self->context->{'acl_profile'} ) eq 'HASH' ) {
+        $acl_profile = $self->context->{'acl_profile'}->{$method} || "undefined";
+    } else {
+        $log->crit("Cannot determine ACL profile of resource!!! Path is " . $self->context->{'path'} );
+        return 1;
+    }
+
+    # and the privlevel of our user
+    my $acl_priv = $self->context->{'current_priv'};
     $log->debug( "My ACL level is $acl_priv and the ACL profile of this resource is $acl_profile" );
-    # run the ACL check
+
+    # compare the two
     my $acl_status = check_acl( $acl_profile, $acl_priv );
     $log->debug( "ACL status: " . $acl_status->code );
     return 1 unless $acl_status->ok; # fail
@@ -617,7 +632,7 @@ sub resource_exists {
     if ( exists $self->context->{'target'} and exists $self->context->{'mapping'} ) {
 
         $log->debug( $self->request->method . " request for resource " . 
-            $self->context->{'path'} . ', body is ' . Dumper( $self->request->content ) );
+            $self->context->{'path'} . ', body is ' . Dumper( $self->context->{'request_body'} ) );
 
         my $target = $self->context->{'target'};
 
@@ -640,7 +655,7 @@ sub resource_exists {
         }
 
 	# The target returns a status object, but this time we simply push that
-	# object onto the context (after "expurgating", or "unblessing", it).
+	# object onto the context (after "expurgating" it).
         #$self->_push_onto_context( { 'entity' => encode_utf8($status->expurgate) } );
         $self->_push_onto_context( { 'entity' => $status->expurgate } );
 
@@ -784,7 +799,6 @@ sub _push_onto_context {
     $self->context( $context );
 }
 
-
 =head2 _make_json
 
 Makes the JSON for inclusion in the response entity.
@@ -793,17 +807,20 @@ Makes the JSON for inclusion in the response entity.
 
 sub _make_json {
     my ( $self ) = @_;
-    my ( $before, $after, $after_utf8 );
-    if ( $ENV{'DOCHAZKA_DEBUG'} ) {
-        # We can't send the context to JSON->encode directly because the
-        # context contains a code reference and JSON->encode finds that
-        # offensive: our deep_copy routine replaces the code reference with
-        # an innocent placeholder string.
-        $before = deep_copy( $self->context );
-    } else {
-        $before = unbless $self->context->{'entity'};
-    }
-    $after = JSON->new->pretty->allow_nonref->encode( $before );
+    my ( $d, %h, $before, $after, $after_utf8 );
+
+    ## We can't send the context to JSON->encode directly because the
+    ## context contains a code reference and JSON->encode finds that
+    ## offensive: our deep_copy routine replaces the code reference with
+    ## an innocent placeholder string.
+    #$d = Data::Dumper->new( [ $self->context->{'entity'} ], [ qw(*h) ] );
+    #$d->Purity(1)->Terse(1)->Deepcopy(1);
+    ##$log->debug( $d->Dump );
+    #%h = eval $d->Dump;
+    #$log->debug( Dumper \%h );
+    #$before = \%h;
+
+    $after = JSON->new->pretty->convert_blessed->allow_nonref->encode( $self->context->{'entity'} );
     $after_utf8 = encode_utf8($after);
     $log->debug( "_make_json (before): " . Dumper $before );
     $log->debug( "_make_json (after): " . Dumper $after );
@@ -840,6 +857,7 @@ sub init_router {
 
             # add the resource's documentation to the list of valid resources
             $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} = $list->{$resource}->{'documentation'};
+            $meta->META_DOCHAZKA_RESOURCE_ACLS->{$resource} = $list->{$resource}->{'acl_profile'};
 
             my $acl_profile = $list->{$resource}->{'acl_profile'};
             #$log->debug("init_router: acl_profile is $acl_profile ");

@@ -60,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.207
+Version 0.252
 
 =cut
 
-our $VERSION = '0.207';
+our $VERSION = '0.252';
 
 
 =head2 Development status
@@ -156,6 +156,11 @@ a list of resources available at that level, some of which are lower-level
 For each resource, the 'help' resource provides a 'link' attribute with the
 full URI of the resource and a 'description' attribute with a terse
 description of what the resource is good for.
+
+The definition of each resource includes an HTML string containing the
+resource's documentation. This string can be accessed via POST request for
+the C<docu> resource (provide the resource name in double quotes in the
+request body).
 
 
 =head2 Exploring the server

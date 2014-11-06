@@ -61,7 +61,7 @@ if ( $REST->{init_status}->not_ok ) {
 # spawn a schedintvls object
 my $sto = App::Dochazka::REST::Model::Schedintvls->spawn;
 ok( blessed $sto );
-ok( $sto->scratch_sid > 0 );
+ok( $sto->ssid > 0 );
 
 # initialize status variable
 my $status;
@@ -110,6 +110,7 @@ map {
         ];
         $status = $sto->insert;
         is( $status->level, 'ERR' );
+        #diag( $status->code . ' ' . $status->text );
         is( noof( 'schedintvls' ), 0 );
      } @$bogus_intvls;
 

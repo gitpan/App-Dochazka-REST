@@ -121,7 +121,7 @@ is( noof(  "privhistory" ), 2 );
 # test get_privhistory
 $status = get_privhistory( eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
-my $ph = $status->payload->{'privhistory'};
+my $ph = $status->payload->{'history'};
 is( scalar @$ph, 1, "One record" );
 
 # backwards tsrange triggers DBI error
@@ -145,7 +145,7 @@ ok( $priv3->phid > 0, "INSERT assigned an phid" );
 # test get_privhistory again -- do we get two records?
 $status = get_privhistory( eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
-$ph = $status->payload->{'privhistory'};
+$ph = $status->payload->{'history'};
 is( scalar @$ph, 2, "Two records" );
 #diag( Dumper( $ph ) );
 
