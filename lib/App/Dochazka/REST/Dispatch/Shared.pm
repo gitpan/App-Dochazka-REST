@@ -56,11 +56,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.252
+Version 0.253
 
 =cut
 
-our $VERSION = '0.252';
+our $VERSION = '0.253';
 
 
 

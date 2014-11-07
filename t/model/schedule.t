@@ -55,7 +55,7 @@ use Test::More;
 
 # plan tests
 
-plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
+#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 
 # initialize (load configuration and connect to database)
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
@@ -134,7 +134,8 @@ is( $schedule->schedule, 'BOGUS STRING' );
 $status = $schedule->update;
 is( $status->level, 'OK' );
 my $new_sched_obj = App::Dochazka::REST::Model::Schedule->spawn( $status->payload );
-ok( $schedule->compare( $saved_sched_obj ) );
+ok( ! $schedule->compare( $saved_sched_obj ) );
+ok( $schedule->compare_disabled( $saved_sched_obj ) );
 
 # in other words, nothing changed
 

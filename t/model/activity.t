@@ -49,7 +49,7 @@ use Test::Fatal;
 use Test::More;
 
 # plan tests
-plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
+#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
@@ -62,17 +62,34 @@ isa_ok( $act, 'App::Dochazka::REST::Model::Activity' );
 my $act2 = App::Dochazka::REST::Model::Activity->spawn;
 isa_ok( $act2, 'App::Dochazka::REST::Model::Activity' );
 
-# test some wrong _load function calls
-#like( exception { App::Dochazka::REST::Model::Activity::_load( 'aid' => 1, 'code' => 'hooligan' ); },
-#      qr/4 parameters were passed.+but 2 were expected/ );
-#like( exception { App::Dochazka::REST::Model::Activity->_load( 'hooligan' ); },
-#      qr/not listed in the validation options: App::Dochazka::REST::Model::Activity/ );
-#like( exception { App::Dochazka::REST::Model::Activity::_load( ( 1..2 ) ); },
-#      qr/not listed in the validation options/ );
-#like( exception { App::Dochazka::REST::Model::Activity::_load( 'hooligan' => 'sneaking in' ); },
-#      qr/not listed in the validation options: hooligan/ );
+# they are the same
+ok( $act->compare( $act2 ) );
 
-# test existence of initial set of activities
+# set a property
+$act->remark( "prdy vody" );
+$act2->remark( "prdy vody" );
+ok( $act->compare( $act2 ) );  # still the same
+$act2->remark( "jine fody" );
+ok( ! $act->compare( $act2 ) );  # different
+
+# reset the activities
+$act->reset;
+$act2->reset;
+ok( $act->compare( $act2 ) );
+is( $act->aid, undef );
+is( $act2->aid, undef );
+is( $act->code, undef );
+is( $act2->code, undef );
+is( $act->long_desc, undef );
+is( $act2->long_desc, undef );
+is( $act->remark, undef );
+is( $act2->remark, undef );
+is( $act->disabled, undef );
+is( $act2->disabled, undef );
+
+
+# test existence and viability of initial set of activities
+# this also conducts positive tests of load_by_code and load_by_aid
 foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
     $act->reset(
         code => $actdef->{code},
@@ -81,13 +98,12 @@ foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
     );  
     $act2->reset;
     $status = $act->load_by_code( $actdef->{code} );
-    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-    $act = $status->payload;
-    is( $act->code, $actdef->{code} );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' ); $act = $status->payload; is( $act->code, $actdef->{code} );
     is( $act->long_desc, $actdef->{long_desc} );
     is( $act->remark, 'dbinit' );
-    $status = $act2->load_by_aid( $act->aid );
-    ok( $status->ok );
+    is( $act->disabled, 0 );
+    $act2 = App::Dochazka::REST::Model::Activity->load_by_aid( $act->aid )->payload;
+    is_deeply( $act, $act2 );
 }
 
 # test some bad parameters
@@ -100,7 +116,14 @@ like( exception { App::Dochazka::REST::Model::Activity->load_by_aid( undef ) },
 like( exception { App::Dochazka::REST::Model::Activity->load_by_code( undef ) }, 
       qr/not one of the allowed types/ );
 
-# load the work activity
+# load non-existent activity
+$status = App::Dochazka::REST::Model::Activity->load_by_code( 'orneryFooBarred' );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
+ok( ! exists( $status->{'payload'} ) );
+ok( ! defined( $status->payload ) );
+
+# load existent activity
 $status = App::Dochazka::REST::Model::Activity->load_by_code( 'wOrK' );
 ok( $status->ok );
 my $work = $status->payload;
@@ -113,7 +136,10 @@ is( $work_aid, $work->aid );
 like ( exception { $work_aid = aid_by_code( ( 1..6 ) ); },
        qr/but 1 was expected/ );
 
-# insert a bogus activity
+# aid_by_code on non-existent code
+is( aid_by_code( 'orneryFooBarred' ), undef );
+
+# insert an activity (success)
 my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
     code => 'boguS',
     long_desc => 'An activity',
@@ -129,11 +155,14 @@ is( $bogus_act->code, 'BOGUS' );
 is( $bogus_act->long_desc, "An activity" );
 is( $bogus_act->remark, 'ACTIVITY' );
 
-# try to insert the bogus activity again
+# try to insert the same activity again (fail with DOCHAZKA_DBI_ERR)
 $status = $bogus_act->insert;
 ok( $status->not_ok );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/Key \(code\)\=\(BOGUS\) already exists/ );
 
-# update the bogus activity
+# update the activity (success)
 $bogus_act->{code} = "bogosITYVille";
 $bogus_act->{long_desc} = "A bogus activity that doesn't belong here";
 $bogus_act->{remark} = "BOGUS ACTIVITY";
@@ -146,8 +175,8 @@ is( $bogus_act->remark, 'BOGUS ACTIVITY' );
 
 # load it and compare it
 my $ba2 = App::Dochazka::REST::Model::Activity->spawn;
-ok( blessed( $ba2 ) );
-$status = $ba2->load_by_code( $bogus_act->code );
+isa_ok( $ba2, 'App::Dochazka::REST::Model::Activity' );
+$status = App::Dochazka::REST::Model::Activity->load_by_code( $bogus_act->code );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 $ba2 = $status->payload;
 is( $ba2->code, 'BOGOSITYVILLE' );

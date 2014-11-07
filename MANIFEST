@@ -56,14 +56,6 @@ t/002-root.t
 t/003-current_priv.t
 t/004-shared-paramvalid.t
 t/011-tsrange_equal.t
-t/104-employee.t
-t/105-privhistory.t
-t/106-reset.t
-t/107-schedule.t
-t/108-schedintvls.t
-t/109-activity.t
-t/110-interval.t
-t/112-lock.t
 t/201-LDAP.t
 t/203-util-timestamp.t
 t/301-resource.t
@@ -74,3 +66,11 @@ t/dispatch/priv.t
 t/dispatch/schedule.t
 t/dispatch/top.t
 t/manifest.t
+t/model/activity.t
+t/model/employee.t
+t/model/interval.t
+t/model/lock.t
+t/model/privhistory.t
+t/model/reset.t
+t/model/schedintvls.t
+t/model/schedule.t

@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.252
+Version 0.253
 
 =cut
 
-our $VERSION = '0.252';
+our $VERSION = '0.253';
 
 
 
@@ -88,8 +88,6 @@ This module provides the following exports:
 
 =item * C<cud> (Create, Update, Delete -- for single-record statements only)
 
-=item * C<expurgate> (return plain hashref clone of an object)
-
 =item * C<noof> (get total number of records in a data model table)
 
 =item * C<priv_by_eid> 
@@ -101,7 +99,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( load cud expurgate noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( load cud noof priv_by_eid schedule_by_eid );
 
 
 
@@ -382,30 +380,6 @@ sub get_history {
     }
     $dbh->{RaiseError} = 0;
     return $status;
-}
-
-
-=head2 expurgate
-
-Takes object as argument.  1. make deep copy of an object, 2. unbless it, 3. return it
-
-=cut
-
-sub expurgate {
-    my ( $obj ) = @_; 
-    return unless blessed( $obj );
-
-    my $udc;
-    try {
-        $udc = dclone( $obj );
-        foreach my $key ( keys %$obj ) {
-            $udc->{$key} = $obj->{$key};
-        }
-    } catch {
-        $log->err( "AAAAAAAAHHHHHHH: $_" );
-    };
-
-    return $udc;
 }
 
 

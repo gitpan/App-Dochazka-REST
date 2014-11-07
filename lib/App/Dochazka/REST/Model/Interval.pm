@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.252
+Version 0.253
 
 =cut
 
-our $VERSION = '0.252';
+our $VERSION = '0.253';
 
 
 
@@ -146,18 +146,6 @@ For basic activity interval workflow, see C<t/010-interval.t>.
 
 
 =head1 METHODS
-
-
-=head2 expurgate
-
-Non-destructively convert object into hashref
-
-=cut
-
-sub expurgate {
-    my ( $self ) = @_;
-    return App::Dochazka::REST::Model::Shared::expurgate( $self );
-}
 
 
 =head2 load_by_iid

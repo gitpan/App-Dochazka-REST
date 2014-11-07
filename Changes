@@ -1606,3 +1606,10 @@ Revision history for Dochazka-REST
 - t/107-schedule.t: add test case for 'update' method
 - t/dispatch/intervals.t: add GET test case for '/schedule/sid/:sid' resource
 
+0.253  2014-11-07 11:28 CET
+- t/: move model tests into their own subdirectory and comment out 'skip_all'
+  so they run
+- Model/: remove 'expurgate' method from all model modules (replaced by TO_JSON);
+  remove 'compare' method overlay (replaced by compare_disabled)
+- t/model/activity.t: adapt tests, remove deprecated tests, add new tests
+

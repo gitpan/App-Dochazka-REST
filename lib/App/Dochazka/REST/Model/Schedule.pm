@@ -61,11 +61,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.252
+Version 0.253
 
 =cut
 
-our $VERSION = '0.252';
+our $VERSION = '0.253';
 
 
 
@@ -225,7 +225,7 @@ At this point, the scratch schedule is deleted from the C<schedintvls> table.
 
 =back
 
-For basic workflow, see C<t/107-schedule.t>.
+For basic workflow, see C<t/model/schedule.t>.
 
 
 =head3 C<Schedule> class
@@ -250,7 +250,7 @@ For basic workflow, see C<t/107-schedule.t>.
 
 =back
 
-For basic workflow, see C<t/107-schedule.t>.
+For basic workflow, see C<t/model/schedule.t>.
 
 
 
@@ -282,38 +282,6 @@ our @EXPORT_OK = qw(
 
 
 =head1 METHODS
-
-
-=head2 compare
-
-Override the compare method inherited from App::Dochazka
-
-=cut
-
-sub compare {
-    my ( $self, $other ) = @_;
-    return if ref( $self) ne __PACKAGE__;
-    return if ref( $other) ne __PACKAGE__;
-    my $self_disabled = $self->{'disabled'};
-    delete $self->{'disabled'};
-    my $other_disabled = $other->{'disabled'};
-    delete $other->{'disabled'};
-    return 0 unless eq_deeply( $self, $other );
-    return 0 unless ( ! $self_disabled and ! $other_disabled ) or ( $self_disabled and $other_disabled );
-    return 1;
-}
-
-
-=head2 expurgate
-
-Non-destructively convert object into hashref
-
-=cut
-
-sub expurgate {
-    my ( $self ) = @_;
-    return App::Dochazka::REST::Model::Shared::expurgate( $self );
-}
 
 
 =head2 insert

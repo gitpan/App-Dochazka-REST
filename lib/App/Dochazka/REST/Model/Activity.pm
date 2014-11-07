@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.252
+Version 0.253
 
 =cut
 
-our $VERSION = '0.252';
+our $VERSION = '0.253';
 
 
 
@@ -100,6 +100,12 @@ before every INSERT and UPDATE on this table.
 =item * basic accessors (L<aid>, L<code>, L<long_desc>, L<remark>)
 
 =item * L<reset> (recycles an existing object by setting it to desired state)
+
+=item * L<TO_JSON> (returns 'unblessed' version of an Activity object)
+
+=item * L<compare> (compare two objects)
+
+=item * L<clone> (clone an object)
 
 =item * L<insert> (inserts object into database)
 
@@ -148,18 +154,6 @@ our @EXPORT_OK = qw( aid_by_code );
 
 
 =head1 METHODS
-
-
-=head2 expurgate
-
-Non-destructively convert object into hashref
-
-=cut
-
-sub expurgate {
-    my ( $self ) = @_;
-    return App::Dochazka::REST::Model::Shared::expurgate( $self );
-}
 
 
 =head2 insert
