@@ -80,11 +80,11 @@ EOH
         documentation => <<'EOH',
 =over
 
-=item GET
+=item * GET
 
 Retrieves an activity object by its AID.
 
-=item PUT
+=item * PUT
 
 Updates the activity object whose AID is specified by the ':aid' URI parameter.
 The fields to be updated and their new values should be sent in the request
@@ -92,7 +92,7 @@ body, e.g., like this:
 
     { "long_desc" : "new description", "disabled" : "f" }
 
-=item DELETE
+=item * DELETE
 
 Deletes the activity object whose AID is specified by the ':aid' URI parameter.
 This will work only if nothing in the database refers to this activity.
@@ -167,11 +167,11 @@ EOH
         documentation => <<'EOH',
 =over
 
-=item GET
+=item * GET
 
 Retrieves an activity object by its code.
 
-=item PUT
+=item * PUT
 
 Inserts new or updates existing activity object whose code is specified by the
 ':code' URI parameter.  The fields to be updated and their new values should be
@@ -179,7 +179,7 @@ sent in the request body, e.g., like this:
 
     { "long_desc" : "new description", "disabled" : "f" }
 
-=item DELETE
+=item * DELETE
 
 Deletes an activity object by its code whose code is specified by the ':code'
 URI parameter.  This will work only if nothing in the database refers to this

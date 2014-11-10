@@ -132,17 +132,17 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given EID.
 
-=item PUT
+=item * PUT
 
 Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
@@ -186,17 +186,17 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given nick.
 
-=item PUT
+=item * PUT
 
 Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
@@ -257,11 +257,11 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves a schedule history record by its SHID.
 
-=item DELETE
+=item * DELETE
 
 Deletes a schedule history record by its SHID.
 
@@ -288,7 +288,7 @@ Inserts (POST) or deletes (DELETE) a schedule.
 
 =over
 
-=item POST
+=item * POST
 
 The request body must contain an array of non-overlapping tsranges (intervals)
 that fall within a 168-hour (7-day) period. If successful, the payload will
@@ -301,7 +301,7 @@ If the exact schedule already exists in the database, the POST operation
 returns it.  Instead of DISPATCH_SCHEDULE_INSERT_OK, in this case the return
 status code will be DISPATCH_SCHEDULE_OK.
 
-=item DELETE
+=item * DELETE
 
 An 'ssid' property must be given as a property in the request body. If found,
 the scratch schedule will be deleted in an atomic operation. If the SSID is
@@ -364,12 +364,12 @@ Retrieves (GET), updates (POST), or deletes (DELETE) a schedule by its SID.
 
 =over
 
-=item GET
+=item * GET
 
 An integer SID must be given as an URI parameter. If a schedule
 with this SID is found, it is returned in the payload.
 
-=item POST
+=item * POST
 
 This resource/method provides a way to set (modify) the 'remark' and 'disabled'
 fields of a schedule record. Simply provide the properties and their new values
@@ -377,7 +377,7 @@ in the request body, e.g.:
 
     { "remark" : "foobar", "disabled" : "t" }
 
-=item DELETE
+=item * DELETE
 
 An integer SID must be given as an URI parameter. If found, the schedule with
 that SID will be deleted in an atomic operation. If the operation is sucessful

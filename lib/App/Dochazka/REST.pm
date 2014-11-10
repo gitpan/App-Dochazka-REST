@@ -60,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.262
+Version 0.263
 
 =cut
 
-our $VERSION = '0.262';
+our $VERSION = '0.263';
 
 
 =head2 Development status
@@ -266,19 +266,15 @@ deleted as long as they are not subject to a lock.
 =back
 
 
-=head2 Difference between POST and PUT
+=head2 Documentation of REST resources
 
-The difference between POST and PUT is rather subtle. If I understood the HTTP 
-standard correctly, PUT requests are used to either add new resources or 
-modify (update) existing ones. So the path of the PUT request will be the 
-same, or very similar, to the path of GET request to display that resource.
+In order to be "self-documenting", the definition of each REST resource
+contains a "short" description and a "long" POD string. At each build, the
+entire resource tree is walked to generate L<App::Dochazka::REST::Docs::Resources>.
 
-POST requests may also create a new resource and/or modify an existing one,
-but their path need not correspond to the path used by a GET request to 
-display the resource in question. If a POST request operates on a single
-resource, that resource will not be derivable from the request path. To
-overcome this, the response to the POST request will contain a "Location:"
-header pointing the user to the resource acted upon.
+Thus, besides directly accessing resources on the REST server itself, there
+is also the option of perusing the documentation of all resources together in a
+single POD module.
 
 
 =head2 Request-response cycle

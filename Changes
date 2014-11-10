@@ -1674,3 +1674,11 @@ Revision history for Dochazka-REST
 - Resource.pm: adapt 'init_router' routine to new DISPATCH_RESOURCE_LISTS
   format
 
+0.263  2014-11-10 14:40 CET
+- REST.pm: eliminate obsolete POD; add new POD about
+  App::Dochazka::REST::Docs::Resources
+- config/dispatch/: add some asterisks
+- config/docgen_Config.pm: add DOCHAZKA_DOCGEN_EPITAPH to make
+  Docs/Resources.pm a valid module
+- ../release/docgen.plx: process the epitaph
+

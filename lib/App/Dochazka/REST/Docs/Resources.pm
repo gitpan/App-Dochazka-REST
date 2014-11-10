@@ -47,11 +47,11 @@ App::Dochazka::REST::Docs::Resources - Documentation of App::Dochazka::REST reso
 
 =head1 VERSION
 
-Version 0.262
+Version 0.263
 
 =cut
 
-our $VERSION = 0.262;
+our $VERSION = 0.263;
 
 
 
@@ -165,21 +165,21 @@ Display (GET) or set (PUT) meta configuration parameter
 
 =over 
 
-=item GET
+=item * GET
 
 Assuming that the argument C<:param> is the name of an existing meta
 parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined). This resource is available only to users
 with C<admin> privileges.
 
-=item PUT
+=item * PUT
 
 Regardless of whether C<:param> is an existing metaparam or not, set 
 that parameter's value to the (entire) request body. If the request body
 is "123", then the parameter will be set to that value. If it is { "value" :
 123 }, then it will be set to that structure.
 
-=item DELETE
+=item * DELETE
 
 If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED)
 
@@ -260,11 +260,11 @@ GET, PUT, or DELETE an activity object by its AID
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves an activity object by its AID.
 
-=item PUT
+=item * PUT
 
 Updates the activity object whose AID is specified by the ':aid' URI parameter.
 The fields to be updated and their new values should be sent in the request
@@ -272,7 +272,7 @@ body, e.g., like this:
 
     { "long_desc" : "new description", "disabled" : "f" }
 
-=item DELETE
+=item * DELETE
 
 Deletes the activity object whose AID is specified by the ':aid' URI parameter.
 This will work only if nothing in the database refers to this activity.
@@ -311,11 +311,11 @@ GET, PUT, or DELETE an activity object by its code
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves an activity object by its code.
 
-=item PUT
+=item * PUT
 
 Inserts new or updates existing activity object whose code is specified by the
 ':code' URI parameter.  The fields to be updated and their new values should be
@@ -323,7 +323,7 @@ sent in the request body, e.g., like this:
 
     { "long_desc" : "new description", "disabled" : "f" }
 
-=item DELETE
+=item * DELETE
 
 Deletes an activity object by its code whose code is specified by the ':code'
 URI parameter.  This will work only if nothing in the database refers to this
@@ -412,11 +412,11 @@ GET: look up employee (exact match); PUT: update existing employee; DELETE: dele
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves an employee object by its EID.  
 
-=item PUT
+=item * PUT
 
 Updates the "employee profile" (employee object) of the employee with
 the given EID. For example, if the request body was:
@@ -427,7 +427,7 @@ the reques would changesthe 'fullname' property of the employee with EID 43 to "
 Bariful" (provided such an employee exists). Any 'eid' property provided in
 the content body will be ignored.
 
-=item DELETE
+=item * DELETE
 
 Deletes the employee with the given EID (will only work if the EID
 exists and nothing in the database refers to it).
@@ -466,7 +466,7 @@ Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee spe
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves employee object(s) by exact match or % wildcard. For example:
 
@@ -478,18 +478,20 @@ would look for an employee whose nick is 'foobar'. Another example:
 
 would return a list of employees whose nick starts with 'foo'.
 
-=item PUT
+=item * PUT
 
 Inserts a new employee or updates an existing one (exact match only).
 If a 'nick' property is provided in the content body and its value is
 different from the nick provided in the URI, the employee's nick will be
 changed to the value provided in the content body.
 
-=item DELETE
+=item * DELETE
 
 Deletes an employee (exact match only). This will work only if the
 exact nick exists and nothing else in the database refers to the employee
 in question.
+
+=back
 
 
 =head1 PRIVILEGE RESOURCES
@@ -521,17 +523,17 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given EID.
 
-=item PUT
+=item * PUT
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
@@ -553,17 +555,17 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given nick.
 
-=item PUT
+=item * PUT
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
@@ -585,11 +587,11 @@ Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHI
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves a privhistory record by its PHID.
 
-=item DELETE
+=item * DELETE
 
 Deletes a privhistory record by its PHID.
 
@@ -673,17 +675,17 @@ GET: Get entire history of schedule changes for employee with the given EID, PUT
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given EID.
 
-=item PUT
+=item * PUT
 
 Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
@@ -705,17 +707,17 @@ Get entire history of schedule changes for employee with the given nick
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given nick.
 
-=item PUT
+=item * PUT
 
 Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
@@ -746,11 +748,11 @@ GET or DELETE a schedule record by its SHID
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves a schedule history record by its SHID.
 
-=item DELETE
+=item * DELETE
 
 Deletes a schedule history record by its SHID.
 
@@ -768,7 +770,7 @@ Inserts (POST) or deletes (DELETE) a schedule.
 
 =over
 
-=item POST
+=item * POST
 
 The request body must contain an array of non-overlapping tsranges (intervals)
 that fall within a 168-hour (7-day) period. If successful, the payload will
@@ -781,7 +783,7 @@ If the exact schedule already exists in the database, the POST operation
 returns it.  Instead of DISPATCH_SCHEDULE_INSERT_OK, in this case the return
 status code will be DISPATCH_SCHEDULE_OK.
 
-=item DELETE
+=item * DELETE
 
 An 'ssid' property must be given as a property in the request body. If found,
 the scratch schedule will be deleted in an atomic operation. If the SSID is
@@ -818,12 +820,12 @@ Retrieves (GET), updates (POST), or deletes (DELETE) a schedule by its SID.
 
 =over
 
-=item GET
+=item * GET
 
 An integer SID must be given as an URI parameter. If a schedule
 with this SID is found, it is returned in the payload.
 
-=item POST
+=item * POST
 
 This resource/method provides a way to set (modify) the 'remark' and 'disabled'
 fields of a schedule record. Simply provide the properties and their new values
@@ -831,7 +833,7 @@ in the request body, e.g.:
 
     { "remark" : "foobar", "disabled" : "t" }
 
-=item DELETE
+=item * DELETE
 
 An integer SID must be given as an URI parameter. If found, the schedule with
 that SID will be deleted in an atomic operation. If the operation is sucessful
@@ -839,3 +841,7 @@ the return status will be "OK".
 
 =back
 
+
+=cut
+
+1;

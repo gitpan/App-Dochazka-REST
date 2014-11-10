@@ -244,21 +244,21 @@ EOH
 
 =over 
 
-=item GET
+=item * GET
 
 Assuming that the argument C<:param> is the name of an existing meta
 parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined). This resource is available only to users
 with C<admin> privileges.
 
-=item PUT
+=item * PUT
 
 Regardless of whether C<:param> is an existing metaparam or not, set 
 that parameter's value to the (entire) request body. If the request body
 is "123", then the parameter will be set to that value. If it is { "value" :
 123 }, then it will be set to that structure.
 
-=item DELETE
+=item * DELETE
 
 If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED)
 

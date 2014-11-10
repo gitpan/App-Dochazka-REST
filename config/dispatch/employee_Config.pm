@@ -161,11 +161,11 @@ EOH
         documentation => <<'EOH',
 =over
 
-=item GET
+=item * GET
 
 Retrieves an employee object by its EID.  
 
-=item PUT
+=item * PUT
 
 Updates the "employee profile" (employee object) of the employee with
 the given EID. For example, if the request body was:
@@ -176,7 +176,7 @@ the reques would changesthe 'fullname' property of the employee with EID 43 to "
 Bariful" (provided such an employee exists). Any 'eid' property provided in
 the content body will be ignored.
 
-=item DELETE
+=item * DELETE
 
 Deletes the employee with the given EID (will only work if the EID
 exists and nothing in the database refers to it).
@@ -242,7 +242,7 @@ EOH
         documentation => <<'EOH',
 =over
 
-=item GET
+=item * GET
 
 Retrieves employee object(s) by exact match or % wildcard. For example:
 
@@ -254,18 +254,20 @@ would look for an employee whose nick is 'foobar'. Another example:
 
 would return a list of employees whose nick starts with 'foo'.
 
-=item PUT
+=item * PUT
 
 Inserts a new employee or updates an existing one (exact match only).
 If a 'nick' property is provided in the content body and its value is
 different from the nick provided in the URI, the employee's nick will be
 changed to the value provided in the content body.
 
-=item DELETE
+=item * DELETE
 
 Deletes an employee (exact match only). This will work only if the
 exact nick exists and nothing else in the database refers to the employee
 in question.
+
+=back
 EOH
     },
 

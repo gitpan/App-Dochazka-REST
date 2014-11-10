@@ -117,17 +117,17 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given EID.
 
-=item PUT
+=item * PUT
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
@@ -167,17 +167,17 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given nick.
 
-=item PUT
+=item * PUT
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item DELETE
+=item * DELETE
 
 Deletes a record from the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
@@ -217,11 +217,11 @@ EOH
 
 =over
 
-=item GET
+=item * GET
 
 Retrieves a privhistory record by its PHID.
 
-=item DELETE
+=item * DELETE
 
 Deletes a privhistory record by its PHID.
 
