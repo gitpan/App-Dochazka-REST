@@ -1524,7 +1524,6 @@ Revision history for Dochazka-REST
 - rename 'scratch_sid' field/property of intervals to 'ssid'
 - dispatch_Message_en.conf: add DISPATCH_SCHEDINTVLS_MISSING,
   DISPATCH_SCHEDULE_INSERT_OK, DISPATCH_SCHEDULE_NO_UPDATE
-- too many other changes to count; not testing cleanly
 - Dispatch/Schedule.pm: add _intervals_post and _intervals_delete dispatch
   targets
 - move 'expurgate' logic to Model/Shared.pm and implement a wrapper method
@@ -1606,10 +1605,72 @@ Revision history for Dochazka-REST
 - t/107-schedule.t: add test case for 'update' method
 - t/dispatch/intervals.t: add GET test case for '/schedule/sid/:sid' resource
 
-0.253  2014-11-07 11:28 CET
+0.253  2014-11-07 14:33 CET
+- Test.pm: make a new 'req' routine that to replace the current rag-tag
+  collection of kludgey routines for generating HTTP requests against the
+  Plack::Test object
+- t/dispatch/intervals.t: add 'POST schedule/sid/:sid' test cases; migrate the
+  entire unit to the new 'req' routine 
 - t/: move model tests into their own subdirectory and comment out 'skip_all'
   so they run
 - Model/: remove 'expurgate' method from all model modules (replaced by TO_JSON);
   remove 'compare' method overlay (replaced by compare_disabled)
 - t/model/activity.t: adapt tests, remove deprecated tests, add new tests
+
+0.254  2014-11-07 16:19 CET
+- t/dispatch/activity.t: migrate to new 'req' function
+
+0.255  2014-11-07 22:12 CET
+- t/dispatch/employee.t: strenuously migrate to the new 'req' routine
+
+0.256  2014-11-08 20:30 CET
+- t/dispatch/priv.t: migrate another unit to 'req'
+
+0.257  2014-11-08 21:35 CET
+- t/dispatch/schedule.t: migrate unit to 'req'
+
+0.258  2014-11-09 09:10 CET
+- t/dispatch/top.t: migrate unit to 'req'
+- Test.pm: deprecate and eliminate kludgey testing routines (replaced by 'req')
+
+0.259  2014-11-10 08:54 CET
+- Model/Shared.pm: finally get up the courage to return 'NOTICE' status level
+  instead of 'OK' when SELECT statements return no records - this makes
+  "nothing found" easy to distinguish from "something found", while keeping "ERR"
+  reserved for DBI errors; add 'make_test_exists' to generate 'nick_exists',
+  'eid_exists', etc. etc. (to be used in all model modules)
+- Dispatch/Activity.pm: adapt to above change
+- Model/Employee.pm: revamp nick_exists and eid_exists (generalize these routines
+  and generate them at runtime for code re-use)
+- Resource.pm: adapt to above change
+- t/dispatch/activity.t: cleanup
+- t/model/employee.t: cleanup
+- not testing cleanly
+
+0.260  2014-11-10 11:29 CET
+- Dispatch/: cleanup
+- Dispatch/Priv.pm: break out common code from _history_eid and _history_nick
+  into a separate '_history_end_game' routine
+- Model/: cleanup
+- Model/Shared.pm: fix make_test_exists; make get_history include both
+  EID and nick in the payload
+- t/: adapt tests to current state
+- tests running cleanly again
+
+0.261  2014-11-10 12:14 CET
+- Model/: add 'aid_exists', 'code_exists', 'iid_exists', etc. runtime-generated
+  boilerplate functions to all models where they make sense
+- Model/Employee.pm: cleanup
+- Model/{Schedule,Shared}.pm: eliminate circular dependency and clean up aftermath
+- t/model/: add test cases for new boilerplate
+
+0.262  2014-11-10 14:02 CET
+- release/: new docgen.plx to auto-generate POD documentation on all resources;
+  adapt release.sh to use the new docgen.plx script
+- docs/Resources.pm: auto-generated POD documentation 
+- config/docgen_Config.pm: special params for use in docgen.plx 
+- config/dispatch/: clean up some of the docs
+- config/dispatch_Config.pm: add POD to DISPATCH_RESOURCE_LISTS
+- Resource.pm: adapt 'init_router' routine to new DISPATCH_RESOURCE_LISTS
+  format
 

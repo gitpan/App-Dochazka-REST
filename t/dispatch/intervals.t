@@ -74,14 +74,10 @@ docu_check( $test, $base );
 #
 # GET, PUT
 #
-$res = $test->request( req_demo GET => "$base" );
-is( $res->code, 405 );
-$res = $test->request( req_root GET => "$base" );
-is( $res->code, 405 );
-$res = $test->request( req_demo PUT => "$base" );
-is( $res->code, 405 );
-$res = $test->request( req_root PUT => "$base" );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'GET', $base );
+req( $test, 405, 'root', 'GET', $base );
+req( $test, 405, 'demo', 'PUT', $base );
+req( $test, 405, 'root', 'PUT', $base );
 
 # test typical workflow for this resource
 #
@@ -98,22 +94,15 @@ my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
 #
 
 # - request as demo will fail with 403
-$res = $test->request( req_json_demo POST => "$base", undef, $intvls_json );
-is( $res->code, 403 );
+req( $test, 403, 'demo', 'POST', $base, $intvls_json );
 
 # - request as root with no request body will return DISPATCH_SCHEDINTVLS_MISSING
-$res = $test->request( req_json_root POST => "$base" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'POST', $base );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_SCHEDINTVLS_MISSING' );
 
 # - request as root 
-$res = $test->request( req_json_root POST => "$base", undef, $intvls_json );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'POST', $base, $intvls_json );
 diag( Dumper $status ) unless $status->ok;
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_SCHEDULE_INSERT_OK' );
@@ -122,10 +111,7 @@ ok( exists $status->payload->{'sid'} );
 my $sid = $status->payload->{'sid'};
 
 # - request the same schedule - code should change to DISPATCH_SCHEDULE_OK
-$res = $test->request( req_json_root POST => "$base", undef, $intvls_json );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'POST', $base, $intvls_json );
 diag( Dumper $status ) unless $status->ok;
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_SCHEDULE_OK' );
@@ -134,16 +120,12 @@ ok( exists $status->payload->{'sid'} );
 is( $status->payload->{'sid'}, $sid );
 
 # - and now delete the schedules record (schedintvls records are already gone)
-$res = $test->request( req_json_root DELETE => $base, undef, "{ \"sid\":$sid }" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'DELETE', $base, "{ \"sid\":$sid }" );
 diag( Dumper $status ) unless $status->ok;
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # - count should now be zero
-$res = $test->request( req_root GET => 'schedule/all/disabled' );
-is( $res->code, 404 );
+$status = req( $test, 404, 'root', 'GET', 'schedule/all/disabled' );
 
 
 #===========================================
@@ -157,10 +139,7 @@ $sid = create_testing_schedule( $test );
 #
 # GET
 #
-$res = $test->request( req_root GET => "$base/$sid" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/$sid" );
 diag( Dumper $status ) unless $status->ok;
 #diag( Dumper $status );
 is( $status->level, 'OK' );
@@ -169,32 +148,52 @@ is( $status->payload->{'disabled'}, 0 );
 is( $status->payload->{'remark'}, undef );
 is( $status->payload->{'schedule'}, '[{"high_dow":"FRI","high_time":"12:00","low_dow":"FRI","low_time":"08:00"},{"high_dow":"FRI","high_time":"16:30","low_dow":"FRI","low_time":"12:30"},{"high_dow":"SAT","high_time":"12:00","low_dow":"SAT","low_time":"08:00"},{"high_dow":"SAT","high_time":"16:30","low_dow":"SAT","low_time":"12:30"},{"high_dow":"SUN","high_time":"12:00","low_dow":"SUN","low_time":"08:00"},{"high_dow":"SUN","high_time":"16:30","low_dow":"SUN","low_time":"12:30"}]' );
 ok( $status->payload->{'sid'} > 0 );
+is( $status->payload->{'sid'}, $sid );
 
 #
 # PUT
 #
-$res = $test->request( req_demo PUT => "$base/1" );
-is( $res->code, 405 );
-$res = $test->request( req_root PUT => "$base/1" );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'PUT', "$base/1" );
+req( $test, 405, 'root', 'PUT', "$base/1" );
 
 #
 # POST
 #
-$res = $test->request( req_demo POST => "$base/1" );
-is( $res->code, 403 );
-#$res = $test->request( req_root POST => "$base/1" );
-#is( $res->code, 405 );
+# - add a remark to the schedule
+req( $test, 403, 'demo', 'POST', "$base/$sid" );
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "remark" : "foobar" }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+ok( exists( $status->{'payload'} ) );
+ok( defined( $status->payload ) );
+ok( exists( $status->{'payload'}->{'remark'} ) );
+ok( defined( $status->{'payload'}->{'remark'} ) );
+is( $status->{'payload'}->{'remark'}, "foobar" );
+#
+# verify with GET
+$status = req( $test, 200, 'root', 'GET', "$base/$sid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->payload->{'remark'}, 'foobar' );
+#
+# - disable the schedule in the wrong way
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":"hoogar" }' );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type boolean/ );
+#
+# - disable the schedule in the right way
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":true }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+
 
 #
 # DELETE
 #
 # - delete the testing schedule 
-$res = $test->request( req_json_root DELETE => "$base/$sid" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-diag( Dumper $status ) unless $status->ok;
+$status = req( $test, 200, 'root', 'DELETE', "$base/$sid" );
+is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 

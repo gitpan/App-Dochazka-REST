@@ -44,7 +44,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Schedule qw( get_schedule_json );
+use App::Dochazka::REST::Model::Schedule qw( sid_exists get_schedule_json );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
 use App::Dochazka::REST::Model::Shared qw( noof );
@@ -247,7 +247,7 @@ is( $sh2->remark, $schedhistory->remark);
 # but it wasn't valid yesterday
 $sh2->reset;
 $status = $sh2->load_by_eid( $emp->eid, $yesterday );
-ok( $status->ok );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 is( $sh2->shid, undef );
 is( $sh2->eid, undef );
@@ -266,12 +266,15 @@ is( noof( 'schedhistory' ), 0 );
 
 # 2. delete the schedule
 is( noof( 'schedules' ), 1 );
+ok( sid_exists( $sid_copy ) );
 $status = $schedule->load_by_sid( $sid_copy );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 $schedule = $status->payload;
 $status = $schedule->delete;
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );
+ok( ! sid_exists( $sid_copy ) );
 is( noof( 'schedules' ), 0 );
 
 # 3. delete the employee (Mr. Sched)

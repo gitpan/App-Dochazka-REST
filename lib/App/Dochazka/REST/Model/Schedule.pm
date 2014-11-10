@@ -37,13 +37,11 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared;
-use Carp;
+use App::Dochazka::REST::Model::Shared qw( cud decode_schedule_json load );
 use Data::Dumper;
 use DBI;
 use JSON;
 use Params::Validate qw( :all );
-use Test::Deep::NoTest;
 use Try::Tiny;
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -61,11 +59,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -246,8 +244,6 @@ For basic workflow, see C<t/model/schedule.t>.
 
 =item * L<get_schedule_json> function (get JSON string associated with a given SID)
 
-=item * L<decode_schedule_json> function (given JSON string, return corresponding hashref)
-
 =back
 
 For basic workflow, see C<t/model/schedule.t>.
@@ -261,13 +257,13 @@ This module provides the following exports:
 
 =over 
 
-=item C<schedule_all> 
+=item * C<get_schedule_json>
 
-=item C<schedule_all_disabled> 
+=item * C<schedule_all> 
 
-=item C<get_json>
+=item * C<schedule_all_disabled> 
 
-=item C<decode_schedule_json>
+=item * C<sid_exists> (boolean)
 
 =back
 
@@ -275,8 +271,9 @@ This module provides the following exports:
 
 use Exporter qw( import );
 our @EXPORT_OK = qw( 
+    get_schedule_json
     schedule_all schedule_all_disabled
-    get_schedule_json decode_schedule_json 
+    sid_exists
 );
 
 
@@ -303,7 +300,7 @@ sub insert {
     return $CELL->status_err( $dbh->errstr ) if $dbh->err;
 
     # no exact match found, insert a new record
-    my $status = App::Dochazka::REST::Model::Shared::cud(
+    my $status = cud(
         object => $self,
         sql => $site->SQL_SCHEDULE_INSERT,
         attrs => [ 'schedule', 'remark' ],
@@ -326,7 +323,7 @@ method.
 sub update {
     my ( $self ) = @_;
 
-    my $status = App::Dochazka::REST::Model::Shared::cud(
+    my $status = cud(
         object => $self,
         sql => $site->SQL_SCHEDULE_UPDATE,
         attrs => [ 'remark', 'disabled', 'sid' ],
@@ -347,7 +344,7 @@ sub delete {
     my ( $self ) = @_;
     $log->debug( "Entering " . __PACKAGE__ . "::delete" );
 
-    my $status = App::Dochazka::REST::Model::Shared::cud(
+    my $status = cud(
         object => $self,
         sql => $site->SQL_SCHEDULE_DELETE,
         attrs => [ 'sid' ],
@@ -369,7 +366,7 @@ sub load_by_sid {
     my $self = shift;
     my ( $sid ) = validate_pos( @_, { type => SCALAR } );
 
-    return App::Dochazka::REST::Model::Shared::load( 
+    return load( 
         class => __PACKAGE__, 
         sql => $site->SQL_SCHEDULE_SELECT_BY_SID,
         keys => [ $sid ],
@@ -379,6 +376,18 @@ sub load_by_sid {
 
 
 =head1 FUNCTIONS
+
+
+=head2 sid_exists
+
+Boolean function
+
+=cut
+
+BEGIN {
+    no strict 'refs';
+    *{'sid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'sid' );
+}
 
 
 =head2 schedule_all
@@ -415,7 +424,7 @@ sub schedule_all {
             [ $counter ], payload => \@result, count => $counter );
     } else {
         @result = ();
-        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
             payload => \@result, count => $counter );
     }
     $dbh->{RaiseError} = 0;
@@ -432,19 +441,6 @@ schedules regardless of 'disabled' status.
 
 sub schedule_all_disabled {
      return schedule_all( 'including_disabled' );
-}
-
-
-=head2 decode_json
-
-Given JSON string representation of the schedule, return corresponding HASHREF.
-
-=cut
-
-sub decode_schedule_json {
-    my ( $json_str ) = @_;
-
-    return JSON->new->utf8->canonical(1)->decode( $json_str );
 }
 
 

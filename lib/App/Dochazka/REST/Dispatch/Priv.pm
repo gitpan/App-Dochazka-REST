@@ -43,7 +43,7 @@ use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared;
-use App::Dochazka::REST::Model::Employee qw( eid_exists nick_exists );
+use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Carp;
 use Data::Dumper;
@@ -64,11 +64,11 @@ App::Dochazka::REST::Dispatch::Priv - path dispatch
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -125,69 +125,71 @@ sub _current_priv {
 }
 
 
-#
+# code common to _history_eid and _history_nick
 # GET: get privhistory of an arbitrary EID over a tsrange that defaults to [,)
 # PUT: insert a privhistory record
 # DELETE: delete a privhistory record
 #
+sub _history_end_game {
+    my ( $method, $eid, $nick, $tsrange, $body ) = @_;
+    if ( $method eq 'GET' ) { 
+        return ( defined $tsrange )
+            ? get_privhistory( eid => $eid, nick => $nick, tsrange => $tsrange )
+            : get_privhistory( eid => $eid, nick => $nick );
+    } elsif ( $method eq 'PUT' ) {
+        return _insert( $eid, $body );
+    } elsif ( $method eq 'DELETE' ) {
+        return _delete( $eid, $body );
+    }
+    die "AAAAAAHHHHHH!";
+}
+
 sub _history_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::Priv::_eid" ); 
+    $log->debug( "Entering " . __PACKAGE__ . "::_history_eid" ); 
 
     my $tsrange = $context->{'mapping'}->{'tsrange'};
     my $eid = $context->{'mapping'}->{'eid'};
 
     # display error if employee doesn't exist
-    my $emp = eid_exists( $eid );
-    return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] ) if not defined( $emp );
-    return $emp if $emp->isa( 'App::CELL::Status' ); # DBI error
-    my $body = $context->{request_body};
-
-    if ( $context->{'method'} eq 'GET' ) { 
-        defined $tsrange
-            ? get_privhistory( eid => $eid, tsrange => $tsrange )
-            : get_privhistory( eid => $eid );
-    } elsif ( $context->{'method'} eq 'PUT' ) {
-        return _insert( $eid, $body );
-    } elsif ( $context->{'method'} eq 'DELETE' ) {
-        return _delete( $eid, $body );
+    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $emp = $status->payload;
+        return _history_end_game( 
+            $context->{'method'}, 
+            $emp->eid, 
+            $emp->nick, 
+            $tsrange, 
+            $context->{request_body} 
+        );
+    } elsif ( $status->level eq 'NOTICE' ) {
+        return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] );
     }
+    return $status;
 }
 
-#
-# GET: get privhistory of an arbitrary nick over a tsrange that defaults to [,)
-# PUT: insert a privhistory record
-# DELETE: delete a privhistory record
-#
 sub _history_nick {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering App::Dochazka::REST::Dispatch::Priv::_nick" ); 
+    $log->debug( "Entering " . __PACKAGE__ . "::_history_nick" ); 
 
     my $tsrange = $context->{'mapping'}->{'tsrange'};
-    #$log->debug("tsrange == $tsrange") if $tsrange;
     my $nick = $context->{'mapping'}->{'nick'};
-    #$log->debug("nick == $nick");
 
     # display error if nick doesn't exist
     my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-    if ( ref($status->payload) ne "App::Dochazka::REST::Model::Employee" ) {
-        return ( $status->code eq 'DISPATCH_NO_RECORDS_FOUND' )
-            ? $CELL->status_err( 'DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ] ) 
-            : $status;
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $emp = $status->payload;
+        return _history_end_game( 
+            $context->{'method'}, 
+            $emp->eid, 
+            $emp->nick, 
+            $tsrange, 
+            $context->{request_body} 
+        );
+    } elsif ( $status->level eq 'NOTICE' ) {
+        return $CELL->status_err( 'DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ] );
     }
-    $log->debug( Dumper $status );
-    my $eid = $status->payload->eid;
-    my $body = $context->{request_body};
-
-    if ( $context->{'method'} eq 'GET' ) {
-        defined $tsrange
-            ? get_privhistory( nick => $nick, tsrange => $tsrange )
-            : get_privhistory( nick => $nick );
-    } elsif ( $context->{'method'} eq 'PUT' ) {
-        return _insert( $eid, $body );
-    } elsif ( $context->{'method'} eq 'DELETE' ) {
-        return _delete( $eid, $body );
-    }
+    return $status;
 }
 
 sub _priv_by_phid {

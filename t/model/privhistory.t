@@ -41,7 +41,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
+use App::Dochazka::REST::Model::Privhistory qw( phid_exists get_privhistory );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
 use Scalar::Util qw( blessed );
@@ -103,7 +103,7 @@ is( $priv2->remark, $ins_remark );
 
 # get Mr. Priv History's priv level as of yesterday
 $status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid, $yesterday_ts );
-ok( $status->ok, "No DBI error" );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Shouldn't return any rows" );
 is( $emp->priv( $yesterday_ts ), 'passerby' );
 is( $emp->priv( $today_ts ), 'active' );
@@ -153,10 +153,13 @@ is( scalar @$ph, 2, "Two records" );
 foreach my $priv_fields ( @$ph ) {
     my $priv = App::Dochazka::REST::Model::Privhistory->spawn( %$priv_fields );
     my $phid = $priv->phid;
+    ok( phid_exists( $phid ) );
     $status = $priv->delete;
+    ok( ! phid_exists( $phid ) );
     ok( $status->ok, "DELETE OK" );
     $priv->reset;
     $status = $priv->load_by_phid( $phid );
+    is( $status->level, "NOTICE" );
     is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 }
 

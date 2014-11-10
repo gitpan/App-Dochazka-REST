@@ -43,7 +43,7 @@ use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared qw( pre_update_comparison );
-use App::Dochazka::REST::Model::Employee qw( nick_exists noof_employees_by_priv );
+use App::Dochazka::REST::Model::Employee qw( noof_employees_by_priv );
 use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid );
 use Carp;
 use Data::Dumper;
@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -167,19 +167,20 @@ sub _put_post_delete_employee_by_eid {
 
     if ( defined($eid) and $eid =~ m/^\d+$/ ) {
         my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-        return $status unless $status->ok;
-        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
             if ( $context->{'method'} =~ /^(PUT)|(POST)/i ) {
                 #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
                 my $oldemp = $status->payload;
-                _update_employee( $oldemp, $context->{'request_body'} );
+                return _update_employee( $oldemp, $context->{'request_body'} );
             } elsif ( $context->{'method'} =~ /^DELETE/i ) {
                 $log->notice("Attempting to delete employee with EID $eid");
                 return $status->payload->delete;  # employee object is in the payload
             }
-        } else {
+        } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
             return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] );
         }
+        # DBI error or other badness
+        return $status;
     } else {
         return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'eid' ] ); 
     }

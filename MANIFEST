@@ -9,6 +9,7 @@ config/dispatch/schedule_Config.pm
 config/dispatch/top_Config.pm
 config/dispatch_Config.pm
 config/dispatch_Message_en.conf
+config/docgen_Config.pm
 config/README
 config/REST_Config.pm
 config/REST_Message_en.conf
@@ -30,6 +31,7 @@ lib/App/Dochazka/REST/Dispatch/Employee.pm
 lib/App/Dochazka/REST/Dispatch/Priv.pm
 lib/App/Dochazka/REST/Dispatch/Schedule.pm
 lib/App/Dochazka/REST/Dispatch/Shared.pm
+lib/App/Dochazka/REST/Docs/Resources.pm
 lib/App/Dochazka/REST/LDAP.pm
 lib/App/Dochazka/REST/Model/Activity.pm
 lib/App/Dochazka/REST/Model/Employee.pm

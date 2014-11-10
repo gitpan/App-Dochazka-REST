@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 #use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( load cud );
+use App::Dochazka::REST::Model::Shared qw( cud load );
 use Carp;
 use Data::Dumper;
 use DBI;
@@ -58,11 +58,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -106,12 +106,14 @@ This module provides the following exports:
 
 =over 
 
+=item * C<lid_exists> (boolean) 
+
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( );
+our @EXPORT_OK = qw( lid_exists );
 
 
 
@@ -196,6 +198,22 @@ sub delete {
     $self->reset( lid => $self->{lid} ) if $status->ok;
 
     return $status; 
+}
+
+
+
+=head1 FUNCTIONS
+
+
+=head2 lid_exists
+
+Boolean
+
+=cut
+
+BEGIN {
+    no strict 'refs';
+    *{'lid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'lid' );
 }
 
 

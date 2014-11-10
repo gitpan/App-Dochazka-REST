@@ -43,7 +43,7 @@
 #    Top-level resources
 set( 'DISPATCH_RESOURCES_TOP', {
 
-    '' => 
+    '/' => 
     { 
         target => {
             GET => '_get_default', 

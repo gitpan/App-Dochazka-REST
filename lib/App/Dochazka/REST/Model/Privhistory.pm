@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -166,6 +166,8 @@ This module provides the following exports:
 
 =over 
 
+=item L<phid_exists> (boolean)
+
 =item L<get_privhistory>
 
 =back
@@ -173,7 +175,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( get_privhistory );
+our @EXPORT_OK = qw( phid_exists get_privhistory );
 
 
 
@@ -277,6 +279,19 @@ sub delete {
 
 
 =head1 FUNCTIONS
+
+
+=head2 phid_exists
+
+Boolean function
+
+=cut
+
+BEGIN {
+    no strict 'refs';
+    *{'phid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'phid' );
+}
+
 
 =head2 get_privhistory
 

@@ -63,20 +63,17 @@ my $res;
 
 
 #=============================
-# "" resource
+# "/" resource
 #=============================
-docu_check($test, "");
+docu_check($test, "/");
 # GET ""
 # - as demo
-$res = $test->request( req_demo GET => '/' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'bugreport'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
@@ -86,19 +83,16 @@ ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'whoami'} );
 #
 # - as root
-$res = $test->request( req_root GET => '/' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'method'} );
 # passerby resources
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
@@ -110,19 +104,15 @@ ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
 #
 # PUT ""
 # - as demo
-$res = $test->request( req_json_root PUT => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'help'} );
 #
 # PUT "" 
 # - as root
-$res = $test->request( req_json_root PUT => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'help'} );
 # additional admin-only resources
@@ -130,14 +120,12 @@ ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST "" 
 # - as demo
-$res = $test->request( req_json_demo POST => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
@@ -145,36 +133,30 @@ ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST "" 
 # - as root
-$res = $test->request( req_json_root POST => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
-ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( ! exists $status->payload->{'resources'}->{'metaparam/:param'} );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'echo'} );
 #
 # DELETE "" 
 # - as demo
-$res = $test->request( req_json_demo DELETE => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # admin-only resources
 ok( not exists $status->payload->{'resources'}->{'echo'} );
 #
 # DELETE "" - as root
-$res = $test->request( req_json_root DELETE => '' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'DELETE', '/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # additional admin-only resources
 # ...
@@ -186,212 +168,99 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 docu_check($test, "bugreport");
 # GET bugreport
 # - as demo
-$res = $test->request( req_demo GET => 'bugreport' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', 'bugreport' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_BUGREPORT' );
 ok( exists $status->payload->{'report_bugs_to'} );
 # - as root
-$res = $test->request( req_root GET => 'bugreport' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'bugreport' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_BUGREPORT' );
 ok( exists $status->payload->{'report_bugs_to'} );
 #
 # PUT bugreport
-$res = $test->request( req_json_demo PUT => 'bugreport' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => 'bugreport' );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'PUT', 'bugreport' );
+req( $test, 405, 'root', 'PUT', 'bugreport' );
 #
 # POST bugreport
-$res = $test->request( req_json_demo POST => 'bugreport' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => 'bugreport' );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'PUT', 'bugreport' );
+req( $test, 405, 'root', 'PUT', 'bugreport' );
 #
 # DELETE bugreport
-$res = $test->request( req_json_demo DELETE => 'bugreport' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => 'bugreport' );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'DELETE', 'bugreport' );
+req( $test, 405, 'root', 'DELETE', 'bugreport' );
 
 
 #=============================
 # "docu" resource
 #=============================
-docu_check($test, "docu");
-#
-# GET docu
-#
-$res = $test->request( req_demo GET => 'docu' );
-is( $res->code, 405 );
-$res = $test->request( req_root GET => 'docu' );
-is( $res->code, 405 );
-#
-# PUT docu
-#
-$res = $test->request( req_json_demo PUT => 'docu' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => 'docu' );
-is( $res->code, 405 );
-#
-# POST docu
-#
-# - be nice
-$res = $test->request( req_json_demo POST => 'docu', undef, '"echo"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, 'echo' );
-ok( exists $status->payload->{'documentation'} );
-my $docustr = $status->payload->{'documentation'};
-my $docustr_len = length( $docustr );
-ok( $docustr_len > 10 );
-like( $docustr, qr/echoes/ );
-#
-# - ask nicely for documentation of a slightly more complicated resource
-$res = $test->request( req_json_demo POST => 'docu', undef, '"metaparam/:param"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, 'metaparam/:param' );
-ok( exists $status->payload->{'documentation'} );
-ok( length( $status->payload->{'documentation'} ) > 10 );
-isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
-isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
-#
-# - ask nicely for documentation of the "" resource
-$res = $test->request( req_json_demo POST => 'docu', undef, '""' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, '' );
-ok( exists $status->payload->{'documentation'} );
-ok( length( $status->payload->{'documentation'} ) > 10 );
-isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
-isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
-#
-# - be nice but not careful (non-existent resource)
-$res = $test->request( req_json_demo POST => 'docu', undef, '"echop"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_BAD_RESOURCE' );
-#
-# - be pathological (invalid JSON)
-$res = $test->request( req_json_demo POST => 'docu', undef, 'bare, unquoted string will never pass for JSON' );
-is( $res->code, 400 );
-$res = $test->request( req_json_demo POST => 'docu', undef, '[ 1, 2' );
-is( $res->code, 400 );
-#
-# DELETE docu
-#
-$res = $test->request( req_json_demo DELETE => 'docu' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => 'docu' );
-is( $res->code, 405 );
-
-
 #=============================
 # "docu/html" resource
 #=============================
-docu_check($test, "docu/html");
-#
-# GET docu
-#
-$res = $test->request( req_demo GET => 'docu/html' );
-is( $res->code, 405 );
-$res = $test->request( req_root GET => 'docu/html' );
-is( $res->code, 405 );
-#
-# PUT docu
-#
-$res = $test->request( req_json_demo PUT => 'docu/html' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => 'docu/html' );
-is( $res->code, 405 );
-#
-# POST docu
-#
-# - be nice
-$res = $test->request( req_json_demo POST => 'docu/html', undef, '"echo"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, 'echo' );
-ok( exists $status->payload->{'documentation'} );
-$docustr = $status->payload->{'documentation'};
-$docustr_len = length( $docustr );
-ok( $docustr_len > 10 );
-like( $docustr, qr/echoes/ );
-#
-# - ask nicely for documentation of a slightly more complicated resource
-$res = $test->request( req_json_demo POST => 'docu/html', undef, '"metaparam/:param"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, 'metaparam/:param' );
-ok( exists $status->payload->{'documentation'} );
-ok( length( $status->payload->{'documentation'} ) > 10 );
-isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
-isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
-#
-# - ask nicely for documentation of the "" resource
-$res = $test->request( req_json_demo POST => 'docu/html', undef, '""' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
-ok( exists $status->payload->{'resource'} );
-is( $status->payload->{'resource'}, '' );
-ok( exists $status->payload->{'documentation'} );
-ok( length( $status->payload->{'documentation'} ) > 10 );
-isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
-isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
-#
-# - be nice but not careful (non-existent resource)
-$res = $test->request( req_json_demo POST => 'docu/html', undef, '"echop"' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_BAD_RESOURCE' );
-#
-# - be pathological (invalid JSON)
-$res = $test->request( req_json_demo POST => 'docu/html', undef, 'bare, unquoted string will never pass for JSON' );
-is( $res->code, 400 );
-$res = $test->request( req_json_demo POST => 'docu/html', undef, '[ 1, 2' );
-is( $res->code, 400 );
-#
-# DELETE docu
-#
-$res = $test->request( req_json_demo DELETE => 'docu/html' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => 'docu' );
-is( $res->code, 405 );
-
+foreach my $base ( 'docu', 'docu/html' ) {
+    docu_check($test, $base);
+    #
+    # GET docu
+    #
+    req( $test, 405, 'demo', 'GET', $base );
+    req( $test, 405, 'root', 'GET', $base );
+    #
+    # PUT docu
+    #
+    req( $test, 405, 'demo', 'PUT', $base );
+    req( $test, 405, 'root', 'PUT', $base );
+    #
+    # POST docu
+    #
+    # - be nice
+    $status = req( $test, 200, 'demo', 'POST', $base, '"echo"' );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+    ok( exists $status->payload->{'resource'} );
+    is( $status->payload->{'resource'}, 'echo' );
+    ok( exists $status->payload->{'documentation'} );
+    my $docustr = $status->payload->{'documentation'};
+    my $docustr_len = length( $docustr );
+    ok( $docustr_len > 10 );
+    like( $docustr, qr/echoes/ );
+    #
+    # - ask nicely for documentation of a slightly more complicated resource
+    $status = req( $test, 200, 'demo', 'POST', $base, '"metaparam/:param"' );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+    ok( exists $status->payload->{'resource'} );
+    is( $status->payload->{'resource'}, 'metaparam/:param' );
+    ok( exists $status->payload->{'documentation'} );
+    ok( length( $status->payload->{'documentation'} ) > 10 );
+    isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
+    isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
+    #
+    # - ask nicely for documentation of the "/" resource
+    $status = req( $test, 200, 'demo', 'POST', $base, '"/"' );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
+    ok( exists $status->payload->{'resource'} );
+    is( $status->payload->{'resource'}, '/' );
+    ok( exists $status->payload->{'documentation'} );
+    ok( length( $status->payload->{'documentation'} ) > 10 );
+    isnt( $status->payload->{'documentation'}, $docustr, "We are not getting the same string over and over again" );
+    isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
+    #
+    # - be nice but not careful (non-existent resource)
+    $status = req( $test, 200, 'demo', 'POST', $base, '"echop"' );
+    is( $status->level, 'ERR' );
+    is( $status->code, 'DISPATCH_BAD_RESOURCE' );
+    #
+    # - be pathological (invalid JSON)
+    req( $test, 400, 'demo', 'POST', $base, 'bare, unquoted string will never pass for JSON' );
+    req( $test, 400, 'demo', 'POST', $base, '[ 1, 2' );
+    #
+    # DELETE docu
+    #
+    req( $test, 405, 'demo', 'DELETE', $base );
+    req( $test, 405, 'root', 'DELETE', $base );
+}
+    
 
 #=============================
 # "echo" resource
@@ -399,23 +268,17 @@ is( $res->code, 405 );
 docu_check($test, "echo");
 #
 # GET echo
-$res = $test->request( req_demo GET => 'echo' );
-is( $res->code, 405 );
-$res = $test->request( req_root GET => 'echo' );
-is( $res->code, 405 );
+$status = req( $test, 405, 'demo', 'GET', 'echo' );
+$status = req( $test, 405, 'root', 'GET', 'echo' );
 #
 # PUT echo
-$res = $test->request( req_json_demo PUT => 'echo' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => 'echo' );
-is( $res->code, 405 );
+$status = req( $test, 405, 'demo', 'PUT', 'echo' );
+$status = req( $test, 405, 'root', 'PUT', 'echo' );
 #
 # POST echo
 # - as root with legal JSON
-$res = $test->request( req_json_root 'POST', 'echo', undef, '{ "username": "foo", "password": "bar" }' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', 'echo', '{ "username": "foo", "password": "bar" }' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_POST_ECHO' );
 ok( exists $status->payload->{'username'} );
 is( $status->payload->{'username'}, 'foo' );
@@ -423,28 +286,21 @@ ok( exists $status->payload->{'password'} );
 is( $status->payload->{'password'}, 'bar' );
 #
 # - with illegal JSON
-$res = $test->request( req_json_root 'POST', 'echo', undef, '{ "username": "foo", "password": "bar"' );
-is( $res->code, 400 );
+$status = req( $test, 400, 'root', 'POST', 'echo', '{ "username": "foo", "password": "bar"' );
 #
 # - with empty request body, as demo
-$res = $test->request( req_json_demo POST => 'echo' );
-is( $res->code, 403 ); # Forbidden
+$status = req( $test, 403, 'demo', 'POST', 'echo' );
 #
 # - with empty request body
-$res = $test->request( req_json_root 'POST', 'echo' );
-is( $res->code, 200 );
-like( $res->content, qr/"payload"\s*:\s*null/ );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', 'echo' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_POST_ECHO' );
 ok( exists $status->{'payload'} );
 is( $status->payload, undef );
 #
 # DELETE echo
-$res = $test->request( req_json_demo DELETE => 'echo' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => 'echo' );
-is( $res->code, 405 );
+$status = req( $test, 405, 'demo', 'DELETE', 'echo' );
+$status = req( $test, 405, 'root', 'DELETE', 'echo' );
 
 
 #=============================
@@ -454,11 +310,8 @@ docu_check($test, "employee");
 #
 # GET employee
 # - as demo
-$res = $test->request( req_demo GET => '/employee' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', '/employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -467,11 +320,8 @@ ok( exists $status->payload->{'resources'}->{'employee/help'} );
 #
 # GET employee 
 # - as root
-$res = $test->request( req_root GET => '/employee' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', '/employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -485,10 +335,8 @@ ok( exists $status->payload->{'resources'}->{'employee/count'} );
 #
 # PUT employee
 # - as demo
-$res = $test->request( req_json_demo 'PUT', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 # admin-only resources
@@ -496,10 +344,8 @@ ok( not exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
 ok( not exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
 #
 # - as root
-$res = $test->request( req_json_root 'PUT', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 # admin-only resources
@@ -508,10 +354,8 @@ ok( exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
 #
 # POST employee
 # - as demo
-$res = $test->request( req_json_demo 'POST', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
@@ -520,10 +364,8 @@ ok( exists $status->payload->{'method'} );
 is( $status->payload->{'method'}, 'POST' );
 #
 # - as root
-$res = $test->request( req_json_root 'POST', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
@@ -536,10 +378,8 @@ ok( exists $status->payload->{'resources'}->{'employee/nick'} );
 #
 # DELETE employee
 # - as demo
-$res = $test->request( req_json_demo 'DELETE', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 # admin-only resources
@@ -547,10 +387,8 @@ ok( not exists $status->payload->{'resources'}->{'employee/eid/:eid'} );
 ok( not exists $status->payload->{'resources'}->{'employee/nick/:nick'} );
 #
 # - as root
-$res = $test->request( req_json_root 'DELETE', 'employee' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'DELETE', 'employee' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'employee/help'} );
 # admin-only resources
@@ -561,30 +399,11 @@ ok( exists $status->payload->{'resources'}->{'employee/help'} );
 # "forbidden" resource
 #=============================
 docu_check($test, "forbidden");
-#
-# GET forbidden
-$res = $test->request( req_demo GET => 'forbidden' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => 'forbidden' );
-is( $res->code, 403 );
-#
-# PUT forbidden
-$res = $test->request( req_json_demo PUT => 'forbidden' );
-is( $res->code, 403 );
-$res = $test->request( req_json_root PUT => 'forbidden' );
-is( $res->code, 403 );
-#
-# POST forbidden
-$res = $test->request( req_json_demo POST => 'forbidden' );
-is( $res->code, 403 );
-$res = $test->request( req_json_root POST => 'forbidden' );
-is( $res->code, 403 );
-#
-# DELETE forbidden
-$res = $test->request( req_json_demo DELETE => 'forbidden' );
-is( $res->code, 403 );
-$res = $test->request( req_json_root DELETE => 'forbidden' );
-is( $res->code, 403 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( GET PUT POST DELETE ) ) {
+        $status = req( $test, 403, 'demo', 'GET', 'forbidden' );
+    }
+}
 
 
 #=============================
@@ -594,15 +413,12 @@ docu_check($test, "help");
 #
 # GET help
 # - as demo
-$res = $test->request( req_demo GET => 'help' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'whoami'} );
@@ -612,19 +428,16 @@ ok( exists $status->payload->{'resources'}->{'priv'} );
 #
 # GET help 
 # - as root
-$res = $test->request( req_root GET => 'help' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'method'} );
 # passerby resources
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'version'} );
 ok( exists $status->payload->{'resources'}->{'session'} );
@@ -636,47 +449,39 @@ ok( exists $status->payload->{'resources'}->{'siteparam/:param'} );
 #
 # PUT help 
 # - as demo
-$res = $test->request( req_json_demo PUT => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # admin-only resources
 ok( not exists $status->payload->{'resources'}->{'echo'} );
 #
 # - as root
-$res = $test->request( req_json_root PUT => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST help
 # - as demo
-$res = $test->request( req_json_demo POST => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
 ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # - as root
-$res = $test->request( req_json_root POST => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{''} );
+ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
@@ -686,19 +491,15 @@ ok( exists $status->payload->{'resources'}->{'echo'} );
 #
 # DELETE help
 # - as demo
-$res = $test->request( req_json_demo DELETE => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # admin-only resources
 # ...
 #
 # - as root
-$res = $test->request( req_json_root DELETE => 'help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'DELETE', 'help' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # additional admin-only resources
 # ...
@@ -711,11 +512,8 @@ docu_check($test, "metaparam/:param");
 #
 # GET metaparam/:param
 # - as root, existent parameter
-$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_PARAM_FOUND' );
 ok( exists $status->payload->{name} );
 is( $status->payload->{name}, 'META_DOCHAZKA_UNIT_TESTING' );
@@ -725,82 +523,58 @@ ok( exists $status->payload->{value} );
 is( $status->payload->{value}, 1 );
 #
 # - as root, existent parameter without trailing '/'
-$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
-is( $res->code, 200 );
+$status = req( $test, 200, 'root', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
+is( $status->level, 'OK' );
 is( $status->payload->{name}, 'META_DOCHAZKA_UNIT_TESTING' );
 is( $status->payload->{type}, 'meta' );
 is( $status->payload->{value}, 1 );
 #
 # - as demo, bogus parameter
-$res = $test->request( req_demo GET => 'metaparam/DOCHEEEHAWHAZKA_appname' );
-is( $res->code, 403 );
-is( $res->content, 'Forbidden' );
+req( $test, 403, 'demo', 'GET', 'metaparam/DOCHEEEHAWHAZKA_appname' );
 #
 # - as root, bogus parameter
-$res = $test->request( req_root GET => 'metaparam/DOCHEEEHAWHAZKA_appname' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', 'metaparam/DOCHEEEHAWHAZKA_appname' );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
 #
 # - as root, try to use metaparam to access a site parameter
-$res = $test->request( req_root GET => 'metaparam/DOCHAZKA_APPNAME' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', 'metaparam/DOCHAZKA_APPNAME' );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
 #
 # - as demo, existent parameter with trailing '/foobar' => invalid resource
-$res = $test->request( req_demo GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'demo', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
 #
 # - as root, existent parameter with trailing '/foobar' => invalid resource
-$res = $test->request( req_root GET => 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'root', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
 
 #
 # PUT metaparam/:param
 #
-$res = $test->request( req_json_demo PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
-is( $res->code, 403 );
-is( $res->message, "Forbidden" );
+req( $test, 403, 'demo', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
 # 
 is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
-$res = $test->request( req_json_root PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING', 
-    undef, '"foobar"' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING', '"foobar"' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_PARAM_SET' );
 is( $meta->META_DOCHAZKA_UNIT_TESTING, 'foobar' );
-$res = $test->request( req_json_root PUT => 'metaparam/META_DOCHAZKA_UNIT_TESTING', 
-    undef, '1' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING', '1' );
+is( $status->level, 'OK' );
 is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
 
 #
 # POST metaparam/:param
 #
-$res = $test->request( req_json_demo POST => 'metaparam/foobar' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => 'metaparam/foobar' );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'POST', 'metaparam/foobar' );
+req( $test, 405, 'root', 'POST', 'metaparam/foobar' );
 
 #
 # DELETE metaparam/:param
 #
 # (not implemented yet)
-$res = $test->request( req_json_root DELETE => 'metaparam/foobar' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'DELETE', 'metaparam/foobar' );
 is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
 my $hr = $status->payload;
@@ -813,63 +587,13 @@ is( $hr->{'resource'}, '/metaparam/foobar' );
 #=============================
 docu_check($test, "not_implemented");
 #
-# GET not_implemented
-#
-$res = $test->request( req_demo GET => 'not_implemented' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-$res = $test->request( req_root GET => 'not_implemented' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-# PUT not_implemented
-#
-$res = $test->request( req_json_demo PUT => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-$res = $test->request( req_json_root PUT => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-# POST not_implemented
-#
-$res = $test->request( req_json_demo POST => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-$res = $test->request( req_json_root POST => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-# DELETE not_implemented
-#
-$res = $test->request( req_json_demo DELETE => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-#
-$res = $test->request( req_json_root DELETE => 'not_implemented' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
+foreach my $user ( qw( root demo ) ) {
+    foreach my $method ( qw( GET PUT POST DELETE ) ) {
+        $status = req( $test, 200, $user, $method, 'not_implemented' );
+        is( $status->level, 'NOTICE' );
+        is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
+    }
+}
 
 
 #=============================
@@ -879,21 +603,15 @@ docu_check($test, "priv");
 #
 # GET priv
 #
-$res = $test->request( req_demo GET => '/priv' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', '/priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # 
-$res = $test->request( req_root GET => '/priv' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', '/priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -910,19 +628,15 @@ ok( exists $status->payload->{'resources'}->{'priv/history/nick/:nick/:tsrange'}
 #
 # PUT priv
 #
-$res = $test->request( req_json_demo 'PUT', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 #
-$res = $test->request( req_json_root 'PUT', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'PUT', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
@@ -930,10 +644,8 @@ ok( exists $status->payload->{'resources'}->{'priv/help'} );
 #
 # POST priv
 #
-$res = $test->request( req_json_demo 'POST', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
@@ -941,10 +653,8 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'method'} );
 is( $status->payload->{'method'}, 'POST' );
 #
-$res = $test->request( req_json_root 'POST', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'POST', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
@@ -956,19 +666,15 @@ is( $status->payload->{'method'}, 'POST' );
 #
 # DELETE priv
 #
-$res = $test->request( req_json_demo 'DELETE', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
 # ...
 #
-$res = $test->request( req_json_root 'DELETE', 'priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'DELETE', 'priv' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # admin-only resources
@@ -982,11 +688,8 @@ docu_check($test, "session");
 #
 # GET session
 #
-$res = $test->request( req_demo GET => 'session' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', 'session' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_SESSION_DATA' );
 ok( exists $status->payload->{'session'} );
 ok( exists $status->payload->{'session_id'} );
@@ -995,20 +698,13 @@ ok( exists $status->payload->{'session_id'} );
 #ok( exists $status->payload->{'session'}->{'last_seen'} );
 #ok( exists $status->payload->{'session'}->{'eid'} );
 #
-# PUT, POST, DELETE session
+# PUT, POST, DELETE
 #
-$res = $test->request( req_demo PUT => 'session' );
-is( $res->code, 405 );
-$res = $test->request( req_demo POST => 'session' );
-is( $res->code, 405 );
-$res = $test->request( req_demo DELETE => 'session' );
-is( $res->code, 405 );
-$res = $test->request( req_root PUT => 'session' );
-is( $res->code, 405 );
-$res = $test->request( req_root POST => 'session' );
-is( $res->code, 405 );
-$res = $test->request( req_root DELETE => 'session' );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        $status = req( $test, 405, $user, $method, 'session' );
+    }
+}
 
 
 #=============================
@@ -1018,16 +714,11 @@ docu_check($test, "siteparam/:param");
 #
 # GET siteparam/:param
 # - as demo (existing parameter)
-$res = $test->request( req_demo GET => 'siteparam/DOCHAZKA_APPNAME/' );
-is( $res->code, 403 );
-is( $res->message, 'Forbidden' );
+req( $test, 403, 'demo', 'GET', 'siteparam/DOCHAZKA_APPNAME/' );
 #
 # - as root (existing parameter)
-$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME/' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'siteparam/DOCHAZKA_APPNAME/' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_PARAM_FOUND' );
 ok( exists $status->payload->{name} );
 is( $status->payload->{name}, 'DOCHAZKA_APPNAME' );
@@ -1037,66 +728,37 @@ ok( exists $status->payload->{value} );
 is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
 #
 # - as root (existing parameter without trailing '/')
-$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'siteparam/DOCHAZKA_APPNAME' );
+is( $status->level, 'OK' );
 #
 # - as demo (non-existent parameter)
-$res = $test->request( req_demo GET => 'siteparam/DOCHEEEHAWHAZKA_appname' );
-is( $res->code, 403 );
-is( $res->content, 'Forbidden' );
+req( $test, 403, 'demo', 'GET', 'siteparam/DOCHEEEHAWHAZKA_appname' );
 #
 # - as root (non-existent parameter)
-$res = $test->request( req_root GET => 'siteparam/DOCHEEEHAWHAZKA_appname' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', 'siteparam/DOCHEEEHAWHAZKA_appname' );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
 #
 # - as root (try to use siteparam to access a meta parameter)
-$res = $test->request( req_root GET => 'siteparam/META_DOCHAZKA_UNIT_TESTING' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', 'siteparam/META_DOCHAZKA_UNIT_TESTING' );
 ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
 #
 # - as demo (existent parameter with trailing '/foobar' => invalid resource)
-$res = $test->request( req_demo GET => 'siteparam/DOCHAZKA_APPNAME/foobar' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'demo', 'GET', 'siteparam/DOCHAZKA_APPNAME/foobar' );
 #
 # - as root (existent parameter with trailing '/foobar' => invalid resource)
-$res = $test->request( req_root GET => 'siteparam/DOCHAZKA_APPNAME/foobar' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
-
-# PUT siteparam/:param
-$res = $test->request( req_json_demo PUT => 'siteparam/bubba' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => 'siteparam/bubba' );
-is( $res->code, 405 );
-
+req( $test, 404, 'root', 'GET', 'siteparam/DOCHAZKA_APPNAME/foobar' );
 #
-# POST siteparam/:param
+# PUT, POST, DELETE
 #
-$res = $test->request( req_json_demo POST => 'siteparam/foobar' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => 'siteparam/foobar' );
-is( $res->code, 405 );
-
-#
-# DELETE siteparam/:param
-#
-$res = $test->request( req_json_demo DELETE => 'siteparam/foobar' );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => 'siteparam/foobar' );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        $status = req( $test, 405, $user, $method, 'siteparam/foobar' );
+    }
+}
 
 
 #=============================
@@ -1106,36 +768,23 @@ docu_check($test, "version");
 #
 # GET version
 #
-$res = $test->request( req_demo GET => 'version' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', 'version' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DOCHAZKA_REST_VERSION' );
 ok( exists $status->payload->{'version'} );
 #
-$res = $test->request( req_root GET => 'version' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'version' );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DOCHAZKA_REST_VERSION' );
 ok( exists $status->payload->{'version'} );
 #
 # PUT, POST, DELETE version
 #
-$res = $test->request( req_demo PUT => 'version' );
-is( $res->code, 405 );
-$res = $test->request( req_demo POST => 'version' );
-is( $res->code, 405 );
-$res = $test->request( req_demo DELETE => 'version' );
-is( $res->code, 405 );
-$res = $test->request( req_root PUT => 'version' );
-is( $res->code, 405 );
-$res = $test->request( req_root POST => 'version' );
-is( $res->code, 405 );
-$res = $test->request( req_root DELETE => 'version' );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        $status = req( $test, 405, $user, $method, 'version' );
+    }
+}
 
 
 #=============================
@@ -1144,10 +793,8 @@ is( $res->code, 405 );
 docu_check($test, "whoami");
 #
 # GET whoami
-$res = $test->request( req_demo GET => 'whoami' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', 'whoami' );
+is( $status->level, 'OK' );
 ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -1155,10 +802,8 @@ ok( exists $status->payload->{'nick'} );
 ok( not exists $status->payload->{'priv'} );
 is( $status->payload->{'nick'}, 'demo' );
 #
-$res = $test->request( req_root GET => 'whoami' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', 'whoami' );
+is( $status->level, 'OK' );
 ok( $status->code, 'DISPATCH_RECORDS_FOUND' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -1168,17 +813,10 @@ is( $status->payload->{'nick'}, 'root' );
 #
 # PUT, POST, DELETE whoami
 #
-$res = $test->request( req_demo PUT => 'whoami' );
-is( $res->code, 405 );
-$res = $test->request( req_demo POST => 'whoami' );
-is( $res->code, 405 );
-$res = $test->request( req_demo DELETE => 'whoami' );
-is( $res->code, 405 );
-$res = $test->request( req_root PUT => 'whoami' );
-is( $res->code, 405 );
-$res = $test->request( req_root POST => 'whoami' );
-is( $res->code, 405 );
-$res = $test->request( req_root DELETE => 'whoami' );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        $status = req( $test, 405, $user, $method, 'whoami' );
+    }
+}
 
 done_testing;

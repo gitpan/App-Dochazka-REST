@@ -66,16 +66,14 @@ my $res;
 #=============================
 # "priv" resource (again)
 #=============================
-docu_check($test, "priv");
+my $base = 'priv';
+docu_check($test, $base);
 #
 # GET
 #
 # - as demo
-$res = $test->request( req_root GET => '/priv' );
-is( $res->code, 200 ); # this returns 500?????
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -85,10 +83,8 @@ ok( scalar keys %{ $status->payload->{'resources'} } > 1 );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 #
 # - as root
-$res = $test->request( req_root GET => '/priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -106,10 +102,16 @@ ok( exists $status->payload->{'resources'}->{'priv/history/eid/:eid/:tsrange'} )
 # PUT
 #
 # - as demo
-$res = $test->request( req_json_demo PUT => '/priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+#
+# - as root
+$status = req( $test, 200, 'root', 'PUT', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -119,10 +121,15 @@ ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # POST
 #
 # - as demo
-$res = $test->request( req_json_demo POST => '/priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'POST', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -132,10 +139,15 @@ ok( exists $status->payload->{'resources'} );
 # DELETE
 #
 # - as demo
-$res = $test->request( req_json_demo DELETE => '/priv' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'DELETE', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -145,32 +157,27 @@ ok( exists $status->payload->{'resources'}->{'priv/help'} );
 #=============================
 # "priv/self/?:ts" resource
 #=============================
-docu_check($test, "priv/self/?:ts");
+$base = "priv/self";
+docu_check($test, "$base/?:ts");
 #
 # GET
 #
-$res = $test->request( req_demo GET => "priv/self" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'priv'} );
 is( $status->payload->{'priv'}, 'passerby' );
 #
-$res = $test->request( req_root GET => "priv/self" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'priv'} );
 is( $status->payload->{'priv'}, 'admin' );
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby)
-$res = $test->request( req_root GET => "priv/self/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -181,9 +188,7 @@ is_deeply( $status->payload, {
 } );
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00)
-$res = $test->request( req_root GET => "priv/self/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -197,35 +202,32 @@ is_deeply( $status->payload, {
 # PUT, POST, DELETE
 #
 foreach my $base ( '/priv/self', '/priv/self/999-01-01' ) {
-    $res = $test->request( req_demo PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$base" );
-    is( $res->code, 405);
+    req( $test, 405, 'demo', 'PUT', $base );
+    req( $test, 405, 'demo', 'POST', $base );
+    req( $test, 405, 'demo', 'DELETE', $base );
     #
-    $res = $test->request( req_root PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$base" );
-    is( $res->code, 405);
+    req( $test, 405, 'root', 'PUT', $base );
+    req( $test, 405, 'root', 'POST', $base );
+    req( $test, 405, 'root', 'DELETE', $base );
 }
 
 
 #===========================================
 # "priv/eid/:eid/?:ts" resource
 #===========================================
-docu_check($test, "priv/eid/:eid/?:ts");
+$base = "priv/eid";
+docu_check($test, "$base/:eid/?:ts");
+
 #
 # GET
 #
-$res = $test->request( req_demo GET => "priv/eid/1" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "priv/eid/1" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+#
+# - as demo
+req( $test, 403, 'demo', 'GET', "$base/1" );
+#
+# - as root
+$status = req( $test, 200, 'root', 'GET', "$base/1" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
@@ -235,9 +237,7 @@ is_deeply( $status->payload, {
 });
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby)
-$res = $test->request( req_root GET => "priv/eid/1/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -248,9 +248,7 @@ is_deeply( $status->payload, {
 } );
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00)
-$res = $test->request( req_root GET => "priv/eid/1/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -264,34 +262,27 @@ is_deeply( $status->payload, {
 # PUT, POST, DELETE
 #
 foreach my $base ( '/priv/eid/1', '/priv/eid/1/999-01-01' ) {
-    $res = $test->request( req_demo PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$base" );
-    is( $res->code, 405);
+    req( $test, 405, 'demo', 'PUT', $base );
+    req( $test, 405, 'demo', 'POST', $base );
+    req( $test, 405, 'demo', 'DELETE', $base );
     #
-    $res = $test->request( req_root PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$base" );
-    is( $res->code, 405);
+    req( $test, 405, 'root', 'PUT', $base );
+    req( $test, 405, 'root', 'POST', $base );
+    req( $test, 405, 'root', 'DELETE', $base );
 }
 
 
 #=============================
 # "priv/help" resource
 #=============================
-docu_check($test, "priv/help");
+$base = "priv/help";
+docu_check( $test, $base );
 #
 # GET
 #
 # - as demo
-$res = $test->request( req_demo GET => '/priv/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -301,10 +292,8 @@ ok( scalar keys %{ $status->payload->{'resources'} } > 1 );
 ok( exists $status->payload->{'resources'}->{'priv/help'} );
 #
 # - as root
-$res = $test->request( req_root GET => '/priv/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -322,10 +311,15 @@ ok( exists $status->payload->{'resources'}->{'priv/history/eid/:eid/:tsrange'} )
 # PUT
 #
 # - as demo
-$res = $test->request( req_json_demo PUT => '/priv/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'PUT', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -335,23 +329,33 @@ ok( exists $status->payload->{'resources'}->{'priv/help'} );
 # POST
 #
 # - as demo
-$res = $test->request( req_json_demo POST => '/priv/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-#ok( exists $status->payload->{'resources'}->{'priv/help'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'POST', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
 
 #
 # DELETE
 #
 # - as demo
-$res = $test->request( req_json_demo DELETE => '/priv/help' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'priv/help'} );
+# - as demo
+$status = req( $test, 200, 'root', 'DELETE', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -361,23 +365,17 @@ ok( exists $status->payload->{'resources'}->{'priv/help'} );
 #=============================
 # "priv/history/self/?:tsrange" resource
 #=============================
-my $base = 'priv/history/self';
-#
-# RESOURCE DOCUMENTATION
-#
+$base = 'priv/history/self';
 docu_check($test, "$base/?:tsrange");
 #
 # GET
 #
 # - auth fail
-$res = $test->request( req_demo GET => "$base" );
-is( $res->code, 403 );
+req( $test, 403, 'demo', 'GET', $base );
 #
 # as root
-$res = $test->request( req_root GET => "$base" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -388,12 +386,9 @@ is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
 ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # with a valid tsrange
-$res = $test->request( req_demo GET => "$base/[,)" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "$base/[,)" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/[,)" );
+$status = req( $test, 200, 'root', 'GET', "$base/[,)" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -404,10 +399,7 @@ is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
 ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # - with invalid tsrange
-$res = $test->request( req_root GET => "$base/[,sdf)" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->not_ok );
+$status = req( $test, 200, 'root', 'GET', "$base/[,sdf)" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/invalid input syntax for type timestamp/ );
@@ -415,35 +407,27 @@ like( $status->text, qr/invalid input syntax for type timestamp/ );
 #
 # PUT, POST, DELETE
 #
-$res = $test->request( req_demo PUT => "$base" );
-is( $res->code, 405);
-$res = $test->request( req_demo POST => "$base" );
-is( $res->code, 405);
-$res = $test->request( req_demo DELETE => "$base" );
-is( $res->code, 405);
+req( $test, 405, 'demo', 'PUT', $base );
+req( $test, 405, 'demo', 'POST', $base );
+req( $test, 405, 'demo', 'DELETE', $base );
 #
-$res = $test->request( req_demo PUT => "$base/[,)" );
-is( $res->code, 405);
-$res = $test->request( req_demo POST => "$base/[,)" );
-is( $res->code, 405);
-$res = $test->request( req_demo DELETE => "$base/[,)" );
-is( $res->code, 405);
+req( $test, 405, 'demo', 'PUT', "$base/[,)" );
+req( $test, 405, 'demo', 'POST', "$base/[,)" );
+req( $test, 405, 'demo', 'DELETE', "$base/[,)" );
 
 
 #===========================================
 # "priv/history/eid/:eid" resource
 #===========================================
-docu_check($test, "priv/history/eid/:eid");
+$base = "priv/history/eid";
+docu_check($test, "$base/:eid");
 #
 # GET
 #
 # - root employee
-$res = $test->request( req_demo GET => '/priv/history/eid/' .  $site->DOCHAZKA_EID_OF_ROOT );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/eid/' .  $site->DOCHAZKA_EID_OF_ROOT );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', $base . '/' . $site->DOCHAZKA_EID_OF_ROOT );
+$status = req( $test, 200, 'root', 'GET', $base . '/' . $site->DOCHAZKA_EID_OF_ROOT );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -454,22 +438,14 @@ is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
 ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # - non-existent EID
-$res = $test->request( req_demo GET => '/priv/history/eid/4534' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/eid/4534' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/4534" );
+$status = req( $test, 200, 'root', 'GET', "$base/4534" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
 #
 # - invalid EID
-$res = $test->request( req_demo GET => '/priv/history/eid/asas' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/eid/asas' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/asas" );
+$status = req( $test, 200, 'root', 'GET', "$base/asas" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/invalid input syntax for integer/ );
@@ -482,12 +458,8 @@ like( $status->text, qr/invalid input syntax for integer/ );
 my @ph_to_delete;
 # - be nice
 my $j = '{ "effective":"1969-04-28 19:15", "priv":"inactive" }';
-$res = $test->request( req_json_demo PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 403 );
-$res = $test->request( req_json_root PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'PUT', "$base/2", $j );
+$status = req( $test, 200, 'root', 'PUT', "$base/2", $j );
 if ( $status->not_ok ) {
     diag( $status->code . ' ' . $status->text );
 }
@@ -497,33 +469,22 @@ push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
 #
 # - be pathological
 $j = '{ "effective":"1979-05-24", "horse" : "E-Or" }';
-$res = $test->request( req_json_demo PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 403 );
-$res = $test->request( req_json_root PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'PUT', "$base/2", $j );
+$status = req( $test, 200, 'root', 'PUT', "$base/2", $j );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_PRIVHISTORY_INVALID' );
 #
 # - addition of privlevel makes the above request less pathological
 $j = '{ "effective":"1979-05-24", "horse" : "E-Or", "priv" : "admin" }';
-$res = $test->request( req_json_demo PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 403 );
-$res = $test->request( req_json_root PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'PUT', "$base/2", $j );
+$status = req( $test, 200, 'root', 'PUT', "$base/2", $j );
 is( $status->level, 'OK' );
 $pho = $status->payload;
 push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
 #
 # - oops, we made demo an admin!
 $j = '{ "effective":"2000-01-21", "priv" : "passerby" }';
-$res = $test->request( req_json_demo PUT => '/priv/history/eid/2', undef, $j );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'demo', 'PUT', "$base/2", $j );
 is( $status->level, 'OK' );
 $pho = $status->payload;
 push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
@@ -531,11 +492,9 @@ push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
 #
 # POST
 #
-my $uri = '/priv/history/eid/2';
-$res = $test->request( req_json_demo POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $uri );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'POST', "$base/2" );
+req( $test, 405, 'active', 'POST', "$base/2" );
+req( $test, 405, 'root', 'POST', "$base/2" );
 
 #
 # DELETE
@@ -543,10 +502,7 @@ is( $res->code, 405 );
 # - we have some records queued for deletion
 foreach my $rec ( @ph_to_delete ) {
     $j = '{ "phid": ' . $rec->{phid} . ' }';
-    $res = $test->request( req_json_root DELETE => '/priv/history/eid/' . $rec->{eid}, undef, $j );
-    is( $res->code, 200 );
-    is_valid_json( $res->content );
-    $status = status_from_json( $res->content );
+    $status = req( $test, 200, 'root', 'DELETE', "$base/" . $rec->{eid}, $j );
     is( $status->level, 'OK' );
 }
 @ph_to_delete = ();
@@ -555,19 +511,17 @@ foreach my $rec ( @ph_to_delete ) {
 #===========================================
 # "priv/history/eid/:eid/:tsrange" resource
 #===========================================
-docu_check($test, "priv/history/eid/:eid/:tsrange");
+$base = "priv/history/eid";
+docu_check($test, "$base/:eid/:tsrange");
 #
 # GET
 #
 # - root employee, with tsrange, records found
-$res = $test->request( req_demo GET => '/priv/history/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+req( $test, 403, 'demo', 'GET', $base. '/' . $site->DOCHAZKA_EID_OF_ROOT . 
     '/[999-12-31 23:59, 1000-01-01 00:01)' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/eid/' .  $site->DOCHAZKA_EID_OF_ROOT . 
+$status = req( $test, 200, 'root', 'GET', $base. '/' . $site->DOCHAZKA_EID_OF_ROOT . 
     '/[999-12-31 23:59, 1000-01-01 00:01)' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'eid'} );
@@ -578,31 +532,21 @@ is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
 ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # - root employee, with tsrange but no records found
-$uri = '/priv/history/eid/' .  $site->DOCHAZKA_EID_OF_ROOT .
+my $uri = $base . '/' .  $site->DOCHAZKA_EID_OF_ROOT .
           '/[1999-12-31 23:59, 2000-01-01 00:01)';
-$res = $test->request( req_demo GET => $uri );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => $uri );
-is( $res->code, 404 );
+req( $test, 403, 'demo', 'GET', $uri );
+req( $test, 404, 'root', 'GET', $uri );
 #
 # - non-existent EID
 my $tsr = '[1999-12-31 23:59, 2000-01-01 00:01)';
-$res = $test->request( req_demo GET => "/priv/history/eid/4534/$tsr" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "/priv/history/eid/4534/$tsr" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/4534/$tsr" );
+$status = req( $test, 200, 'root', 'GET', "$base/4534/$tsr" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
 #
 # - invalid EID
-$res = $test->request( req_demo GET => '/priv/history/eid/asas/$tsr' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/eid/asas/$tsr' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/asas/$tsr" );
+$status = req( $test, 200, 'root', 'GET', "$base/asas/$tsr" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/invalid input syntax for integer/ );
@@ -610,34 +554,25 @@ like( $status->text, qr/invalid input syntax for integer/ );
 #
 # PUT, POST, DELETE
 #
-$res = $test->request( req_json_demo PUT => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo DELETE => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => $uri );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        req( $test, 405, $user, $method, "$base/23/[,)" );
+    }
+}
 
 
 #===========================================
 # "priv/history/nick/:nick" resource
 #===========================================
-docu_check($test, "priv/history/nick/:nick");
+$base = "priv/history/nick";
+docu_check($test, "$base/:nick");
 #
 # GET
 #
 # - root employee
-$res = $test->request( req_demo GET => '/priv/history/nick/root' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/nick/root' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/root" );
+$status = req( $test, 200, 'root', 'GET', "$base/root" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'nick'} );
@@ -648,12 +583,8 @@ is( $status->payload->{'history'}->[0]->{'eid'}, 1 );
 ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # - non-existent employee
-$res = $test->request( req_demo GET => '/priv/history/nick/humphreybogart' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/nick/humphreybogart' );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/rotoroot" );
+$status = req( $test, 200, 'root', 'GET', "$base/rotoroot" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
 
@@ -661,12 +592,8 @@ is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
 # PUT
 #
 $j = '{ "effective":"1969-04-27 9:45", "priv":"inactive" }';
-$res = $test->request( req_json_demo PUT => '/priv/history/nick/demo', undef, $j );
-is( $res->code, 403 );
-$res = $test->request( req_json_root PUT => '/priv/history/nick/demo', undef, $j );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'PUT', "$base/demo", $j );
+$status = req( $test, 200, 'root', 'PUT', "$base/demo", $j );
 if ( $status->not_ok ) {
     diag( $status->code . ' ' . $status->text );
 }
@@ -677,11 +604,8 @@ push @ph_to_delete, { nick => 'demo', phid => $pho->{phid} };
 #
 # POST
 #
-$uri = '/priv/history/nick/asdf';
-$res = $test->request( req_json_demo POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $uri );
-is( $res->code, 405 );
+req( $test, 405, 'demo', 'POST', "$base/asdf" );
+req( $test, 405, 'root', 'POST', "$base/asdf" );
 
 #
 # DELETE
@@ -689,27 +613,22 @@ is( $res->code, 405 );
 # - we have some records queued for deletion
 foreach my $rec ( @ph_to_delete ) {
     $j = '{ "phid": ' . $rec->{phid} . ' }';
-    $res = $test->request( req_json_root DELETE => '/priv/history/nick/' .  $rec->{nick}, undef, $j );
-    is( $res->code, 200 );
-    is_valid_json( $res->content );
-    $status = status_from_json( $res->content );
+    $status = req( $test, 200, 'root', 'DELETE', "$base/" .  $rec->{nick}, $j );
     is( $status->level, 'OK' );
 }
 
 #===========================================
 # "priv/history/nick/:nick/:tsrange" resource
 #===========================================
-docu_check($test, "priv/history/nick/:nick/:tsrange");
+$base = "priv/history/nick";
+docu_check($test, "$base/:nick/:tsrange");
 #
 # GET
 #
 # - root employee, with tsrange, records found
-$res = $test->request( req_demo GET => '/priv/history/nick/root/[999-12-31 23:59, 1000-01-01 00:01)' );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => '/priv/history/nick/root/[999-12-31 23:59, 1000-01-01 00:01)' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/root/[999-12-31 23:59, 1000-01-01 00:01)" );
+$status = req( $test, 200, 'root', 'GET', "$base/root/[999-12-31 23:59, 1000-01-01 00:01)" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'nick'} );
@@ -721,59 +640,42 @@ ok( exists $status->payload->{'history'}->[0]->{'effective'} );
 #
 # - non-existent employee
 $tsr = '[999-12-31 23:59, 1000-01-01 00:01)';
-$res = $test->request( req_demo GET => "/priv/history/nick/humphreybogart/$tsr" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "/priv/history/nick/humphreybogart/$tsr" );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', "$base/humphreybogart/$tsr" );
+$status = req( $test, 200, 'root', 'GET', "$base/humphreybogart/$tsr" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
 #
 # - root employee, with tsrange but no records found
-$uri = '/priv/history/nick/root/[1999-12-31 23:59, 2000-01-01 00:01)';
-$res = $test->request( req_demo GET => $uri );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => $uri );
-is( $res->code, 404 );
+req( $test, 403, 'demo', 'GET', "$base/root/[1999-12-31 23:59, 2000-01-01 00:01)" );
+req( $test, 404, 'root', 'GET', "$base/root/[1999-12-31 23:59, 2000-01-01 00:01)" );
 
 #
 # PUT, POST, DELETE
 #
-$res = $test->request( req_json_demo PUT => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo DELETE => $uri );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => $uri );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        req( $test, 405, $user, $method, "$base/root/[1999-12-31 23:59, 2000-01-01 00:01)" );
+    }
+}
 
 
 #===========================================
 # "priv/history/phid/:phid" resource
 #===========================================
-docu_check($test, "priv/history/phid/:phid");
+$base = "priv/history/phid";
+docu_check($test, "$base/:phid");
 #
 # preparation
 #
 # demo is a passerby
-$res = $test->request( req_demo GET => "priv/self" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', "priv/self" );
+is( $status->level, 'OK' );
 is( $status->payload->{'priv'}, "passerby" );
 #
 # make demo an 'inactive' user as of 1977-04-27 15:30
-$res = $test->request( req_json_root PUT => "priv/history/nick/demo", undef,
+$status = req( $test, 200, 'root', 'PUT', "priv/history/nick/demo", 
     '{ "effective":"1977-04-27 15:30", "priv":"inactive" }' );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 is( $status->payload->{'effective'}, '1977-04-27 15:30:00' );
 is( $status->payload->{'priv'}, 'inactive' );
@@ -783,19 +685,15 @@ ok( $status->payload->{'phid'} );
 my $tphid = $status->payload->{'phid'};
 #
 # demo is an inactive
-$res = $test->request( req_demo GET => "priv/self" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', "priv/self" );
+is( $status->level, 'OK' );
 is( $status->payload->{'priv'}, "inactive" );
 
 #
 # GET
 #
-$res = $test->request( req_json_root GET => "priv/history/phid/$tphid" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', "$base/$tphid" );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 is_deeply( $status->payload, {
     'remark' => undef,
@@ -808,50 +706,40 @@ is_deeply( $status->payload, {
 #
 # PUT, POST
 #
-$res = $test->request( req_json_demo PUT => "priv/history/phid/$tphid" );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => "priv/history/phid/$tphid" );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo POST => "priv/history/phid/$tphid" );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => "priv/history/phid/$tphid" );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST ) ) {
+        req( $test, 405, $user, $method, "$base/$tphid" );
+    }
+}
 
 #
 # DELETE
 #
 # delete the privhistory record we created earlier
-$res = $test->request( req_json_root DELETE => "priv/history/phid/$tphid" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'DELETE', "$base/$tphid" );
+is( $status->level, "OK" );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 #
 # not there anymore
-$res = $test->request( req_json_root GET => "priv/history/phid/$tphid" );
-is( $res->code, 404 );
+req( $test, 404, 'root', 'GET', "$base/$tphid" );
 #
 # and demo is a passerby again
-$res = $test->request( req_demo GET => "priv/self" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', "priv/self" );
+is( $status->level, 'OK' );
 is( $status->payload->{'priv'}, "passerby" );
 
 
 #===========================================
 # "priv/nick/:nick/?:ts" resource
 #===========================================
-docu_check($test, "priv/nick/:nick/?:ts");
+$base = "priv/nick";
+docu_check($test, "$base/:nick/?:ts");
 #
 # GET
 #
-$res = $test->request( req_demo GET => "priv/nick/root" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "priv/nick/root" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/root" );
+$status = req( $test, 200, 'root', 'GET', "$base/root" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
@@ -861,9 +749,7 @@ is_deeply( $status->payload, {
 });
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby)
-$res = $test->request( req_root GET => "priv/nick/root/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/root/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -874,9 +760,7 @@ is_deeply( $status->payload, {
 } );
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00)
-$res = $test->request( req_root GET => "priv/nick/root/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/root/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_PRIV_AS_AT" );
 is_deeply( $status->payload, {
@@ -889,20 +773,12 @@ is_deeply( $status->payload, {
 #
 # PUT, POST, DELETE
 #
-foreach my $base ( '/priv/nick/root', '/priv/nick/root/999-01-01' ) {
-    $res = $test->request( req_demo PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$base" );
-    is( $res->code, 405);
-    #
-    $res = $test->request( req_root PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$base" );
-    is( $res->code, 405);
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        foreach my $uri ( "$base/root", "$base/root/999-01-01" ) {
+            req( $test, 405, $user, $method, $uri );
+        }
+    }
 }
 
 done_testing;

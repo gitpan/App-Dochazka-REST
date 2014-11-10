@@ -61,11 +61,11 @@ App::Dochazka::REST::Dispatch::Activity - path dispatch
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -143,7 +143,7 @@ sub _aid {
 
     # does the AID exist?
     my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $aid );
-    return $status unless $status->ok;
+    return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
     return $CELL->status_notice( 'DISPATCH_AID_DOES_NOT_EXIST', args => [ $aid ] )
         if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
 
@@ -174,7 +174,7 @@ sub _code {
     }
     # does the code exist?
     my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
-    return $status unless $status->ok;
+    return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
 
     if ( $context->{'method'} eq 'GET' ) {
         return $CELL->status_notice( 'DISPATCH_CODE_DOES_NOT_EXIST', args => [ $code ] )

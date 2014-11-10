@@ -70,49 +70,33 @@ isa_ok( $test, 'Plack::Test::MockHTTP' );
 my ( $res, $json );
 
 # the very basic-est request (200)
-$res = $test->request( req_json_demo GET => '/' );
-is( $res->code, 200 );
+req( $test, 200, 'demo', 'GET', '/' );
 
 # a too-long request (414)
-$res = $test->request( req_json_demo GET => '/' x 1001 );
-#diag( "code is " . $res->code );
-is( $res->code, 414 );
-is( $res->content, 'Request-URI Too Large' );
+req( $test, 414, 'demo', 'GET', '/' x 1001 );
 
 # request for HTML
-$res = $test->request( req_html GET => '/' );
-is( $res->code, 200 );
-like( $res->content, qr/<html>/ );
+#$res = $test->request( req_html GET => '/' );
+#is( $res->code, 200 );
+#like( $res->content, qr/<html>/ );
 
 # request with bad credentials (401)
-$res = $test->request( req_bad_creds GET => '/' );
-is( $res->code, 401 );
-is( $res->content, 'Unauthorized' );
+req( $test, 401, 'fandango', 'GET', '/' );
 
 # request that doesn't pass ACL check (403)
-$res = $test->request( req_json_demo GET => '/forbidden' );
-is( $res->code, 403 );
-is( $res->content, 'Forbidden' );
+req( $test, 403, 'demo', 'GET', '/forbidden' );
 
 # GET request for non-existent resource (404)
-$res = $test->request( req_json_demo GET => '/HEE HAW!!!/non-existent/resource' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'demo', 'GET', '/HEE HAW!!!/non-existent/resource' );
 
 # PUT request for non-existent resource (405)
-$res = $test->request( req_json_demo PUT => '/HEE HAW!!!/non-existent/resource' );
-is( $res->code, 405 );
-is( $res->content, 'Method Not Allowed' );
+req( $test, 405, 'demo', 'PUT', '/HEE HAW!!!/non-existent/resource' );
 
 # POST request for non-existent resource (404)
-$res = $test->request( req_json_demo POST => '/HEE HAW!!!/non-existent/resource' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'demo', 'POST', '/HEE HAW!!!/non-existent/resource' );
 
 # DELETE request on non-existent resource (404)
-$res = $test->request( req_json_demo DELETE => '/HEE HAW!!!/non-existent/resource' );
-is( $res->code, 404 );
-is( $res->content, 'Not Found' );
+req( $test, 404, 'demo', 'DELETE', '/HEE HAW!!!/non-existent/resource' );
 
 # test argument validation in '_push_onto_context' method
 like( exception { App::Dochazka::REST::Resource::_push_onto_context( undef, 'DUMMY2' ); },

@@ -44,7 +44,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Interval;
+use App::Dochazka::REST::Model::Interval qw( iid_exists );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow tsrange_equal );
 use Scalar::Util qw( blessed );
@@ -111,12 +111,15 @@ ok( $status->ok );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 my $newint = $status->payload;
 is( $newint->long_desc, "Pencil pushing" );
+my $t_iid = $newint->iid;
 
 # CLEANUP:
 # 1. delete the interval
+ok( iid_exists( $t_iid ) );
 is( noof( 'intervals' ), 1 );
 $status = $int->delete;
 ok( $status->ok );
+ok( ! iid_exists( $t_iid ) );
 is( noof( 'intervals' ), 0 );
 
 # 2. delete Mr. Sched

@@ -73,11 +73,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -647,7 +647,7 @@ sub resource_exists {
         # If method is GET and result is "No records found", return 404
         if ( 
             $self->context->{'method'} eq 'GET' and 
-            $status->ok and 
+            $status->level eq 'NOTICE' and 
             $status->code eq 'DISPATCH_NO_RECORDS_FOUND'
         ) {
             $log->debug( "Returning 404 Not Found" );
@@ -847,9 +847,8 @@ sub init_router {
     # over the lists
 
     foreach my $param ( @{ $site->DISPATCH_RESOURCE_LISTS } ) {
-        $log->debug("init_router: Processing $param");
-        # $param will be something like 'DISPATCH_RESOURCES_EMPLOYEE'
-        my $list = $site->get_param( $param );
+        # $param will be something like [ 'DISPATCH_RESOURCES_EMPLOYEE' => ... ]
+        my $list = $site->get_param( $param->[0] );
         foreach my $resource ( keys %$list ) {
             # $resource will be something like 'employee/help'
 

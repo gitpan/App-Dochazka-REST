@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -341,6 +341,7 @@ sub load_by_eid {
     my $self = shift;
     die "Not a method call" unless $self->isa( __PACKAGE__ );
     my ( $eid ) = validate_pos( @_, { type => SCALAR } );
+    $log->debug( "Entering " . __PACKAGE__ . "::load_by_eid with argument $eid" );
 
     return load( 
         class => __PACKAGE__, 
@@ -361,6 +362,7 @@ sub load_by_nick {
     my $self = shift;
     die "Not a method call" unless $self->isa( __PACKAGE__ );
     my ( $nick ) = validate_pos( @_, { type => SCALAR } );
+    $log->debug( "Entering " . __PACKAGE__ . "::load_by_nick with argument $nick" );
 
     return load( 
         class => __PACKAGE__, 
@@ -439,36 +441,19 @@ The following functions are exported and are not called as methods.
 
 =head2 nick_exists
 
-Simple true/false check if a nick exists. If the nick exists, returns the
-corresponding employee object (i.e. a true value). If the nick does not
-exist, returns 'undef' (a false value). If there is a DBI error, the 
-function dies.
-
-=cut
-
-sub nick_exists {
-   my ( $nick ) = @_;
-   my $status = __PACKAGE__->load_by_nick( $nick );
-   die $status->text unless $status->ok;
-   return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
-       ? $status->payload
-       : undef;
-}
+See C<exists> routine in L<App::Dochazka::REST::Model::Shared>
 
 
 =head2 eid_exists
 
-Analogous function to L<"nick_exists">.
+See C<exists> routine in L<App::Dochazka::REST::Model::Shared>
 
 =cut
 
-sub eid_exists {
-   my ( $eid ) = @_;
-   my $status = __PACKAGE__->load_by_eid( $eid );
-   return $status unless $status->ok;
-   return ( $status->code eq 'DISPATCH_RECORDS_FOUND' )
-       ? $status->payload
-       : undef;
+BEGIN {
+    no strict 'refs';
+    *{"eid_exists"} = App::Dochazka::REST::Model::Shared::make_test_exists( 'eid' );
+    *{"nick_exists"} = App::Dochazka::REST::Model::Shared::make_test_exists( 'nick' );
 }
 
 

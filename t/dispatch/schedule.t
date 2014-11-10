@@ -72,11 +72,8 @@ docu_check($test, $base);
 # GET
 #
 # - as demo
-$res = $test->request( req_root GET => $base );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -85,10 +82,8 @@ is( ref $status->payload->{'resources'}, 'HASH' );
 ok( scalar keys %{ $status->payload->{'resources'} } > 1 );
 #
 # - as root
-$res = $test->request( req_root GET => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -106,10 +101,15 @@ ok( exists $status->payload->{'resources'}->{'schedule/history/eid/:eid/:tsrange
 # PUT
 #
 # - as demo
-$res = $test->request( req_json_demo PUT => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'PUT', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -119,23 +119,33 @@ ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 # POST
 #
 # - as demo
-$res = $test->request( req_json_demo POST => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-#ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'POST', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 #
 # DELETE
 #
 # - as demo
-$res = $test->request( req_json_demo DELETE => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'DELETE', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
@@ -153,12 +163,8 @@ create_testing_schedule( $test );
 #
 # GET
 #
-$res = $test->request( req_json_demo GET => $base );
-is( $res->code, 403 ); # FORBIDDEN
-$res = $test->request( req_json_root GET => $base );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', $base );
+$status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 is( $status->{'count'}, 1 );
@@ -170,18 +176,11 @@ my $ts_sid = $status->payload->[0]->{'sid'};
 #
 # PUT, POST, DELETE
 #
-$res = $test->request( req_json_demo PUT => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo POST => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo DELETE => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => $base );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        req( $test, 405, $user, $method, $base );
+    }
+}
 
 
 
@@ -194,12 +193,8 @@ docu_check($test, $base);
 #
 # GET
 #
-$res = $test->request( req_json_demo GET => $base );
-is( $res->code, 403 ); # FORBIDDEN
-$res = $test->request( req_json_root GET => $base );
-is( $res->code, 200 );
-is_valid_json( $res->content );
-$status = status_from_json( $res->content );
+req( $test, 403, 'demo', 'GET', $base );
+$status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
 is( $status->{'count'}, 1 );
@@ -207,18 +202,11 @@ is( $status->{'count'}, 1 );
 #
 # PUT, POST, DELETE
 #
-$res = $test->request( req_json_demo PUT => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root PUT => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo POST => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root POST => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_demo DELETE => $base );
-is( $res->code, 405 );
-$res = $test->request( req_json_root DELETE => $base );
-is( $res->code, 405 );
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        req( $test, 405, $user, $method, $base );
+    }
+}
 
 
 
@@ -232,12 +220,9 @@ docu_check($test, "$base/:eid/?:ts");
 #
 #
 # - root has no schedule
-$res = $test->request( req_demo GET => "$base/1" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "$base/1" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/1" );
+$status = req( $test, 200, 'root', 'GET', "$base/1" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
@@ -247,9 +232,7 @@ is_deeply( $status->payload, {
 });
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby, but this is irrelevant for schedules)
-$res = $test->request( req_root GET => "$base/1/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
@@ -260,9 +243,7 @@ is_deeply( $status->payload, {
 } );
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00, but this is irrelevant for schedules)
-$res = $test->request( req_root GET => "$base/1/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
@@ -275,20 +256,12 @@ is_deeply( $status->payload, {
 #
 # PUT, POST, DELETE
 #
-foreach my $baz ( '/schedule/eid/1', '/schedule/eid/1/999-01-01' ) {
-    $res = $test->request( req_demo PUT => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$baz" );
-    is( $res->code, 405);
-    #
-    $res = $test->request( req_root PUT => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$baz" );
-    is( $res->code, 405);
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        foreach my $baz ( "$base/1", "$base/1/999-01-01" ) {
+            req( $test, 405, $user, $method, $baz );
+        }
+    }
 }
 
 
@@ -301,10 +274,8 @@ docu_check($test, "$base");
 # GET
 #
 # - as demo
-$res = $test->request( req_demo GET => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
@@ -313,17 +284,15 @@ is( ref $status->payload->{'resources'}, 'HASH' );
 ok( scalar keys %{ $status->payload->{'resources'} } > 1 );
 #
 # - as root
-$res = $test->request( req_root GET => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 is( ref $status->payload->{'resources'}, 'HASH' );
 ok( scalar keys %{ $status->payload->{'resources'} } >= 6 );
-ok( exists $status->payload->{'resources'}->{$base} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 ok( exists $status->payload->{'resources'}->{'schedule/history/self/?:tsrange'} );
 ok( exists $status->payload->{'resources'}->{'schedule/history/nick/:nick'} );
 ok( exists $status->payload->{'resources'}->{'schedule/history/nick/:nick/:tsrange'} );
@@ -334,41 +303,55 @@ ok( exists $status->payload->{'resources'}->{'schedule/history/eid/:eid/:tsrange
 # PUT
 #
 # - as demo
-$res = $test->request( req_json_demo PUT => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'PUT', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{$base} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'PUT', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 #
 # POST
 #
 # - as demo
-$res = $test->request( req_json_demo POST => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'POST', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-#ok( exists $status->payload->{'resources'}->{$base} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'POST', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 #
 # DELETE
 #
 # - as demo
-$res = $test->request( req_json_demo DELETE => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'DELETE', $base );
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
-ok( exists $status->payload->{'resources'}->{$base} );
-
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
+# - as root
+$status = req( $test, 200, 'root', 'DELETE', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 
 ##=============================
@@ -864,12 +847,9 @@ docu_check($test, "$base/:nick/?:ts");
 #
 # GET
 #
-$res = $test->request( req_demo GET => "$base/root" );
-is( $res->code, 403 );
-$res = $test->request( req_root GET => "$base/root" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+req( $test, 403, 'demo', 'GET', "$base/root" );
+$status = req( $test, 200, 'root', 'GET', "$base/root" );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
@@ -879,9 +859,7 @@ is_deeply( $status->payload, {
 });
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby)
-$res = $test->request( req_root GET => "$base/root/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/root/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
@@ -892,9 +870,7 @@ is_deeply( $status->payload, {
 } );
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00)
-$res = $test->request( req_root GET => "$base/root/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/root/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
@@ -907,21 +883,14 @@ is_deeply( $status->payload, {
 #
 # PUT, POST, DELETE
 #
-foreach my $base ( "$base/root", "$base/999-01-01" ) {
-    $res = $test->request( req_demo PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$base" );
-    is( $res->code, 405);
-    #
-    $res = $test->request( req_root PUT => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$base" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$base" );
-    is( $res->code, 405);
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        foreach my $baz ( "$base/root", "$base/root/999-01-01" ) {
+            req( $test, 405, $user, $method, $baz );
+        }
+    }
 }
+
 
 
 #=============================
@@ -932,64 +901,43 @@ docu_check($test, "$base/?:ts");
 #
 # GET
 #
-$res = $test->request( req_demo GET => $base );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'demo', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'schedule'} );
 #
-$res = $test->request( req_root GET => "$base" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
-ok( $status->ok );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 ok( exists $status->payload->{'schedule'} );
 #
 # - as root, with timestamp (before 1000 A.D. root was a passerby)
-$res = $test->request( req_root GET => "$base/999-12-31 23:59" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/999-12-31 23:59" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
-#is_deeply( $status->payload, {
-#    timestamp => "999-12-31 23:59",
-#    nick => "root",
-#    priv => "passerby",
-#} );
+foreach my $key ( qw( timestamp eid nick schedule ) ) {
+    ok( exists( $status->payload->{$key} ) );
+}
 #
 # - as root, with timestamp (root became an admin on 1000-01-01 at 00:00)
-$res = $test->request( req_root GET => "$base/1000-01-01 00:01" );
-is( $res->code, 200 );
-$status = status_from_json( $res->content );
+$status = req( $test, 200, 'root', 'GET', "$base/1000-01-01 00:01" );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
-#is_deeply( $status->payload, {
-#    timestamp => "1000-01-01 00:01",
-#    nick => "root",
-#    priv => "admin",
-#    eid => "1"
-#} );
+foreach my $key ( qw( timestamp eid nick schedule ) ) {
+    ok( exists( $status->payload->{$key} ) );
+}
 
 #
 # PUT, POST, DELETE
 #
-foreach my $baz ( '/schedule/self', '/schedule/self/999-01-01' ) {
-    $res = $test->request( req_demo PUT => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo POST => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_demo DELETE => "$baz" );
-    is( $res->code, 405);
-    #
-    $res = $test->request( req_root PUT => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_root POST => "$baz" );
-    is( $res->code, 405);
-    $res = $test->request( req_root DELETE => "$baz" );
-    is( $res->code, 405);
+foreach my $user ( qw( demo root ) ) {
+    foreach my $method ( qw( PUT POST DELETE ) ) {
+        foreach my $baz ( $base, "$base/999-01-01" ) {
+            req( $test, 405, $user, $method, $baz );
+        }
+    }
 }
 
 delete_testing_schedule( $ts_sid );

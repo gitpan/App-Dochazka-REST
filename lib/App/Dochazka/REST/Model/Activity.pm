@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -126,7 +126,13 @@ functions:
 
 =over
 
+=item * L<aid_exists> (boolean function)
+
+=item * L<code_exists> (boolean function)
+
 =item * L<aid_by_code> (given a code, returns AID)
+
+=item * L<get_all_activities>
 
 =back
 
@@ -148,7 +154,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( aid_by_code );
+our @EXPORT_OK = qw( aid_exists code_exists aid_by_code );
 
 
 
@@ -274,6 +280,24 @@ sub load_by_code {
 =head1 FUNCTIONS
 
 The following functions are not object methods.
+
+
+=head2 aid_exists
+
+Boolean function
+
+
+=head2 code_exists
+
+Boolean function
+
+=cut
+
+BEGIN {
+    no strict 'refs';
+    *{'aid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'aid' );
+    *{'code_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'code' );
+}
 
 
 =head2 aid_by_code

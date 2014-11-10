@@ -43,7 +43,7 @@ use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
-use App::Dochazka::REST::Model::Employee qw( eid_exists nick_exists );
+use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedhistory qw( get_schedhistory );
 use App::Dochazka::REST::Model::Schedintvls;
 # import dispatch targets for 'schedule/all' and 'schedule/all/disabled'
@@ -67,11 +67,11 @@ App::Dochazka::REST::Dispatch::Schedule - path dispatch
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 

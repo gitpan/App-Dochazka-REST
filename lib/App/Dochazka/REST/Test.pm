@@ -42,8 +42,9 @@ use warnings;
 use App::CELL qw( $CELL );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use Data::Dumper;
-use HTTP::Request;
+use HTTP::Request::Common qw( GET PUT POST DELETE );
 use JSON;
+use Params::Validate;
 use Test::JSON;
 use Test::More;
 
@@ -59,11 +60,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -83,11 +84,27 @@ This module provides helper code for unit tests.
 =cut
 
 use Exporter qw( import );
-our @EXPORT = qw( req_demo req_active req_root req_json_demo req_json_active req_json_root req_html 
-req_bad_creds status_from_json docu_check 
-create_testing_employee create_active_employee delete_testing_employee delete_active_employee
-create_testing_activity delete_testing_activity
-create_testing_schedule delete_testing_schedule );
+our @EXPORT = qw( 
+    req docu_check 
+    create_testing_employee create_active_employee delete_testing_employee delete_active_employee
+    create_testing_activity delete_testing_activity
+    create_testing_schedule delete_testing_schedule 
+);
+
+
+
+
+=head1 PACKAGE VARIABLES
+
+=cut
+
+# dispatch table with references to HTTP::Request::Common functions
+my %methods = ( 
+    GET => \&GET,
+    PUT => \&PUT,
+    POST => \&POST,
+    DELETE => \&DELETE,
+);
 
 
 
@@ -96,134 +113,72 @@ create_testing_schedule delete_testing_schedule );
 
 =cut
 
-sub _basic_request {
-    my ( $auth_header, $args ) = @_;
-    my $r = HTTP::Request->new( @$args );
-    $r->header( 'Authorization' => "Basic $auth_header" );
-    $r->header( 'Accept' => 'application/json' );
-    return $r;
-}
-
-=head2 req_demo
-
-Construct an HTTP request as 'demo' (passerby priv)
-
-=cut
-
-sub req_demo {
-    my @args = @_;
-    my $r = _basic_request( 'ZGVtbzpkZW1v', \@args );
-    return $r;
-}
-
-
-=head2 req_json_demo
-
-Construct an HTTP request for JSON as 'demo' (passerby priv)
-
-=cut
-
-sub req_json_demo {
-    my @args = @_;
-    my $r = _basic_request( 'ZGVtbzpkZW1v', \@args );
-    $r->header( 'Content-Type' => 'application/json' );  # necessary for POST to work
-    return $r;
-}
-
-
-=head2 req_active
-
-Construct an HTTP request as 'active' (passerby priv)
-
-=cut
-
-sub req_active {
-    my @args = @_;
-    my $r = _basic_request( 'YWN0aXZlOmFjdGl2ZQ==', \@args );
-    return $r;
-}
-
-
-=head2 req_json_active
-
-Construct an HTTP request for JSON as 'active' (passerby priv)
-
-=cut
-
-sub req_json_active {
-    my @args = @_;
-    my $r = _basic_request( 'YWN0aXZlOmFjdGl2ZQ==', \@args );
-    $r->header( 'Content-Type' => 'application/json' );  # necessary for POST to work
-    return $r;
-}
-
-
-=head2 req_root
-
-Construct an HTTP request as 'root' (admin priv)
-
-=cut
-
-sub req_root {
-    my @args = @_;
-    my $r = _basic_request( 'cm9vdDppbW11dGFibGU=', \@args );
-    return $r;
-}
-
-
-=head2 req_json_root
-
-Construct an HTTP request for JSON as 'demo' (passerby priv)
-
-=cut
-
-sub req_json_root {
-    my @args = @_;
-    my $r = _basic_request( 'cm9vdDppbW11dGFibGU=', \@args );
-    $r->header( 'Content-Type' => 'application/json' );  # necessary for POST to work
-    return $r;
-}
-
-
-=head2 req_html
-
-Construct an HTTP request for HTML as 'demo' (passerby priv)
-
-=cut
-
-sub req_html {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpkZW1v' );
-    $r->header( 'Accept' => 'text/html' );
-    return $r;
-}
-
-
-=head2 req_bad_creds
-
-Construct an HTTP request with improper credentials
-
-=cut
-
-sub req_bad_creds {
-    my @args = @_;
-    my $r = HTTP::Request->new( @args );
-    $r->header( 'Authorization' => 'Basic ZGVtbzpibGJvc3Q=' );
-    return $r;
-}
-
 
 =head2 status_from_json
 
-Given a JSON string, check if it is valid JSON, blindly convert it into a
-Perl hashref, bless it into 'App::CELL::Status', and send it back to caller
+L<App::Dochazka::REST> is designed to return status objects in the HTTP
+response body. These, of course, are sent in JSON format. This simple routine
+takes a JSON string and blesses it, thereby converting it back into a status
+object.
+
+FIXME: There may be some encoding issues here!
 
 =cut
 
 sub status_from_json {
     my ( $json ) = @_;
     bless from_json( $json ), 'App::CELL::Status';
+}
+
+
+=head2 req
+
+Assemble and process a HTTP request. Takes the following positional arguments:
+
+    * Plack::Test object
+    * expected HTTP result code
+    * user to authenticate with (can be 'root', 'demo', or 'active')
+    * HTTP method
+    * resource string
+    * optional JSON string
+
+If the HTTP result code is 200, the return value will be a status object, undef
+otherwise.
+
+=cut
+
+sub req {
+    my ( $test, $code, $user, $method, $resource, $json ) = validate_pos( @_, 1, 1, 1, 1, 1, 0 );
+
+    # assemble request
+    my %pl = (
+        Accept => 'application/json',
+        Content_Type => 'application/json',
+    );
+    if ( $json ) {
+        $pl{'Content'} = $json;
+    } 
+    my $r = $methods{$method}->( $resource, %pl ); 
+
+    my $pass;
+    if ( $user eq 'root' ) {
+        $pass = 'immutable';
+    } elsif ( $user eq 'active' ) {
+        $pass = 'active';
+    } elsif ( $user eq 'demo' ) {
+        $pass = 'demo';
+    } else {
+        $pass = 'some invalid credential';
+    }
+
+    $r->authorization_basic( $user, $pass );
+
+    my $res = $test->request( $r );
+    is( $res->code, $code, "$method $resource as $user " . ( $json ? "with $json" : "" ) . " 1" );
+    $code += 0;
+    return unless $code == 200;
+    is_valid_json( $res->content, "$method $resource as $user " . ( $json ? "with $json" : "" ) . " 2" );
+    return status_from_json( $res->content );
 }
 
 
@@ -241,10 +196,7 @@ sub docu_check {
     my ( $docustr, $docustr_len );
     #
     # - straight 'docu' resource
-    my $res = $test->request( req_json_demo POST  => '/docu', undef, '"'.  $resource . '"' );
-    is( $res->code, 200, $tn . ++$t );
-    is_valid_json( $res->content, $tn . ++$t );
-    my $status = status_from_json( $res->content );
+    my $status = req( $test, 200, 'demo', 'POST', '/docu', '"'.  $resource . '"' );
     is( $status->level, 'OK', $tn . ++$t );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION', $tn . ++$t );
     if ( exists $status->{'payload'} ) {
@@ -258,10 +210,7 @@ sub docu_check {
     }
     #
     # - not a very thorough examination of the 'docu/html' version
-    $res = $test->request( req_json_demo POST  => '/docu/html', undef, '"'.  $resource . '"' );
-    is( $res->code, 200, $tn . ++$t );
-    is_valid_json( $res->content, $tn . ++$t );
-    $status = status_from_json( $res->content );
+    $status = req( $test, 200, 'demo', 'POST', '/docu/html', '"'.  $resource . '"' );
     is( $status->level, 'OK', $tn . ++$t );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION', $tn . ++$t );
     if ( exists $status->{'payload'} ) {
@@ -305,10 +254,8 @@ Create testing employee with 'active' privilege
 sub create_active_employee {
     my ( $test ) = @_;
     my $eid_of_active = create_testing_employee( nick => 'active', passhash => 'active' )->{'eid'};
-    my $res = $test->request( req_json_root PUT => "priv/history/eid/$eid_of_active", undef,
+    my $status = req( $test, 200, 'root', 'PUT', "priv/history/eid/$eid_of_active", 
         '{ "effective":"1000-01-01", "priv":"active" }' );
-    is( $res->code, 200, "Create active employee 1" );
-    my $status = status_from_json( $res->content );
     ok( $status->ok, "Create active employee 2" );
     is( $status->code, 'DOCHAZKA_CUD_OK', "Create active employee 3" );
 }
@@ -349,19 +296,15 @@ sub delete_active_employee {
     # delete the privhistory records one by one
     foreach my $phrec ( @$ph ) {
         my $phid = $phrec->{phid};
-        $res = $test->request( req_json_root DELETE => "priv/history/phid/$phid" );
-        is( $res->code, 200, "Delete active employee 1" );
-        $status = status_from_json( $res->content );
+        $status = req( $test, 200, 'root', 'DELETE', "priv/history/phid/$phid" );
         ok( $status->ok, "Delete active employee 2" );
         is( $status->code, 'DOCHAZKA_CUD_OK', "Delete active employee 3" );
     }
 
     # delete the employee record
-    $res = $test->request( req_json_root DELETE => "employee/nick/active" );
-    is( $res->code, 200, "Delete active employee 4" );
-    $status = status_from_json( $res->content );
+    $status = req( $test, 200, 'root', 'DELETE', "employee/nick/active" );
     BAIL_OUT($status->text) unless $status->ok;
-    ok( $status->ok, "Delete active employee 5" );
+    is( $status->level, 'OK', "Delete active employee 5" );
     is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK', "Delete active employee 6" );
 
     return;
@@ -426,10 +369,7 @@ sub create_testing_schedule {
     my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
     #
     # - request as root 
-    my $res = $test->request( req_json_root POST => "schedule/intervals", undef, $intvls_json );
-    is( $res->code, 200 );
-    is_valid_json( $res->content );
-    my $status = status_from_json( $res->content );
+    my $status = req( $test, 200, 'root', 'POST', "schedule/intervals", $intvls_json );
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_SCHEDULE_INSERT_OK' );
     ok( exists $status->{'payload'} );

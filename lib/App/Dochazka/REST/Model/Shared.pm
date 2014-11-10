@@ -38,10 +38,10 @@ use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::CELL::Util qw( stringify_args );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Schedule qw( decode_schedule_json );
 use Carp;
 use Data::Dumper;
 use DBI;
+use JSON;
 use Params::Validate qw( :all );
 use Scalar::Util qw( blessed );
 use Storable qw( dclone );
@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -84,9 +84,11 @@ This module provides the following exports:
 
 =over 
 
-=item * C<load> (Load/Fetch/Retrieve -- single-record only)
-
 =item * C<cud> (Create, Update, Delete -- for single-record statements only)
+
+=item * C<decode_schedule_json> function (given JSON string, return corresponding hashref)
+
+=item * C<load> (Load/Fetch/Retrieve -- single-record only)
 
 =item * C<noof> (get total number of records in a data model table)
 
@@ -99,7 +101,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( load cud noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( cud decode_schedule_json load noof priv_by_eid schedule_by_eid );
 
 
 
@@ -107,37 +109,51 @@ our @EXPORT_OK = qw( load cud noof priv_by_eid schedule_by_eid );
 =head1 FUNCTIONS
 
 
-=head2 load
 
-Load a database record into a hashref based on a search key. Must be specifically
-enabled for the class/table in question. The search key must be an exact match:
-this function returns only 1 or 0 records. Call, e.g., like this:
+=head2 make_test_exists
 
-    my $status = load( 
-        class => __PACKAGE__, 
-        sql => $site->DOCHAZKA_ 
-        key => 44 
-    ); 
+Returns coderef for a function, 'test_exists', that performs a simple
+true/false check for existence of a record matching a scalar search key.  The
+record must be an exact match (no wildcards).
+
+Takes one argument: a type string C<$t> which is concatenated with the string
+'load_by_' to arrive at the name of the function to be called to execute the
+search.
+
+The returned function takes a single argument: the search key (a scalar value).
+If a record matching the search key is found, the corresponding object
+(i.e. a true value) is returned. If such a record does not exist, 'undef' (a
+false value) is returned. If there is a DBI error, the error text is logged
+and undef is returned.
 
 =cut
 
-sub load {
-    # get and verify arguments
-    my %ARGS = validate( @_, { 
-        class => { type => SCALAR }, 
-        sql => { type => SCALAR }, 
-        keys => { type => ARRAYREF }, 
-    } );
+sub make_test_exists {
 
-    # consult the database; N.B. - select may only return a single record
-    my $hr = $dbh->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
-    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
-        if $dbh->err;
+    my ( $t ) = validate_pos( @_, { type => SCALAR } );
+    my $pkg = (caller)[0];
 
-    # report the result
-    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
-        payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
-    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
+    return sub {
+        my ( $s_key ) = @_;
+        require Try::Tiny;
+        my $routine = "load_by_$t";
+        my ( $status, $txt );
+        $log->debug( "Entered $t" . "_exists with search key $s_key" );
+        try {
+            no strict 'refs';
+            $status = $pkg->$routine( $s_key );
+        } catch {
+            $txt = "Function " . $pkg . "::test_exists was generated with argument $t, " .
+                "so it tried to call $routine, resulting in exception $_";
+            $status = $CELL->status_crit( $txt );
+        };
+        if ( ! defined( $status ) or $status->level eq 'CRIT' ) {
+            die $txt;
+        }
+        $log->debug( "Status is " . Dumper( $status ) );
+        return $status->payload if $status->ok;
+        return;
+    }
 }
 
 
@@ -203,6 +219,53 @@ sub cud {
 
     $status = $CELL->status_ok( 'DOCHAZKA_CUD_OK', payload => $ARGS{'object'} ) if not defined( $status );
     return $status;
+}
+
+
+=head2 decode_schedule_json
+
+Given JSON string representation of the schedule, return corresponding HASHREF.
+
+=cut
+
+sub decode_schedule_json {
+    my ( $json_str ) = @_;
+
+    return JSON->new->utf8->canonical(1)->decode( $json_str );
+}
+
+
+=head2 load
+
+Load a database record into a hashref based on a search key. Must be specifically
+enabled for the class/table in question. The search key must be an exact match:
+this function returns only 1 or 0 records. Call, e.g., like this:
+
+    my $status = load( 
+        class => __PACKAGE__, 
+        sql => $site->DOCHAZKA_ 
+        key => 44 
+    ); 
+
+=cut
+
+sub load {
+    # get and verify arguments
+    my %ARGS = validate( @_, { 
+        class => { type => SCALAR }, 
+        sql => { type => SCALAR }, 
+        keys => { type => ARRAYREF }, 
+    } );
+
+    # consult the database; N.B. - select may only return a single record
+    my $hr = $dbh->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
+    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
+        if $dbh->err;
+
+    # report the result
+    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
+        payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
+    return $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
 }
 
 
@@ -335,6 +398,7 @@ sub get_history {
             ? $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_NICK
             : $site->SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK;
         $result->{'nick'} = $ARGS{'nick'};
+        $result->{'eid'} = $ARGS{'eid'} if exists $ARGS{'eid'};
         $sk = $ARGS{'nick'};
     }
     if ( exists $ARGS{'eid'} ) {
@@ -342,6 +406,7 @@ sub get_history {
             ? $site->SQL_PRIVHISTORY_SELECT_RANGE_BY_EID
             : $site->SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID;
         $result->{'eid'} = $ARGS{'eid'};
+        $result->{'nick'} = $ARGS{'nick'} if exists $ARGS{'nick'};
         $sk = $ARGS{'eid'};
     }
     $log->debug("sql == $sql");
@@ -375,7 +440,7 @@ sub get_history {
             [ $counter ], payload => $result, count => $counter );
     } else {
         $result->{'history'} = [];
-        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
             payload => $result, count => $counter );
     }
     $dbh->{RaiseError} = 0;

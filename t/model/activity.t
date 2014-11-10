@@ -43,7 +43,7 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
-use App::Dochazka::REST::Model::Activity qw( aid_by_code );
+use App::Dochazka::REST::Model::Activity qw( aid_exists code_exists aid_by_code );
 use Scalar::Util qw( blessed );
 use Test::Fatal;
 use Test::More;
@@ -66,9 +66,14 @@ isa_ok( $act2, 'App::Dochazka::REST::Model::Activity' );
 ok( $act->compare( $act2 ) );
 
 # set a property
-$act->remark( "prdy vody" );
-$act2->remark( "prdy vody" );
+my $a = "prdy vody";
+$act->remark( $a );
+$act2->remark( $a );
+is( $act->remark, $a );
+is( $act2->remark, $a );
 ok( $act->compare( $act2 ) );  # still the same
+ok( $act2->compare( $act ) );
+
 $act2->remark( "jine fody" );
 ok( ! $act->compare( $act2 ) );  # different
 
@@ -76,33 +81,26 @@ ok( ! $act->compare( $act2 ) );  # different
 $act->reset;
 $act2->reset;
 ok( $act->compare( $act2 ) );
-is( $act->aid, undef );
-is( $act2->aid, undef );
-is( $act->code, undef );
-is( $act2->code, undef );
-is( $act->long_desc, undef );
-is( $act2->long_desc, undef );
-is( $act->remark, undef );
-is( $act2->remark, undef );
-is( $act->disabled, undef );
-is( $act2->disabled, undef );
-
+foreach my $prop ( qw( aid code long_desc disabled ) ) {
+    is( $act->{$prop}, undef );
+    is( $act2->{$prop}, undef );
+}
 
 # test existence and viability of initial set of activities
 # this also conducts positive tests of load_by_code and load_by_aid
 foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
-    $act->reset(
-        code => $actdef->{code},
-        long_desc => $actdef->{long_desc},
-        remark => $actdef->{remark},
-    );  
-    $act2->reset;
-    $status = $act->load_by_code( $actdef->{code} );
-    is( $status->code, 'DISPATCH_RECORDS_FOUND' ); $act = $status->payload; is( $act->code, $actdef->{code} );
+    $status = App::Dochazka::REST::Model::Activity->load_by_code( $actdef->{code} );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' ); 
+    is( $status->level, 'OK' );
+    $act = $status->payload; 
+    is( $act->code, $actdef->{code} );
     is( $act->long_desc, $actdef->{long_desc} );
     is( $act->remark, 'dbinit' );
     is( $act->disabled, 0 );
-    $act2 = App::Dochazka::REST::Model::Activity->load_by_aid( $act->aid )->payload;
+    $status = App::Dochazka::REST::Model::Activity->load_by_aid( $act->aid );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' ); 
+    $act2 = $status->payload;
     is_deeply( $act, $act2 );
 }
 
@@ -118,26 +116,26 @@ like( exception { App::Dochazka::REST::Model::Activity->load_by_code( undef ) },
 
 # load non-existent activity
 $status = App::Dochazka::REST::Model::Activity->load_by_code( 'orneryFooBarred' );
-is( $status->level, 'OK' );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 ok( ! exists( $status->{'payload'} ) );
 ok( ! defined( $status->payload ) );
 
 # load existent activity
 $status = App::Dochazka::REST::Model::Activity->load_by_code( 'wOrK' );
-ok( $status->ok );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 my $work = $status->payload;
-ok( $work->aid > 0 );
+ok( $work->aid );
+ok( $work->code );
 is( $work->code, 'WORK' );
 
-# get AID of 'WORK' using 'aid_by_code'
 my $work_aid = aid_by_code( 'WoRk' );
-is( $work_aid, $work->aid );
+is( $work_aid, $work->aid, "get AID of 'WORK' using 'aid_by_code'" );
 like ( exception { $work_aid = aid_by_code( ( 1..6 ) ); },
        qr/but 1 was expected/ );
 
-# aid_by_code on non-existent code
-is( aid_by_code( 'orneryFooBarred' ), undef );
+is( aid_by_code( 'orneryFooBarred' ), undef, 'aid_by_code returns undef if code does not exist' );
 
 # insert an activity (success)
 my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
@@ -145,9 +143,13 @@ my $bogus_act = App::Dochazka::REST::Model::Activity->spawn(
     long_desc => 'An activity',
     remark => 'ACTIVITY',
 );
+#diag( "About to insert bogus_act" );
 $status = $bogus_act->insert;
-diag( $status->text ) unless $status->ok;
-ok( $status->ok );
+if ( $status->not_ok ) {
+    diag( Dumper $status );
+    BAIL_OUT(0);
+}
+is( $status->level, 'OK', "Insert activity with code 'bogus'" );
 ok( defined( $bogus_act->aid ) );
 ok( $bogus_act->aid > 0 );
 # test code accessor method and code_to_upper trigger
@@ -166,31 +168,48 @@ like( $status->text, qr/Key \(code\)\=\(BOGUS\) already exists/ );
 $bogus_act->{code} = "bogosITYVille";
 $bogus_act->{long_desc} = "A bogus activity that doesn't belong here";
 $bogus_act->{remark} = "BOGUS ACTIVITY";
+#diag( "About to update bogus_act" );
 $status = $bogus_act->update;
-ok( $status->ok );
+if ( $status->not_ok ) {
+    diag( Dumper $status );
+    BAIL_OUT(0);
+}
+is( $status->level, 'OK' );
 # test accessors
 is( $bogus_act->code, 'BOGOSITYVILLE' );
 is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
 is( $bogus_act->remark, 'BOGUS ACTIVITY' );
 
 # load it and compare it
-my $ba2 = App::Dochazka::REST::Model::Activity->spawn;
-isa_ok( $ba2, 'App::Dochazka::REST::Model::Activity' );
 $status = App::Dochazka::REST::Model::Activity->load_by_code( $bogus_act->code );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-$ba2 = $status->payload;
+my $ba2 = $status->payload;
 is( $ba2->code, 'BOGOSITYVILLE' );
 is( $ba2->long_desc, "A bogus activity that doesn't belong here" );
 is( $ba2->remark, 'BOGUS ACTIVITY' );
 
-# CLEANUP: delete the bogus activity
-$status = $bogus_act->delete;
-ok( $status->ok );
+my $aid_of_bogus_act = $bogus_act->aid; 
+my $code_of_bogus_act = $bogus_act->code; 
 
-# attempt to load the bogus activity
-$bogus_act->reset;
-$status = $bogus_act->load_by_code( 'BOGUS' );
-ok( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
+ok( aid_exists( $aid_of_bogus_act ) );
+ok( code_exists( $code_of_bogus_act ) );
+
+# CLEANUP: delete the bogus activity
+#diag( "About to delete bogus_act" );
+$status = $bogus_act->delete;
+if ( $status->not_ok ) {
+    diag( Dumper $status );
+    BAIL_OUT(0);
+}
+is( $status->level, 'OK' );
+
+ok( ! aid_exists( $aid_of_bogus_act ) );
+ok( ! code_exists( $code_of_bogus_act ) );
+
+# attempt to load the bogus activity - no longer there
+$status = App::Dochazka::REST::Model::Activity->load_by_code( 'BOGUS' );
+is( $status->level, 'NOTICE' );
+is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 is( $status->{'count'}, 0 );
 
 done_testing;

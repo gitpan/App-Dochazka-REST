@@ -54,16 +54,6 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# test some wrong _load function calls
-#like( exception { App::Dochazka::REST::Model::Employee::_load( 'eid' => 1, 'nick' => 'hooligan' ); },
-#      qr/4 parameters were passed.+but 2 were expected/ );
-#like( exception { App::Dochazka::REST::Model::Employee->_load( 'hooligan' ); },
-#      qr/not listed in the validation options: App::Dochazka::REST::Model::Employee/ );
-#like( exception { App::Dochazka::REST::Model::Employee::_load( ( 1..2 ) ); },
-#      qr/not listed in the validation options/ );
-#like( exception { App::Dochazka::REST::Model::Employee::_load( 'hooligan' => 'sneaking in' ); },
-#      qr/not listed in the validation options: hooligan/ );
-
 # attempt to spawn a hooligan
 like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sneaking in' ); }, 
       qr/not listed in the validation options: hooligan/ );
@@ -72,30 +62,27 @@ like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sn
 my $emp = App::Dochazka::REST::Model::Employee->spawn;
 ok( ref $emp, "object is a reference" );
 ok( blessed $emp, "object is a blessed reference" );
+isa_ok( $emp, 'App::Dochazka::REST::Model::Employee' );
 
 # try to reset in a hooligan-ish manner
 like( exception { $emp->reset( 'hooligan' => 'sneaking in' ); }, 
       qr/not listed in the validation options: hooligan/ );
 
-# attempt to load a non-existent nick into the object
-$status = $emp->load_by_nick( 'mrfu' ); 
-ok( $status->ok );
-is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Mr. Fu's nick doesn't exist" );
-is( $status->{'count'}, 0, "Mr. Fu's nick doesn't exist" );
-ok( ! ref $status->payload );
-
-# do the same, but as a class method
+# attempt to load a non-existent nick
 $status = App::Dochazka::REST::Model::Employee->load_by_nick( 'mrfu' ); 
-ok( $status->ok );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Mr. Fu's nick doesn't exist" );
 is( $status->{'count'}, 0, "Mr. Fu's nick doesn't exist" );
-ok( ! ref $status->payload );
+ok( ! exists $status->{'payload'} );
+ok( ! defined( $status->payload ) );
 
 # (root employee is created at dbinit time)
 
 # attempt to load root by nick and test accessors
-$status = $emp->load_by_nick( 'root' ); 
+$status = App::Dochazka::REST::Model::Employee->load_by_nick( 'root' ); 
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
+isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 $emp->reset( $status->payload );
 is( $emp->remark, 'dbinit' );
 is( $emp->nick, 'root' );
@@ -107,8 +94,10 @@ is( $emp->fullname, 'Root Immutable' );
 my $eid_of_root = $emp->eid;
 
 # attempt to load root by EID and test accessors
-$status = $emp->load_by_eid( $eid_of_root ); 
+$status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_root ); 
+is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
+isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 $emp = $status->payload;
 is( $emp->remark, 'dbinit' );
 is( $emp->nick, 'root' );
@@ -121,35 +110,33 @@ is( $emp->fullname, 'Root Immutable' );
 # do the same, but use class method 
 
 $status = App::Dochazka::REST::Model::Employee->load_by_nick( 'root' ); 
-diag( $status->text ) unless $status->ok;
-ok( $status->ok, "Root employee loaded into object" );
+is( $status->level, 'OK', "Root employee loaded into object" );
 ok( ref $status->payload );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
-$emp = $status->payload;
-is( $emp->remark, 'dbinit' );
-is( $emp->nick, 'root' );
-is( $emp->eid, $eid_of_root );
-is( $emp->priv, 'admin' );
-is_deeply( $emp->schedule, {} );
-is( $emp->email, 'root@site.org' );
-is( $emp->fullname, 'Root Immutable' );
+my $r = $status->payload;
+is( $r->remark, 'dbinit' );
+is( $r->nick, 'root' );
+is( $r->eid, $eid_of_root );
+is( $r->priv, 'admin' );
+is_deeply( $r->schedule, {} );
+is( $r->email, 'root@site.org' );
+is( $r->fullname, 'Root Immutable' );
 
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_root ); 
-diag( $status->text ) unless $status->ok;
-ok( $status->ok, "Root employee loaded into object" );
+is( $status->level, 'OK', "Root employee loaded into object" );
 ok( ref $status->payload );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
-$emp = $status->payload;
-is( $emp->remark, 'dbinit' );
-is( $emp->nick, 'root' );
-is( $emp->eid, $eid_of_root );
-is( $emp->priv, 'admin' );
-is_deeply( $emp->schedule, {} );
-is( $emp->email, 'root@site.org' );
-is( $emp->fullname, 'Root Immutable' );
+my $q = $status->payload;
+is( $q->remark, 'dbinit' );
+is( $q->nick, 'root' );
+is( $q->eid, $eid_of_root );
+is( $q->priv, 'admin' );
+is_deeply( $q->schedule, {} );
+is( $q->email, 'root@site.org' );
+is( $q->fullname, 'Root Immutable' );
 
 # get root's priv level and test priv accessor
-my $root_priv = $emp->priv;
+my $root_priv = $q->priv;
 is( $root_priv, 'admin', "root is an admin" );
 
 # spawn an employee object
@@ -158,21 +145,26 @@ $emp = App::Dochazka::REST::Model::Employee->spawn(
     fullname => 'Mr. Fu',
     email => 'mrfu@example.com',
 );
-
+isa_ok( $emp, 'App::Dochazka::REST::Model::Employee' );
 ok( ref($emp), "object is a reference" );
 ok( blessed($emp), "object is a blessed reference" );
 
 # insert it
 $status = $emp->insert();
-ok( $status->ok, "Mr. Fu inserted" );
+is( $status->level, 'OK', "Mr. Fu inserted" );
 my $eid_of_mrfu = $emp->{eid};
 #diag( "eid of mrfu is $eid_of_mrfu" );
 
 # nick_exists and eid_exists functions
 ok( nick_exists( 'mrfu' ) );
+ok( nick_exists( 'root' ) );
+ok( nick_exists( 'demo' ) );
 ok( eid_exists( $eid_of_mrfu ) );  
+ok( eid_exists( $eid_of_root ) );  
 ok( ! nick_exists( 'fandango' ) ); 
+ok( ! nick_exists( 'barbarian' ) ); 
 ok( ! eid_exists( 1341 ) ); 
+ok( ! eid_exists( 554 ) ); 
 
 # spawn another object
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_mrfu );
@@ -207,13 +199,13 @@ is( $emp->remark, undef );
 
 # attempt to load a non-existent EID
 $status = $emp->load_by_eid(443);
-ok( $status->ok );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Nick ID 443 does not exist" );
 is( $status->{'count'}, 0, "Nick ID 443 does not exist" );
 
 # attempt to load a non-existent nick
 $status = $emp->load_by_nick( 'smithfarm' );
-ok( $status->ok );
+is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 is( $status->{'count'}, 0 );
 

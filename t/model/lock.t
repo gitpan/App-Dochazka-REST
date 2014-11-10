@@ -45,14 +45,14 @@ use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Interval;
-use App::Dochazka::REST::Model::Lock;
+use App::Dochazka::REST::Model::Lock qw( lid_exists );
 use App::Dochazka::REST::Model::Shared qw( noof );
 use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow tsrange_equal );
 use Scalar::Util qw( blessed );
 use Test::More;
 
 # plan tests
-plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
+#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
 if ( $status->not_ok ) {
@@ -103,12 +103,15 @@ ok( blessed( $lock ) );
 is( noof( 'locks' ), 0 );
 $status = $lock->insert;
 is( noof( 'locks' ), 1 );
+my $t_lid = $status->payload->lid;
 
 
 # CLEANUP:
 # 1. delete the lock
 is( noof( 'locks' ), 1 );
+ok( lid_exists( $t_lid ) );
 $status = $lock->delete;
+ok( ! lid_exists( $t_lid ) );
 is( noof( 'locks' ), 0 );
 
 # 2. delete the interval

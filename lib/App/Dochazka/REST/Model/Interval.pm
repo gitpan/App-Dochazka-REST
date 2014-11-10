@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.253
+Version 0.262
 
 =cut
 
-our $VERSION = '0.253';
+our $VERSION = '0.262';
 
 
 
@@ -130,18 +130,20 @@ For basic activity interval workflow, see C<t/010-interval.t>.
 
 
 
-#=head1 EXPORTS
-#
-#This module provides the following exports:
-#
-#=over 
-#
-#=back
-#
-#=cut
-#
-#use Exporter qw( import );
-#our @EXPORT_OK = qw( );
+=head1 EXPORTS
+
+This module provides the following exports:
+
+=over 
+
+=item * L<iid_exists> (boolean function)
+
+=back
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( iid_exists );
 
 
 
@@ -242,6 +244,19 @@ sub delete {
 
 
 
+=head1 FUNCTIONS
+
+
+=head2 iid_exists
+
+Boolean function
+
+=cut
+
+BEGIN {
+    no strict 'refs';
+    *{'iid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'iid' );
+}
 
 
 =head1 AUTHOR

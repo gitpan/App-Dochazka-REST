@@ -101,23 +101,6 @@ This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
 EOH
     },
-    'priv/history/self/?:tsrange' =>
-    { 
-        target => {
-            GET => '_history_self', 
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Priv',
-        acl_profile => 'active',
-        cli => 'priv history self [$TSRANGE]',
-        description => 'Get privhistory of present employee, with option to limit to :tsrange',
-        documentation => <<'EOH',
-=pod
-
-This resource retrieves the "privhistory", or history of changes in
-privilege level, of the present employee. Optionally, the listing can be
-limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
-EOH
-    },
     'priv/history/eid/:eid' =>
    { 
         target => {
@@ -128,7 +111,7 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history eid $EID [$JSON]',
-        description => 'GET: Get entire history of privilege level changes for employee with the given EID, PUT: add a record to privhistory of employee, DELETE: delete a privhistory record',
+        description => 'Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
 
@@ -178,7 +161,7 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history nick $NICK [$JSON]',
-        description => 'Get entire history of privilege level changes for employee with the given nick',
+        description => 'Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
 
@@ -228,7 +211,7 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history phid $PHID',
-        description => 'GET or DELETE a privilege history record by its PHID',
+        description => 'Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID',
         documentation => <<'EOH',
 =pod
 
@@ -246,6 +229,23 @@ Deletes a privhistory record by its PHID.
 
 (N.B.: to add a privhistory record, use "PUT priv/history/eid/:eid" or
 "PUT priv/history/nick/:nick")
+EOH
+    },
+    'priv/history/self/?:tsrange' =>
+    { 
+        target => {
+            GET => '_history_self', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Priv',
+        acl_profile => 'active',
+        cli => 'priv history self [$TSRANGE]',
+        description => 'Retrieves privhistory of present employee, with option to limit to :tsrange',
+        documentation => <<'EOH',
+=pod
+
+This resource retrieves the "privhistory", or history of changes in
+privilege level, of the present employee. Optionally, the listing can be
+limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 EOH
     },
     'priv/nick/:nick/?:ts' => 
