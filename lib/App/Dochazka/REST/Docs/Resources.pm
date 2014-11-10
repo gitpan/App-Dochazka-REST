@@ -39,7 +39,7 @@ use warnings FATAL => 'all';
 use App::Dochazka::REST;
 
 
-our $VERSION = 0.264;
+our $VERSION = 0.265;
 
 1;
 __END__

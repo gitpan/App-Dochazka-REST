@@ -1691,3 +1691,6 @@ Revision history for Dochazka-REST
 - t/dispatch/schedules.t: add proper minimal test cases for 'schedule/all' and
   'schedule/all/disabled'
 
+0.265  2014-11-10 17:49 CET
+- experimenting with metacpan POD rendering glitch
+

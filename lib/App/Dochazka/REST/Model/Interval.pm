@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.264
+Version 0.265
 
 =cut
 
-our $VERSION = '0.264';
+our $VERSION = '0.265';
 
 
 
