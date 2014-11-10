@@ -41,6 +41,7 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Schedhistory;
+use App::Dochazka::REST::Model::Schedule qw( sid_exists );
 use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
@@ -172,6 +173,51 @@ ok( exists $status->payload->[0]->{'sid'} );
 ok( $status->payload->[0]->{'sid'} > 0 );
 my $ts_sid = $status->payload->[0]->{'sid'};
 
+#
+# add six more schedules to the pot
+#
+my @sid_range;
+foreach my $day ( 3..10 ) {
+    my $intvls = [ 
+        "[2000-01-" . ( $day + 1 ) . " 12:30, 2000-01-" . ( $day + 1 ) . " 16:30)",
+        "[2000-01-" . ( $day + 1 ) . " 08:00, 2000-01-" . ( $day + 1 ) . " 12:00)",
+        "[2000-01-" . ( $day ) . " 12:30, 2000-01-" . ( $day ) . " 16:30)",
+        "[2000-01-" . ( $day ) . " 08:00, 2000-01-" . ( $day ) . " 12:00)",
+        "[2000-01-" . ( $day - 1 ) . " 12:30, 2000-01-" . ( $day - 1 ) . " 16:30)",
+        "[2000-01-" . ( $day - 1 ) . " 08:00, 2000-01-" . ( $day - 1 ) . " 12:00)",
+    ];  
+    my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
+    #   
+    # - request as root 
+    my $status = req( $test, 200, 'root', 'POST', "schedule/intervals", $intvls_json );
+    is( $status->level, 'OK' );
+    ok( $status->code eq 'DISPATCH_SCHEDULE_INSERT_OK' or $status->code eq 'DISPATCH_SCHEDULE_OK' );
+    ok( exists $status->{'payload'} );
+    ok( exists $status->payload->{'sid'} );
+    my $sid = $status->payload->{'sid'};
+    ok( sid_exists( $sid ) );
+    push @sid_range, $sid;
+}
+#
+# test a non-existent SID
+ok( ! sid_exists( 53434 ), "non-existent SID" );
+#
+# now we get seven
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+is( $status->{'count'}, 7 );
+#
+# disable one at random
+$status = req( $test, 200, 'root', 'POST', "schedule/sid/" . $sid_range[3], '{ "disabled":true }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+#
+# now we get only six
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+is( $status->{'count'}, 6 );
 
 #
 # PUT, POST, DELETE
@@ -197,7 +243,54 @@ req( $test, 403, 'demo', 'GET', $base );
 $status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_RECORDS_FOUND" );
-is( $status->{'count'}, 1 );
+is( $status->{'count'}, 7 );
+
+# 
+# delete two schedules
+#
+my $counter = 0;
+foreach my $sid ( @sid_range[0..1] ) {
+    $counter += 1;
+    $status = req( $test, 200, 'root', 'DELETE', "schedule/sid/$sid" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DOCHAZKA_CUD_OK' );
+}
+is( $counter, 2 );
+
+#
+# now only 4 when disabled are not counted
+#
+$status = req( $test, 200, 'root', 'GET', 'schedule/all' );
+is( $status->level, 'OK' );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+is( $status->{'count'}, 4 );
+
+#
+# the total number has dropped from 7 to 5
+#
+req( $test, 403, 'demo', 'GET', $base );
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
+is( $status->code, "DISPATCH_RECORDS_FOUND" );
+is( $status->{'count'}, 5 );
+
+#
+# delete them
+#
+my $obj = App::Dochazka::REST::Model::Schedule->spawn;
+foreach my $schedule ( @{ $status->payload } ) {
+    $obj->reset( $schedule );
+    ok( sid_exists( $obj->sid ) );
+    $status = req( $test, 200, 'root', 'DELETE', "schedule/sid/" . $obj->sid );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DOCHAZKA_CUD_OK' );
+    ok( ! sid_exists( $obj->sid ) );
+}
+
+# 
+# total number is now zero
+#
+$status = req( $test, 404, 'root', 'GET', $base );
 
 #
 # PUT, POST, DELETE
@@ -215,6 +308,9 @@ foreach my $user ( qw( demo root ) ) {
 #===========================================
 $base = "schedule/eid";
 docu_check($test, "$base/:eid/?:ts");
+
+$ts_sid = create_testing_schedule( $test );
+
 #
 # GET
 #

@@ -130,7 +130,7 @@ set( 'SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED', q/
 #     SQL query to retrieve all non-disabled schedule records (JSON strings)
 set( 'SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED', q/
       SELECT sid, schedule, remark, disabled 
-      FROM schedules WHERE disabled != 't'
+      FROM schedules WHERE disabled != TRUE
       ORDER BY sid
       / );
 

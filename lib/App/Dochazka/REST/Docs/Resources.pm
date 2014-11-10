@@ -39,19 +39,21 @@ use warnings FATAL => 'all';
 use App::Dochazka::REST;
 
 
+our $VERSION = 0.264;
+
+1;
+__END__
+
+
 =head1 NAME
 
 App::Dochazka::REST::Docs::Resources - Documentation of App::Dochazka::REST resources
 
 
+=head1 DESCRIPTION
 
-=head1 VERSION
-
-Version 0.263
-
-=cut
-
-our $VERSION = 0.263;
+This is a POD-only module containing documentation on all the REST resources 
+defined under C<config/dispatch>. This module is auto-generated.
 
 
 
@@ -842,6 +844,5 @@ the return status will be "OK".
 =back
 
 
-=cut
 
-1;
+=cut

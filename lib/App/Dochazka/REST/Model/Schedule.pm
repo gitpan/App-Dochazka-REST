@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.263
+Version 0.264
 
 =cut
 
-our $VERSION = '0.263';
+our $VERSION = '0.264';
 
 
 
@@ -390,17 +390,27 @@ BEGIN {
 }
 
 
-=head2 schedule_all
+=head2 _schedule_all
 
-Returns a list of all non-disabled schedule objects, ordered by sid.
+Returns a list of "all" (either including disabled or not) schedule objects,
+ordered by sid.
 
 =cut
 
-sub schedule_all {
+sub _schedule_all {
     my ( $including_disabled ) = @_;
-    my $sql = $including_disabled
-        ? $site->SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED
-        : $site->SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED;
+
+    # determine whether to include disabled shedules 
+    my $sql;
+    if ( $including_disabled ) {
+        $log->debug( "Entering schedule_all with including disabled" );
+        $sql = $site->SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED;
+    } else { 
+        $log->debug( "Entering schedule_all * NOT * including disabled" );
+        $sql = $site->SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED;
+    }
+
+    # run the query and gather the results
     my @result;
     my $status;
     my $counter = 0;
@@ -418,6 +428,8 @@ sub schedule_all {
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
     };
     $dbh->{RaiseError} = 0;
+
+    # interpret and return the results
     return $status if defined $status;
     if ( $counter > 0 ) {
         $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
@@ -432,6 +444,18 @@ sub schedule_all {
 }
 
 
+=head2 schedule_all
+
+Returns a list of all schedule objects, ordered by sid. The list does not
+include disabled schedules.
+
+=cut
+
+sub schedule_all {
+     return _schedule_all();
+}
+
+
 =head2 schedule_all_disabled
 
 Returns a list of all schedule objects, ordered by sid. The list includes all
@@ -440,7 +464,7 @@ schedules regardless of 'disabled' status.
 =cut
 
 sub schedule_all_disabled {
-     return schedule_all( 'including_disabled' );
+     return _schedule_all( 'including_disabled' );
 }
 
 
