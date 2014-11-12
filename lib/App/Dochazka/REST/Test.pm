@@ -60,11 +60,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -254,7 +254,7 @@ Create testing employee with 'active' privilege
 sub create_active_employee {
     my ( $test ) = @_;
     my $eid_of_active = create_testing_employee( nick => 'active', passhash => 'active' )->{'eid'};
-    my $status = req( $test, 200, 'root', 'PUT', "priv/history/eid/$eid_of_active", 
+    my $status = req( $test, 200, 'root', 'POST', "priv/history/eid/$eid_of_active", 
         '{ "effective":"1000-01-01", "priv":"active" }' );
     ok( $status->ok, "Create active employee 2" );
     is( $status->code, 'DOCHAZKA_CUD_OK', "Create active employee 3" );
@@ -390,9 +390,17 @@ sub delete_testing_schedule {
     my ( $sid ) = @_;
     my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $sid );
     is( $status->level, 'OK', 'delete_testing_schedule 1' );
+    if ( $status->not_ok ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     my $sched = $status->payload;
     $status = $sched->delete;
     is( $status->level, 'OK', 'delete_testing_schedule 2' );
+    if ( $status->not_ok ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     return;
 }
 

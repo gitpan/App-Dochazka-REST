@@ -43,6 +43,7 @@ use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::Model::Shared qw( priv_by_eid schedule_by_eid );
 use Data::Dumper;
 use Params::Validate qw( :all );
+use Try::Tiny;
 
 
 
@@ -56,11 +57,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -317,5 +318,118 @@ sub current {
     return $status;
 }
 
+
+sub _prop_from_class {
+    my ( $class ) = @_;
+    my $prop;
+    if ( $class =~ m/Privhistory$/ or $class =~ m/Priv$/ ) {
+        $prop = 'priv';
+    } elsif ( $class =~ m/Schedhistory$/ or $class =~ m/Schedule$/ ) {
+        $prop = 'sid';
+    } else {
+        die "AAAAAAAAHAHAHHHH!";
+    }
+}
+
+# generalized dispatch target for GET and POST requests on resources:
+#     'priv/history/eid/:eid' 
+#     'priv/history/eid/:eid/:tsrange' 
+#     'schedule/history/eid/:eid' 
+#     'schedule/history/eid/:eid/:tsrange' 
+#     'priv/history/nick/:nick' 
+#     'priv/history/nick/:nick/:tsrange' 
+#     'schedule/history/nick/:nick' 
+#     'schedule/history/nick/:nick/:tsrange' 
+sub history {
+    my %PH = validate( @_, {
+        'class' => { type => SCALAR },       # e.g. 'App::Dochazka::REST::Dispatch::Priv'
+        'method' => { type => SCALAR },      # e.g. 'GET'
+        'key' => { type => ARRAYREF },       # e.g. [ 'EID', 35 ], [ 'nick', 'mrfoo' ]
+        'tsrange' => { type => SCALAR|UNDEF, optional => 1 }, # e.g. '[ 1969-04-27 08:00, 1971-04-26 08:00 )'
+        'body' => { type => HASHREF|UNDEF, optional => 1 },
+    } );
+    my $prop = _prop_from_class( $PH{class} );
+    my ( $status );
+    if ( lc( $PH{key}->[0] ) eq 'eid' ) {
+        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $PH{key}->[1] );
+    } elsif ( lc( $PH{key}->[0] ) eq 'nick' ) {
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $PH{key}->[1] );
+    } else {
+        die "AHAAHHAAAAAAAAHAAAHHHH!";
+    }
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $emp = $status->payload;
+        if ( $PH{method} eq 'GET' ) {
+            return _get_history( class => $PH{'class'}, eid => $emp->eid, 
+                nick => $emp->nick, tsrange => $PH{'tsrange'} );
+        } elsif ( $PH{method} eq 'POST' ) {
+            return _put_history( class => $PH{'class'}, eid => $emp->eid, body => $PH{'body'} );
+        } else {
+            die "AAAAAAAAAAHHHHAAHHHH";
+        }
+    } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => $PH{key} );
+    }
+    return $status;
+}
+
+# takes class (priv/sched)
+sub _get_history {
+    my %PH = validate( @_, {
+        'class' => { type => SCALAR },         # e.g. 'App::Dochazka::REST::Dispatch::Priv'
+        'eid' => { type => SCALAR },     
+        'nick' => { type => SCALAR }, 
+        'tsrange' => { type => SCALAR|UNDEF }, # e.g. '[ 1969-04-27 08:00, 1971-04-26 08:00 )'
+    } );
+
+    my $prop = _prop_from_class( $PH{class} );
+
+    return App::Dochazka::REST::Model::Shared::get_history( 
+        $prop, 
+        eid => $PH{eid}, 
+        nick => $PH{nick}, 
+        tsrange => $PH{tsrange} 
+    );
+}
+
+# takes class (priv/sched), eid (integer) and body (hashref)
+sub _put_history {
+    my %PH = validate( @_, {
+        'class' => { type => SCALAR },         # e.g. 'App::Dochazka::REST::Model::Privhistory'
+        'eid' => { type => SCALAR },     
+        'body' => { type => HASHREF },
+    } );
+    $log->debug( "Entering " . __PACKAGE__ . " _put_history with PARAMHASH " . Dumper( \%PH ) );
+    my $prop = _prop_from_class( $PH{class} );
+    return $CELL->status_err('DOCHAZKA_BAD_INPUT') if not $PH{body}->{'effective'} or not $PH{body}->{$prop};
+    my $ho;
+    try {
+        $ho = $PH{class}->spawn( 
+            eid => $PH{eid}, 
+            effective => $PH{body}->{'effective'},
+            $prop => $PH{body}->{$prop},
+        );
+    } catch {
+        $log->crit($_);
+        return $CELL->status_crit("DISPATCH_HISTORY_COULD_NOT_SPAWN", args => [ $_ ] );
+    };
+    return $ho->insert;
+}
+
+# generalized dispatch target for:
+#    '/priv/history/phid/:phid'
+#    '/schedule/history/shid/:shid'
+sub history_by_id {
+    my %PH = validate( @_, {
+        class => { type => SCALAR },
+        method => { type => SCALAR },
+        id => { type => SCALAR },
+    } );
+    my $status = $PH{class}->load_by_id( $PH{id} );
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        return $status->payload->delete if $PH{method} eq 'DELETE';
+    }
+    return $status;
+}
 
 1;

@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -90,6 +90,8 @@ This module provides the following exports:
 
 =item * C<load> (Load/Fetch/Retrieve -- single-record only)
 
+=item * C<load_multiple> (Load/Fetch/Retrieve multiple records)
+
 =item * C<noof> (get total number of records in a data model table)
 
 =item * C<priv_by_eid> 
@@ -101,7 +103,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( cud decode_schedule_json load noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( cud decode_schedule_json load load_multiple noof priv_by_eid schedule_by_eid );
 
 
 
@@ -237,14 +239,14 @@ sub decode_schedule_json {
 
 =head2 load
 
-Load a database record into a hashref based on a search key. Must be specifically
-enabled for the class/table in question. The search key must be an exact match:
-this function returns only 1 or 0 records. Call, e.g., like this:
+Load a database record into an object based on an SQL statement and a set of
+search keys. The search key must be an exact match: this function returns only
+1 or 0 records.  Call, e.g., like this:
 
     my $status = load( 
         class => __PACKAGE__, 
-        sql => $site->DOCHAZKA_ 
-        key => 44 
+        sql => $site->DOCHAZKA_SQL_SOME_STATEMENT,
+        keys => [ 44 ]
     ); 
 
 =cut
@@ -266,6 +268,66 @@ sub load {
     return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
         payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
     return $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
+}
+
+
+=head2 load_multiple
+
+Load multiple database records based on an SQL statement and a set of search
+keys. Example:
+
+    my $status = load_multiple( 
+        class => __PACKAGE__, 
+        sql => $site->DOCHAZKA_SQL_SOME_STATEMENT,
+        keys => [ 'rom%' ] 
+    ); 
+
+The return value will be a status object, the payload of which will be an
+arrayref containing a set of objects. The objects are constructed by calling
+$ARGS{'class'}->spawn
+
+For convenience, a 'count' property will be included in the status object.
+
+=cut
+
+sub load_multiple {
+    # get and verify arguments
+    my %ARGS = validate( @_, { 
+        class => { type => SCALAR }, 
+        sql => { type => SCALAR }, 
+        keys => { type => ARRAYREF }, 
+    } );
+
+    my ( @results, $status );
+
+    my $counter = 0;
+    $dbh->{RaiseError} = 1;
+    try {
+        # prepare and execute SQL
+        my $sth = $dbh->prepare( $ARGS{'sql'} );
+        $sth->execute();
+        # assuming they are objects, spawn them and push them onto @results
+        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+            $counter += 1;
+            push @results, $ARGS{'class'}->spawn( $tmpres );
+        }
+    } catch {
+        my $arg = $dbh->err
+            ? $dbh->errstr
+            : $_;
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+    };
+    $dbh->{RaiseError} = 0;
+    return $status if defined $status;
+    if ( $counter > 0 ) {
+        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args =>
+            [ $counter ], payload => \@results, count => $counter );
+    } else {
+        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND',
+            payload => @results, count => $counter );
+    }
+    $dbh->{RaiseError} = 0;
+    return $status;
 }
 
 
@@ -387,7 +449,7 @@ sub get_history {
     my %ARGS = validate( @_, { 
         eid => { type => SCALAR, optional => 1 },
         nick => { type => SCALAR, optional => 1 },
-        tsrange => { type => SCALAR, optional => 1 },
+        tsrange => { type => SCALAR|UNDEF, optional => 1 },
     } );
 
     $log->debug("Entering get_history for $t");
@@ -410,7 +472,7 @@ sub get_history {
         $sk = $ARGS{'eid'};
     }
     $log->debug("sql == $sql");
-    $tsr = ( exists $ARGS{'tsrange'} )
+    $tsr = ( $ARGS{'tsrange'} )
         ? $ARGS{'tsrange'}
         : '[,)';
     $result->{'tsrange'} = $tsr;

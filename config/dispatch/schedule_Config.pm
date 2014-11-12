@@ -72,7 +72,7 @@ EOH
         documentation => <<'EOH',
 =pod
 
-This resource returns a list (array) of all schedules, regardless of thie contents
+This resource returns a list (array) of all schedules, regardless of the contents
 of the 'disabled' field.
 EOH
     },
@@ -116,17 +116,13 @@ EOH
     'schedule/history/eid/:eid' =>
    { 
         target => {
-#            GET => '_history_eid', 
-#            PUT => '_history_eid',
-#            DELETE => '_history_eid',
-            GET => 'not_implemented', 
-            PUT => 'not_implemented',
-            DELETE => 'not_implemented',
+            GET => '_history_eid', 
+            POST => '_history_eid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history eid $EID [$JSON]',
-        description => 'GET: Get entire history of schedule changes for employee with the given EID, PUT: add a record to schedule history of employee, DELETE: delete a schedule record',
+        description => 'Retrieves (GET) entire history of schedule changes for employee with the given EID; adds (POST) a record to schedule history of employee',
         documentation => <<'EOH',
 =pod
 
@@ -137,14 +133,9 @@ EOH
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given EID.
 
-=item * PUT
+=item * POST
 
 Adds a record to the schedule history of the given employee. The content
-body should contain two properties: "effective" (timestamp) and "sid" (integer).
-
-=item * DELETE
-
-Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
@@ -153,34 +144,29 @@ EOH
     'schedule/history/eid/:eid/:tsrange' =>
     {
         target => {
-#            GET => '_history_eid', 
-            GET => 'not_implemented', 
+            GET => '_history_eid', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history eid $EID $TSRANGE',
-        description => 'Get a slice of history of schedule changes for employee with the given EID',
+        description => 'Retrieves a slice of history of schedule changes for employee with the given EID',
         documentation => <<'EOH',
 =pod
 
 Retrieves a slice (given by the tsrange argument) of the employee's
-"schedule history" (history of changes in schedule).
+"schedule history" (history of changes in schedule). 
 EOH
     },
     'schedule/history/nick/:nick' =>
     { 
         target => {
-#            GET => '_history_nick', 
-#            PUT => '_history_nick', 
-#            DELETE => '_history_nick',
-            GET => 'not_implemented', 
-            PUT => 'not_implemented',
-            DELETE => 'not_implemented',
+            GET => '_history_nick', 
+            POST => '_history_nick', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history nick $NICK [$JSON]',
-        description => 'Get entire history of schedule changes for employee with the given nick',
+        description => 'Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee',
         documentation => <<'EOH',
 =pod
 
@@ -191,14 +177,9 @@ EOH
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given nick.
 
-=item * PUT
+=item * POST
 
 Adds a record to the schedule history of the given employee. The content
-body should contain two properties: "effective" (timestamp) and "sid" (integer).
-
-=item * DELETE
-
-Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
@@ -207,8 +188,7 @@ EOH
     'schedule/history/nick/:nick/:tsrange' =>
     { 
         target => {
-#            GET => '_history_nick', 
-            GET => 'not_implemented', 
+            GET => '_history_nick', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
@@ -225,8 +205,7 @@ EOH
     'schedule/history/self/?:tsrange' =>
     { 
         target => {
-#            GET => '_history_self', 
-            GET => 'not_implemented', 
+            GET => '_history_self', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'active',
@@ -243,10 +222,8 @@ EOH
     'schedule/history/shid/:shid' => 
     {
         target => {
-#            GET => '_schedule_by_shid',
-#            DELETE => '_schedule_by_shid',
-            GET => 'not_implemented', 
-            DELETE => 'not_implemented', 
+            GET => '_sched_by_shid',
+            DELETE => '_sched_by_shid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
@@ -275,39 +252,57 @@ EOH
     { 
         target => {
             POST => '_intervals_post',
-            DELETE => '_intervals_delete',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
         cli => 'schedule intervals',
-        description => 'Insert and delete schedules',
+        description => 'Insert schedules',
         documentation => <<'EOH',
 =pod
 
-Inserts (POST) or deletes (DELETE) a schedule.
+Given a set of intervals, all of which must fall within a single contiguous
+168-hour (7-day) period, this resource performs all actions necessary to either
+create a new schedule from those intervals or verify that an equivalent
+schedule already exists.
 
-=over
+Sample JSON:
 
-=item * POST
+    [ 
+        "[2014-09-22 08:00, 2014-09-22 12:00)",
+        "[2014-09-22 12:30, 2014-09-22 16:30)",
+        "[2014-09-23 08:00, 2014-09-23 12:00)",
+        "[2014-09-23 12:30, 2014-09-23 16:30)",
+        "[2014-09-24 08:00, 2014-09-24 12:00)",
+        "[2014-09-24 12:30, 2014-09-24 16:30)",
+        "[2014-09-25 08:00, 2014-09-25 12:00)",
+        "[2014-09-25 12:30, 2014-09-25 16:30)"
+    ]
 
-The request body must contain an array of non-overlapping tsranges (intervals)
-that fall within a 168-hour (7-day) period. If successful, the payload will
-contain three properties: 'ssid' (containing the SSID assigned to the
-intervals), 'intervals' (containing the intervals themselves), and 'schedule'
-(containing the intervals converted into the format suitable for insertion into
-the 'schedule' table).
+Read on for details:
 
-If the exact schedule already exists in the database, the POST operation
-returns it.  Instead of DISPATCH_SCHEDULE_INSERT_OK, in this case the return
-status code will be DISPATCH_SCHEDULE_OK.
+First, a set of scratch intervals is created in the 'schedintvls' table.
+If this succeeds, an INSERT operation is used to create a new record in the
+'schedule' table. This operation has two possible successful outcomes 
+depending on whether such a schedule already existed in the database, or not.
+The status codes for these outcomes are DISPATCH_SCHEDULE_OK and
+DISPATCH_SCHEDULE_INSERT_OK, respectively.
 
-=item * DELETE
+In both cases, the underlying scratch intervals are deleted automatically.
+(All operations on the 'schedintlvs' table are supposed to be hidden from 
+Dochazka clients.) 
 
-An 'ssid' property must be given as a property in the request body. If found,
-the scratch schedule will be deleted in an atomic operation. If the SSID is
-found and the delete operation is successful, the status will be "OK".
+Note that many sets of intervals can map to a single schedule (the conversion
+process is only interested in the day of the week), so this resource may return
+DISPATCH_SCHEDULE_OK more often than you think.
 
-=back
+Whether or not the exact schedule existed already, if the underlying database
+operation is successful the payload will contain three properties: 'sid' (the
+SID assigned to the schedule containing the intervals), 'intervals' (the
+intervals themselves), and 'schedule' (the intervals as they appear after being
+converted into the format suitable for insertion into the 'schedule' table).
+
+N.B. At present there is no way to just check for the existence of a schedule
+corresponding to a given set of intervals. 
 EOH
     },
     'schedule/nick/:nick/?:ts' => 
@@ -349,18 +344,16 @@ EOH
     'schedule/sid/:sid' => 
     { 
         target => {
-            GET => '_intervals_get',
+            GET => '_schedule_get',
             POST => '_schedule_post', 
-            DELETE => '_intervals_delete',
+            DELETE => '_schedule_delete',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
         cli => 'schedule sid $SID',
-        description => 'Retrieve (GET), update (POST) or delete (DELETE) a schedule by its SID',
+        description => 'Retrieves, updates, or deletes a schedule by its SID',
         documentation => <<'EOH',
 =pod
-
-Retrieves (GET), updates (POST), or deletes (DELETE) a schedule by its SID.
 
 =over
 

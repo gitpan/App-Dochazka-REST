@@ -36,10 +36,8 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 
-use App::Dochazka::REST;
 
-
-our $VERSION = 0.265;
+our $VERSION = 0.268;
 
 1;
 __END__
@@ -47,7 +45,7 @@ __END__
 
 =head1 NAME
 
-App::Dochazka::REST::Docs::Resources - Documentation of App::Dochazka::REST resources
+App::Dochazka::REST::Docs::Resources - Documentation of REST resources
 
 
 =head1 DESCRIPTION
@@ -56,15 +54,24 @@ This is a POD-only module containing documentation on all the REST resources
 defined under C<config/dispatch>. This module is auto-generated.
 
 
-
-=head1 TOP-LEVEL RESOURCES
-
+=head1 RESOURCES
 
 
 
-=head2 C</>
+=head2 Top-level
+
+Miscellaneous resources that don't fit under any specific category.
+
+
+
+
+=head3 /
 
 Display available top-level resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD 
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -78,24 +85,36 @@ In terms of behavior, the "" resource is identical to "help" --
 it returns the set of top-level resources available to the user.
 
 
-=head2 C<activity>
+=head3 activity
 
 Display available employee resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD employee
 
 Lists activity resources available to the logged-in employee.
 
 
-=head2 C<bugreport>
+=head3 bugreport
 
 Display the address for reporting bugs in App::Dochazka::REST
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD bugreport
 
 Returns a "report_bugs_to" key in the payload, containing the address to
 report bugs to.
 
 
-=head2 C<docu>
+=head3 docu
 
 Display on-line Plain Old Documentation (POD) on the resource whose name is provided in the request body (in double-quotes)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD docu $RESOURCE
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -104,9 +123,13 @@ request body. It returns a string containing the POD source code of the
 resource documentation.
 
 
-=head2 C<docu/html>
+=head3 docu/html
 
 Display on-line HTML documentation on the resource whose name is provided in the request body (in double-quotes)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD docu html $RESOURCE
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -114,31 +137,47 @@ including the double-quotes, and without leading or trailing slash) in the
 request body. It returns HTML source code of the resource documentation.
 
 
-=head2 C<echo>
+=head3 echo
 
 Echo the request body
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD echo [$JSON]
 
 This resource simply takes whatever content body was sent and echoes it
 back in the response body.
 
 
-=head2 C<employee>
+=head3 employee
 
 Display available employee resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD employee
 
 Lists employee resources available to the logged-in employee.
 
 
-=head2 C<forbidden>
+=head3 forbidden
 
 A resource that is forbidden to all
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD forbidden
 
 This resource always returns 405 Method Not Allowed, no matter what.
 
 
-=head2 C<help>
+=head3 help
 
 Display available top-level resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD help
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -161,9 +200,13 @@ description, as well as a link to the App::Dochazka::REST on-line
 documentation.
 
 
-=head2 C<metaparam/:param>
+=head3 metaparam/:param
 
 Display (GET) or set (PUT) meta configuration parameter
+
+Works with HTTP methods: DELETE, PUT, GET
+
+B<CLI>: $METHOD metaparam $PARAM [$JSON]
 
 =over 
 
@@ -188,67 +231,101 @@ If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED
 =back
 
 
-=head2 C<not_implemented>
+=head3 not_implemented
 
 A resource that will never be implemented
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD not_implemented
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
 
 
-=head2 C<priv>
+=head3 priv
 
 Display available priv resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD priv
 
 Lists priv resources available to the logged-in employee.
 
 
-=head2 C<schedule>
+=head3 schedule
 
 Display available schedule resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD schedule
 
 Lists schedule resources available to the logged-in employee.
 
 
-=head2 C<session>
+=head3 session
 
 Display the current session
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD session
 
 Dumps the current session data (server-side).
 
 
-=head2 C<siteparam/:param>
+=head3 siteparam/:param
 
 Display site configuration parameter
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD siteparam $PARAM
 
 Assuming that the argument ":param" is the name of an existing site
 parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined).
 
 
-=head2 C<version>
+=head3 version
 
 Display App::Dochazka::REST version
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD version
 
 Shows the L<App::Dochazka::REST> version running on the present instance.
 
 
-=head2 C<whoami>
+=head3 whoami
 
 Display the current employee (i.e. the one we authenticated with)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD whoami
 
 Displays the profile of the currently logged-in employee (same as
 "employee/current")
 
 
-=head1 ACTIVITY RESOURCES
+=head2 Activity
+
+Resources related to activities.
 
 
 
 
-=head2 C<activity/aid>
+=head3 activity/aid
 
 Update an existing activity object via POST request (AID must be included in request body)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD activity aid
 
 Enables existing activity objects to be updated by sending a POST request to
 the REST server. Along with the properties to be modified, the request body
@@ -256,9 +333,13 @@ must include an 'aid' property, the value of which specifies the AID to be
 updated.
 
 
-=head2 C<activity/aid/:aid>
+=head3 activity/aid/:aid
 
 GET, PUT, or DELETE an activity object by its AID
+
+Works with HTTP methods: DELETE, PUT, GET
+
+B<CLI>: $METHOD activity aid $AID
 
 =over
 
@@ -282,23 +363,35 @@ This will work only if nothing in the database refers to this activity.
 =back
 
 
-=head2 C<activity/all>
+=head3 activity/all
 
 Retrieve all activity objects (excluding disabled ones)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD activity all
 
 Retrieves all activity objects in the database (excluding disabled activities).
 
 
-=head2 C<activity/all/disabled>
+=head3 activity/all/disabled
 
 Retrieve all activity objects, including disabled ones
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD activity all disabled
 
 Retrieves all activity objects in the database (including disabled activities).
 
 
-=head2 C<activity/code>
+=head3 activity/code
 
 Update an existing activity object via POST request (activity code must be included in request body)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD activity aid
 
 This resource enables existing activity objects to be updated, and new
 activity objects to be inserted, by sending a POST request to the REST server.
@@ -307,9 +400,13 @@ include an 'code' property, the value of which specifies the activity to be
 updated.  
 
 
-=head2 C<activity/code/:code>
+=head3 activity/code/:code
 
 GET, PUT, or DELETE an activity object by its code
+
+Works with HTTP methods: DELETE, PUT, GET
+
+B<CLI>: $METHOD activity code $CODE
 
 =over
 
@@ -334,22 +431,32 @@ activity.
 =back
 
 
-=head2 C<activity/help>
+=head3 activity/help
 
 Display available activity resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD activity help
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
 
 
-=head1 EMPLOYEE RESOURCES
+=head2 Employee
+
+Resources related to employee profiles.
 
 
 
 
-=head2 C<employee/count>
+=head3 employee/count
 
 Display total count of employees (all privilege levels)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD employee count
 
 Gets the total number of employees in the database. This includes employees
 of all privilege levels, including not only administrators and active
@@ -357,9 +464,13 @@ employees, but inactives and passerbies as well. Keep this in mind when
 evaluating the number returned.
 
 
-=head2 C<employee/count/:priv>
+=head3 employee/count/:priv
 
 Display total count of employees with given privilege level
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD employee count $PRIV
 
 Gets the number of employees with a given privilege level. Valid
 privlevels are: 
@@ -377,26 +488,38 @@ privlevels are:
 =back
 
 
-=head2 C<employee/current>
+=head3 employee/current
 
 Display the current employee (i.e. the one we authenticated with)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD employee current
 
 Displays the profile of the currently logged-in employee. The information
 is limited to just the employee object itself.
 
 
-=head2 C<employee/current/priv>
+=head3 employee/current/priv
 
 Display the privilege level of the current employee (i.e. the one we authenticated with)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD employee current priv
 
 Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
 the employee's privlevel in the 'priv' property.
 
 
-=head2 C<employee/eid>
+=head3 employee/eid
 
 Update existing employee (JSON request body with EID required)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD employee eid $JSON
 
 This resource provides a way to update employee objects using the
 POST method, provided the employee's EID is provided in the content body.
@@ -408,9 +531,13 @@ This would change the 'fullname' property of the employee with EID 43 to "Foo
 Bariful" (provided such an employee exists).
 
 
-=head2 C<employee/eid/:eid>
+=head3 employee/eid/:eid
 
 GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee
+
+Works with HTTP methods: DELETE, PUT, GET
+
+B<CLI>: $METHOD employee eid $EID [$JSON]
 
 =over
 
@@ -437,17 +564,25 @@ exists and nothing in the database refers to it).
 =back
 
 
-=head2 C<employee/help>
+=head3 employee/help
 
 Display available employee resources for given HTTP method
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD employee help
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
 
 
-=head2 C<employee/nick>
+=head3 employee/nick
 
 Insert new/update existing employee (JSON request body with nick required)
+
+Works with HTTP methods: POST
+
+B<CLI>: $METHOD employee nick $JSON
 
 This resource provides a way to insert/update employee objects using the
 POST method, provided the employee's nick is provided in the content body.
@@ -462,9 +597,13 @@ doesn't exist this HTTP request would cause a new employee 'foobar' to be
 created.
 
 
-=head2 C<employee/nick/:nick>
+=head3 employee/nick/:nick
 
 Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter
+
+Works with HTTP methods: DELETE, PUT, GET
+
+B<CLI>: $METHOD employee nick $NICK [$JSON]
 
 =over
 
@@ -496,14 +635,20 @@ in question.
 =back
 
 
-=head1 PRIVILEGE RESOURCES
+=head2 Privilege
+
+Resources related to employee privileges and privhistories.
 
 
 
 
-=head2 C<priv/eid/:eid/?:ts>
+=head3 priv/eid/:eid/?:ts
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv eid $EID [$TIMESTAMP]
 
 This resource retrieves the privlevel of an arbitrary employee specified by EID.
 
@@ -511,17 +656,25 @@ If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
 
-=head2 C<priv/help>
+=head3 priv/help
 
 Display priv resources
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD priv help
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
 
 
-=head2 C<priv/history/eid/:eid>
+=head3 priv/history/eid/:eid
 
-Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee's privhistory
+Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (POST) a record to employee's privhistory
+
+Works with HTTP methods: POST, GET
+
+B<CLI>: $METHOD priv history eid $EID [$JSON]
 
 =over
 
@@ -530,30 +683,37 @@ Retrieves entire history of privilege level changes for employee with the given 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given EID.
 
-=item * PUT
+=item * POST
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item * DELETE
-
-Deletes a record from the privhistory of the given employee. The content
-body should contain two properties: "timestamp" and "privlevel".
+It is assumed that privhistories will be built up record-by-record, but this
+dispatch target could conceivably support insertion of multiple privhistory
+records.
 
 =back
 
 
-=head2 C<priv/history/eid/:eid/:tsrange>
+=head3 priv/history/eid/:eid/:tsrange
 
 Get a slice of history of privilege level changes for employee with the given EID
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv history eid $EID $TSRANGE
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
 
 
-=head2 C<priv/history/nick/:nick>
+=head3 priv/history/nick/:nick
 
-Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee's privhistory
+Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee's privhistory
+
+Works with HTTP methods: POST, GET
+
+B<CLI>: $METHOD priv history nick $NICK [$JSON]
 
 =over
 
@@ -562,30 +722,37 @@ Retrieves entire history of privilege level changes for employee with the given 
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given nick.
 
-=item * PUT
+=item * POST
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item * DELETE
-
-Deletes a record from the privhistory of the given employee. The content
-body should contain two properties: "timestamp" and "privlevel".
+It is assumed that privhistories will be built up record-by-record, but this
+dispatch target could conceivably support insertion of multiple privhistory
+records.
 
 =back
 
 
-=head2 C<priv/history/nick/:nick/:tsrange>
+=head3 priv/history/nick/:nick/:tsrange
 
 Get partial history of privilege level changes for employee with the given nick (i.e, limit to given tsrange)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv history nick $NICK $TSRANGE
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
 
 
-=head2 C<priv/history/phid/:phid>
+=head3 priv/history/phid/:phid
 
 Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID
+
+Works with HTTP methods: DELETE, GET
+
+B<CLI>: $METHOD priv history phid $PHID
 
 =over
 
@@ -603,18 +770,26 @@ Deletes a privhistory record by its PHID.
 "PUT priv/history/nick/:nick")
 
 
-=head2 C<priv/history/self/?:tsrange>
+=head3 priv/history/self/?:tsrange
 
 Retrieves privhistory of present employee, with option to limit to :tsrange
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv history self [$TSRANGE]
 
 This resource retrieves the "privhistory", or history of changes in
 privilege level, of the present employee. Optionally, the listing can be
 limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
 
-=head2 C<priv/nick/:nick/?:ts>
+=head3 priv/nick/:nick/?:ts
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv nick $NICK [$TIMESTAMP]
 
 This resource retrieves the privlevel of an arbitrary employee specified by nick.
 
@@ -622,9 +797,13 @@ If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
 
-=head2 C<priv/self/?:ts>
+=head3 priv/self/?:ts
 
 Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD priv self [$TIMESTAMP]
 
 This resource retrieves the privlevel of the caller (currently logged-in employee).
 
@@ -632,30 +811,44 @@ If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
 
-=head1 SCHEDULE RESOURCES
+=head2 Schedule
+
+Resources related to employee schedules and schedhistories.
 
 
 
 
-=head2 C<schedule/all>
+=head3 schedule/all
 
 Retrieves (GET) all non-disabled schedules
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule all
 
 This resource returns a list (array) of all schedules for which the 'disabled' field has
 either not been set or has been set to 'false'.
 
 
-=head2 C<schedule/all/disabled>
+=head3 schedule/all/disabled
 
 Retrieves (GET) all schedules (disabled and non-disabled)
 
-This resource returns a list (array) of all schedules, regardless of thie contents
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule all disabled
+
+This resource returns a list (array) of all schedules, regardless of the contents
 of the 'disabled' field.
 
 
-=head2 C<schedule/eid/:eid/?:ts>
+=head3 schedule/eid/:eid/?:ts
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule eid $EID [$TIMESTAMP]
 
 This resource retrieves the schedule of an arbitrary employee specified by EID.
 
@@ -663,17 +856,25 @@ If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
 
-=head2 C<schedule/help>
+=head3 schedule/help
 
 Display schedule resources
+
+Works with HTTP methods: DELETE, POST, PUT, GET
+
+B<CLI>: $METHOD schedule help
 
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
 
 
-=head2 C<schedule/history/eid/:eid>
+=head3 schedule/history/eid/:eid
 
-GET: Get entire history of schedule changes for employee with the given EID, PUT: add a record to schedule history of employee, DELETE: delete a schedule record
+Retrieves (GET) entire history of schedule changes for employee with the given EID; adds (POST) a record to schedule history of employee
+
+Works with HTTP methods: POST, GET
+
+B<CLI>: $METHOD schedule history eid $EID [$JSON]
 
 =over
 
@@ -682,30 +883,33 @@ GET: Get entire history of schedule changes for employee with the given EID, PUT
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given EID.
 
-=item * PUT
+=item * POST
 
 Adds a record to the schedule history of the given employee. The content
-body should contain two properties: "effective" (timestamp) and "sid" (integer).
-
-=item * DELETE
-
-Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
 
 
-=head2 C<schedule/history/eid/:eid/:tsrange>
+=head3 schedule/history/eid/:eid/:tsrange
 
-Get a slice of history of schedule changes for employee with the given EID
+Retrieves a slice of history of schedule changes for employee with the given EID
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule history eid $EID $TSRANGE
 
 Retrieves a slice (given by the tsrange argument) of the employee's
-"schedule history" (history of changes in schedule).
+"schedule history" (history of changes in schedule). 
 
 
-=head2 C<schedule/history/nick/:nick>
+=head3 schedule/history/nick/:nick
 
-Get entire history of schedule changes for employee with the given nick
+Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee
+
+Works with HTTP methods: POST, GET
+
+B<CLI>: $METHOD schedule history nick $NICK [$JSON]
 
 =over
 
@@ -714,39 +918,46 @@ Get entire history of schedule changes for employee with the given nick
 Retrieves the "schedule history", or history of changes in
 schedule, of the employee with the given nick.
 
-=item * PUT
+=item * POST
 
 Adds a record to the schedule history of the given employee. The content
-body should contain two properties: "effective" (timestamp) and "sid" (integer).
-
-=item * DELETE
-
-Deletes a record from the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
 
 
-=head2 C<schedule/history/nick/:nick/:tsrange>
+=head3 schedule/history/nick/:nick/:tsrange
 
 Get partial history of schedule changes for employee with the given nick (i.e, limit to given tsrange)
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule history nick $NICK $TSRANGE
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule).
 
 
-=head2 C<schedule/history/self/?:tsrange>
+=head3 schedule/history/self/?:tsrange
 
 Get schedule history of current employee, with option to limit to :tsrange
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule history current [$TSRANGE]
 
 This resource retrieves the "schedule history", or history of changes in
 schedule, of the current employee. Optionally, the listing can be
 limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
 
-=head2 C<schedule/history/shid/:shid>
+=head3 schedule/history/shid/:shid
 
 GET or DELETE a schedule record by its SHID
+
+Works with HTTP methods: DELETE, GET
+
+B<CLI>: $METHOD schedule history shid $SHID
 
 =over
 
@@ -764,39 +975,66 @@ Deletes a schedule history record by its SHID.
 "PUT schedule/history/nick/:nick")
 
 
-=head2 C<schedule/intervals>
+=head3 schedule/intervals
 
-Insert and delete schedules
+Insert schedules
 
-Inserts (POST) or deletes (DELETE) a schedule.
+Works with HTTP methods: POST
 
-=over
+B<CLI>: $METHOD schedule intervals
 
-=item * POST
+Given a set of intervals, all of which must fall within a single contiguous
+168-hour (7-day) period, this resource performs all actions necessary to either
+create a new schedule from those intervals or verify that an equivalent
+schedule already exists.
 
-The request body must contain an array of non-overlapping tsranges (intervals)
-that fall within a 168-hour (7-day) period. If successful, the payload will
-contain three properties: 'ssid' (containing the SSID assigned to the
-intervals), 'intervals' (containing the intervals themselves), and 'schedule'
-(containing the intervals converted into the format suitable for insertion into
-the 'schedule' table).
+Sample JSON:
 
-If the exact schedule already exists in the database, the POST operation
-returns it.  Instead of DISPATCH_SCHEDULE_INSERT_OK, in this case the return
-status code will be DISPATCH_SCHEDULE_OK.
+    [ 
+        "[2014-09-22 08:00, 2014-09-22 12:00)",
+        "[2014-09-22 12:30, 2014-09-22 16:30)",
+        "[2014-09-23 08:00, 2014-09-23 12:00)",
+        "[2014-09-23 12:30, 2014-09-23 16:30)",
+        "[2014-09-24 08:00, 2014-09-24 12:00)",
+        "[2014-09-24 12:30, 2014-09-24 16:30)",
+        "[2014-09-25 08:00, 2014-09-25 12:00)",
+        "[2014-09-25 12:30, 2014-09-25 16:30)"
+    ]
 
-=item * DELETE
+Read on for details:
 
-An 'ssid' property must be given as a property in the request body. If found,
-the scratch schedule will be deleted in an atomic operation. If the SSID is
-found and the delete operation is successful, the status will be "OK".
+First, a set of scratch intervals is created in the 'schedintvls' table.
+If this succeeds, an INSERT operation is used to create a new record in the
+'schedule' table. This operation has two possible successful outcomes 
+depending on whether such a schedule already existed in the database, or not.
+The status codes for these outcomes are DISPATCH_SCHEDULE_OK and
+DISPATCH_SCHEDULE_INSERT_OK, respectively.
 
-=back
+In both cases, the underlying scratch intervals are deleted automatically.
+(All operations on the 'schedintlvs' table are supposed to be hidden from 
+Dochazka clients.) 
+
+Note that many sets of intervals can map to a single schedule (the conversion
+process is only interested in the day of the week), so this resource may return
+DISPATCH_SCHEDULE_OK more often than you think.
+
+Whether or not the exact schedule existed already, if the underlying database
+operation is successful the payload will contain three properties: 'sid' (the
+SID assigned to the schedule containing the intervals), 'intervals' (the
+intervals themselves), and 'schedule' (the intervals as they appear after being
+converted into the format suitable for insertion into the 'schedule' table).
+
+N.B. At present there is no way to just check for the existence of a schedule
+corresponding to a given set of intervals. 
 
 
-=head2 C<schedule/nick/:nick/?:ts>
+=head3 schedule/nick/:nick/?:ts
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule nick $NICK [$TIMESTAMP]
 
 This resource retrieves the schedule of an arbitrary employee specified by nick.
 
@@ -804,9 +1042,13 @@ If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
 
-=head2 C<schedule/self/?:ts>
+=head3 schedule/self/?:ts
 
 Get the current schedule of the currently logged-in employee, or with optional timestamp, that employee's schedule as of that timestamp
+
+Works with HTTP methods: GET
+
+B<CLI>: $METHOD schedule current [$TIMESTAMP]
 
 This resource retrieves the schedule of the caller (currently logged-in employee).
 
@@ -814,11 +1056,13 @@ If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
 
-=head2 C<schedule/sid/:sid>
+=head3 schedule/sid/:sid
 
-Retrieve (GET), update (POST) or delete (DELETE) a schedule by its SID
+Retrieves, updates, or deletes a schedule by its SID
 
-Retrieves (GET), updates (POST), or deletes (DELETE) a schedule by its SID.
+Works with HTTP methods: DELETE, POST, GET
+
+B<CLI>: $METHOD schedule sid $SID
 
 =over
 
@@ -844,5 +1088,9 @@ the return status will be "OK".
 =back
 
 
+
+=head1 AUTHOR
+
+Nathan Cutler C<ncutler@suse.cz>
 
 =cut

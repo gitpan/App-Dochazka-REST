@@ -158,7 +158,7 @@ foreach my $priv_fields ( @$ph ) {
     ok( ! phid_exists( $phid ) );
     ok( $status->ok, "DELETE OK" );
     $priv->reset;
-    $status = $priv->load_by_phid( $phid );
+    $status = $priv->load_by_id( $phid );
     is( $status->level, "NOTICE" );
     is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 }

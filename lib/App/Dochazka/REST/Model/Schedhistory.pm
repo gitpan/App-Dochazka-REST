@@ -58,11 +58,11 @@ App::Dochazka::REST::Model::Schedhistory - schedule history functions
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -118,7 +118,9 @@ See also L<When history changes take effect>.
 
 =item * L<load_by_eid> method (load schedhistory record from EID and optional timestamp)
 
-=item * L<load_by_shid> method (load schedhistory record by its SHID)
+=item * L<load_by_shid> method (wrapper for load_by_id)
+
+=item * L<load_by_id> (load schedhistory record by its SHID)
 
 =item * L<insert> method (straightforward)
 
@@ -184,13 +186,13 @@ sub load_by_eid {
     
 
 
-=head2 load_by_shid
+=head2 load_by_id
 
 Given a shid, load a single schedhistory record.
 
 =cut
 
-sub load_by_shid {
+sub load_by_id {
     my $self = shift;
     my ( $shid ) = validate_pos( @_, { type => SCALAR } );
 
@@ -199,6 +201,18 @@ sub load_by_shid {
         sql => $site->SQL_SCHEDHISTORY_SELECT_BY_SHID,
         keys => [ $shid ],
     );
+}
+
+
+=head2 load_by_shid
+
+Wrapper for load_by_id
+
+=cut
+
+sub load_by_shid {
+    my $self = shift;
+    return $self->load_by_id( @_ );
 }
 
 
@@ -268,7 +282,7 @@ the payload will be undefined.
 =cut
 
 sub get_schedhistory {
-    return App::Dochazka::REST::Model::Shared::get_history( 'schedule', @_ );
+    return App::Dochazka::REST::Model::Shared::get_history( 'sched', @_ );
 }
 
 

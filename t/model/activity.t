@@ -43,7 +43,7 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
-use App::Dochazka::REST::Model::Activity qw( aid_exists code_exists aid_by_code );
+use App::Dochazka::REST::Model::Activity qw( aid_by_code aid_exists code_exists get_all_activities );
 use Scalar::Util qw( blessed );
 use Test::Fatal;
 use Test::More;
@@ -103,6 +103,14 @@ foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
     $act2 = $status->payload;
     is_deeply( $act, $act2 );
 }
+
+# test get_all_activities function
+$status = get_all_activities();
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( scalar( @{ $status->payload } ), scalar( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) );
+is( $status->{'count'}, scalar( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) );
+my $initial_noof_act = $status->{'count'};
 
 # test some bad parameters
 like( exception { $act2->load_by_aid( undef ) }, 
@@ -164,10 +172,17 @@ is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/Key \(code\)\=\(BOGUS\) already exists/ );
 
+# get_all_activities -> now there is one more
+$status = get_all_activities();
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( scalar( @{ $status->payload } ), ( $initial_noof_act + 1 ) );
+
 # update the activity (success)
 $bogus_act->{code} = "bogosITYVille";
 $bogus_act->{long_desc} = "A bogus activity that doesn't belong here";
 $bogus_act->{remark} = "BOGUS ACTIVITY";
+$bogus_act->{disabled} = 1;
 #diag( "About to update bogus_act" );
 $status = $bogus_act->update;
 if ( $status->not_ok ) {
@@ -179,6 +194,7 @@ is( $status->level, 'OK' );
 is( $bogus_act->code, 'BOGOSITYVILLE' );
 is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
 is( $bogus_act->remark, 'BOGUS ACTIVITY' );
+ok( $bogus_act->disabled );
 
 # load it and compare it
 $status = App::Dochazka::REST::Model::Activity->load_by_code( $bogus_act->code );
@@ -193,6 +209,21 @@ my $code_of_bogus_act = $bogus_act->code;
 
 ok( aid_exists( $aid_of_bogus_act ) );
 ok( code_exists( $code_of_bogus_act ) );
+
+# bogus activity is disabled, so the number of activities goes down by one
+# - this also tests that get_all_activities defaults to NOT include disableds
+$status = get_all_activities();
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, $initial_noof_act );
+
+# but if we include disableds in the count, it is one higher
+$status = get_all_activities( disabled => 1 );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, ( $initial_noof_act + 1 ) );
+# - and BOGOSITYVILLE is there
+ok( scalar( grep { $_->{'code'} eq 'BOGOSITYVILLE'; } @{ $status->payload } ) );
 
 # CLEANUP: delete the bogus activity
 #diag( "About to delete bogus_act" );
@@ -211,5 +242,13 @@ $status = App::Dochazka::REST::Model::Activity->load_by_code( 'BOGUS' );
 is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 is( $status->{'count'}, 0 );
+
+# look for BOGOSITYVILLE
+$status = get_all_activities( disabled => 1 );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, $initial_noof_act );
+# gone
+ok( ! scalar( grep { $_->{'code'} eq 'BOGOSITYVILLE'; } @{ $status->payload } ) );
 
 done_testing;

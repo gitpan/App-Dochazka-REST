@@ -105,13 +105,12 @@ EOH
    { 
         target => {
             GET => '_history_eid', 
-            PUT => '_history_eid',
-            DELETE => '_history_eid',
+            POST => '_history_eid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history eid $EID [$JSON]',
-        description => 'Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee\'s privhistory',
+        description => 'Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (POST) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
 
@@ -122,15 +121,14 @@ EOH
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given EID.
 
-=item * PUT
+=item * POST
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item * DELETE
-
-Deletes a record from the privhistory of the given employee. The content
-body should contain two properties: "timestamp" and "privlevel".
+It is assumed that privhistories will be built up record-by-record, but this
+dispatch target could conceivably support insertion of multiple privhistory
+records.
 
 =back
 EOH
@@ -155,13 +153,12 @@ EOH
     { 
         target => {
             GET => '_history_nick', 
-            PUT => '_history_nick', 
-            DELETE => '_history_nick',
+            POST => '_history_nick', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history nick $NICK [$JSON]',
-        description => 'Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) or deletes (DELETE) a record to employee\'s privhistory',
+        description => 'Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
 
@@ -172,15 +169,14 @@ EOH
 Retrieves the "privhistory", or history of changes in
 privilege level, of the employee with the given nick.
 
-=item * PUT
+=item * POST
 
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-=item * DELETE
-
-Deletes a record from the privhistory of the given employee. The content
-body should contain two properties: "timestamp" and "privlevel".
+It is assumed that privhistories will be built up record-by-record, but this
+dispatch target could conceivably support insertion of multiple privhistory
+records.
 
 =back
 EOH

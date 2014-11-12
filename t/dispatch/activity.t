@@ -304,8 +304,6 @@ docu_check($test, $base);
 
 # insert an activity and disable it here
 $foobar = create_testing_activity( code => 'FOOBAR' );
-$foobar = disable_testing_activity( code => $foobar->code );
-ok( $foobar->disabled, "$base testing activity is really disabled 1" );
 $aid_of_foobar = $foobar->aid;
 
 #
@@ -315,12 +313,27 @@ req( $test, 403, 'demo', 'GET', $base );
 $status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK', "GET $base 2" );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "GET $base 3" );
-is( $status->{count}, 8, "GET $base 4" );
-ok( exists $status->payload->{activities}, "GET $base 5" );
-is( scalar @{ $status->payload->{activities} }, 8, "GET $base 6" );
+is( $status->{count}, 9, "GET $base 4" );
+ok( exists $status->{payload}, "GET $base 5" );
+is( scalar @{ $status->payload }, 9, "GET $base 6" );
 #
-# - the disabled activity we just created is not shown
-ok( ! scalar( grep { $_->{code} eq 'FOOBAR'; } @{ $status->payload->{activities} } ), "GET $base 7" );
+# - testing activity is present
+ok( scalar( grep { $_->{code} eq 'FOOBAR'; } @{ $status->payload } ), "GET $base 7" );
+#
+# - disable the testing activity
+$foobar = disable_testing_activity( code => $foobar->code );
+ok( $foobar->disabled, "$base testing activity is really disabled 1" );
+#
+# - there is now one less in GET $base payload
+$status = req( $test, 200, 'root', 'GET', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{count}, 8 );
+ok( exists $status->{payload} );
+is( scalar @{ $status->payload }, 8 );
+#
+# - and testing activity is absent
+ok( ! scalar( grep { $_->{code} eq 'FOOBAR'; } @{ $status->payload } ), "GET $base 7" );
 
 #
 # PUT, POST, DELETE
@@ -354,11 +367,11 @@ is( $status->level, 'OK', "GET $base 2" );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "GET $base 3" );
 # count is 9 with disabled FOOBAR activity
 is( $status->{count}, 9, "GET $base 4" ); 
-ok( exists $status->payload->{activities}, "GET $base 5" );
-is( scalar @{ $status->payload->{activities} }, 9, "GET $base 6" );
+ok( exists $status->{payload}, "GET $base 5" );
+is( scalar @{ $status->payload }, 9, "GET $base 6" );
 #
 # - test that we get the disabled activity
-ok( scalar( grep { $_->{code} eq 'FOOBAR'; } @{ $status->payload->{activities} } ), "GET $base 7" );
+ok( scalar( grep { $_->{code} eq 'FOOBAR'; } @{ $status->payload } ), "GET $base 7" );
 
 
 #

@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -149,6 +149,10 @@ methods are:
 
 =item * L<load> (loads a single privhistory record)
 
+=item * L<load_by_phid> (wrapper for load_by_id)
+
+=item * L<load_by_id> (load a single privhistory record by its PHID)
+
 =item * L<insert> (inserts object into database)
 
 =item * L<delete> (deletes object from database)
@@ -213,13 +217,13 @@ sub load_by_eid {
 }
 
 
-=head2 load_by_phid
+=head2 load_by_id
 
 Class method.
 
 =cut
 
-sub load_by_phid {
+sub load_by_id {
     my $self = shift;
     my ( $phid ) = validate_pos( @_, { type => SCALAR } );
 
@@ -228,6 +232,18 @@ sub load_by_phid {
         sql => $site->SQL_PRIVHISTORY_SELECT_BY_PHID,
         keys => [ $phid ],
     );
+}
+
+
+=head2 load_by_phid
+
+Wrapper for load_by_id
+
+=cut
+
+sub load_by_phid {
+    my $self = shift;
+    return $self->load_by_id( @_ );
 }
 
 

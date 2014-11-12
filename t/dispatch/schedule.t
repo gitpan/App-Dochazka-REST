@@ -30,7 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# test schedule resources
+# test schedule (non-history) resources
 #
 
 #!perl
@@ -43,6 +43,7 @@ use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedule qw( sid_exists );
 use App::Dochazka::REST::Test;
+use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday $tomorrow );
 use Data::Dumper;
 use JSON;
 use Plack::Test;
@@ -159,7 +160,7 @@ ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 $base = "schedule/all";
 docu_check($test, $base);
 
-create_testing_schedule( $test );
+my $ts_sid = create_testing_schedule( $test );
 
 #
 # GET
@@ -171,7 +172,7 @@ is( $status->code, "DISPATCH_RECORDS_FOUND" );
 is( $status->{'count'}, 1 );
 ok( exists $status->payload->[0]->{'sid'} );
 ok( $status->payload->[0]->{'sid'} > 0 );
-my $ts_sid = $status->payload->[0]->{'sid'};
+is( $ts_sid, $status->payload->[0]->{'sid'} );
 
 #
 # add six more schedules to the pot
@@ -227,8 +228,6 @@ foreach my $user ( qw( demo root ) ) {
         req( $test, 405, $user, $method, $base );
     }
 }
-
-
 
 #===========================================
 # "schedule/all/disabled" resource
@@ -301,6 +300,7 @@ foreach my $user ( qw( demo root ) ) {
     }
 }
 
+#delete_testing_schedule( $ts_sid );
 
 
 #===========================================
@@ -359,6 +359,8 @@ foreach my $user ( qw( demo root ) ) {
         }
     }
 }
+
+delete_testing_schedule( $ts_sid );
 
 
 #=============================
@@ -450,489 +452,67 @@ ok( exists $status->payload->{'resources'} );
 ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 
-##=============================
-## "schedule/history/self/?:tsrange" resource
-##=============================
-#$base = 'schedule/history/self';
-##
-## RESOURCE DOCUMENTATION
-##
-#docu_check($test, "$base/?:tsrange");
-##
-## GET
-##
-## - auth fail
-#$res = $test->request( req_demo GET => $base );
-#is( $res->code, 403 );
-##
-## as root
-#$res = $test->request( req_root GET => $base );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'eid'} );
-#is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## with a valid tsrange
-#$res = $test->request( req_demo GET => "$base/[,)" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/[,)" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'eid'} );
-#is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## - with invalid tsrange
-#$res = $test->request( req_root GET => "$base/[,sdf)" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->not_ok );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DOCHAZKA_DBI_ERR' );
-#like( $status->text, qr/invalid input syntax for type timestamp/ );
-#
-##
-## PUT, POST, DELETE
-##
-#$res = $test->request( req_demo PUT => $base );
-#is( $res->code, 405);
-#$res = $test->request( req_demo POST => $base );
-#is( $res->code, 405);
-#$res = $test->request( req_demo DELETE => $base );
-#is( $res->code, 405);
-##
-#$res = $test->request( req_demo PUT => "$base/[,)" );
-#is( $res->code, 405);
-#$res = $test->request( req_demo POST => "$base/[,)" );
-#is( $res->code, 405);
-#$res = $test->request( req_demo DELETE => "$base/[,)" );
-#is( $res->code, 405);
+#===========================================
+# "schedule/intervals" resource
+#===========================================
+$base = "schedule/intervals";
+docu_check( $test, $base );
 
+#
+# GET, PUT
+#
+req( $test, 405, 'demo', 'GET', $base );
+req( $test, 405, 'root', 'GET', $base );
+req( $test, 405, 'demo', 'PUT', $base );
+req( $test, 405, 'root', 'PUT', $base );
 
-##===========================================
-## "schedule/history/eid/:eid" resource
-##===========================================
-#$base = "schedule/history/eid";
-#docu_check($test, "$base/:eid");
-##
-## GET
-##
-## - root employee
-#$res = $test->request( req_demo GET => $base . $site->DOCHAZKA_EID_OF_ROOT );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => $base . $site->DOCHAZKA_EID_OF_ROOT );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'eid'} );
-#is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## - non-existent EID
-#$res = $test->request( req_demo GET => "$base/4534" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/4534" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
-##
-## - invalid EID
-#$res = $test->request( req_demo GET => "$base/asas" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/asas" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DOCHAZKA_DBI_ERR' );
-#like( $status->text, qr/invalid input syntax for integer/ );
+# test typical workflow for this resource
 #
-##
-## PUT
-##
-## - we will be inserting a bunch of records so push them onto an array 
-##   for easy deletion later
-#my @ph_to_delete;
-## - be nice
-#my $j = '{ "effective":"1969-04-28 19:15", "priv":"inactive" }';
-#$res = $test->request( req_json_demo PUT => "$base/2", undef, $j );
-#is( $res->code, 403 );
-#$res = $test->request( req_json_root PUT => "$base/2", undef, $j );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#if ( $status->not_ok ) {
-#    diag( $status->code . ' ' . $status->text );
-#}
-#is( $status->level, 'OK' );
-#my $pho = $status->payload;
-#push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
-##
-## - be pathological
-#$j = '{ "effective":"1979-05-24", "horse" : "E-Or" }';
-#$res = $test->request( req_json_demo PUT => "$base/2", undef, $j );
-#is( $res->code, 403 );
-#$res = $test->request( req_json_root PUT => "$base/2", undef, $j );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DISPATCH_PRIVHISTORY_INVALID' );
-##
-## - addition of privlevel makes the above request less pathological
-#$j = '{ "effective":"1979-05-24", "horse" : "E-Or", "priv" : "admin" }';
-#$res = $test->request( req_json_demo PUT => "$base/2", undef, $j );
-#is( $res->code, 403 );
-#$res = $test->request( req_json_root PUT => "$base/2", undef, $j );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'OK' );
-#$pho = $status->payload;
-#push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
-##
-## - oops, we made demo an admin!
-#$j = '{ "effective":"2000-01-21", "priv" : "passerby" }';
-#$res = $test->request( req_json_demo PUT => "$base/2", undef, $j );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'OK' );
-#$pho = $status->payload;
-#push @ph_to_delete, { eid => $pho->{eid}, phid => $pho->{phid} };
+# - set up an array of schedule intervals for testing
+my $intvls = [
+    "[$tomorrow 12:30, $tomorrow 16:30)",
+    "[$tomorrow 08:00, $tomorrow 12:00)",
+    "[$today 12:30, $today 16:30)",
+    "[$today 08:00, $today 12:00)",
+    "[$yesterday 12:30, $yesterday 16:30)",
+    "[$yesterday 08:00, $yesterday 12:00)",
+];
+my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
 #
-##
-## POST
-##
-#my $uri = "$base/2";
-#$res = $test->request( req_json_demo POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root POST => $uri );
-#is( $res->code, 405 );
-#
-##
-## DELETE
-##
-## - we have some records queued for deletion
-#foreach my $rec ( @ph_to_delete ) {
-#    $j = '{ "phid": ' . $rec->{phid} . ' }';
-#    $res = $test->request( req_json_root DELETE => $base . $rec->{eid}, undef, $j );
-#    is( $res->code, 200 );
-#    is_valid_json( $res->content );
-#    $status = status_from_json( $res->content );
-#    is( $status->level, 'OK' );
-#}
-#@ph_to_delete = ();
-    
 
-##===========================================
-## "schedule/history/eid/:eid/:tsrange" resource
-##===========================================
-#$base = "schedule/history/eid";
-#docu_check($test, "$base/:eid/:tsrange");
-##
-## GET
-##
-## - root employee, with tsrange, records found
-#$res = $test->request( req_demo GET => $base . $site->DOCHAZKA_EID_OF_ROOT . 
-#    '/[999-12-31 23:59, 1000-01-01 00:01)' );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => $base . $site->DOCHAZKA_EID_OF_ROOT . 
-#    '/[999-12-31 23:59, 1000-01-01 00:01)' );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'eid'} );
-#is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## - root employee, with tsrange but no records found
-#$uri = $base . $site->DOCHAZKA_EID_OF_ROOT .
-#          '/[1999-12-31 23:59, 2000-01-01 00:01)';
-#$res = $test->request( req_demo GET => $uri );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => $uri );
-#is( $res->code, 404 );
-##
-## - non-existent EID
-#my $tsr = '[1999-12-31 23:59, 2000-01-01 00:01)';
-#$res = $test->request( req_demo GET => "$base/4534/$tsr" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/4534/$tsr" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DISPATCH_EID_DOES_NOT_EXIST' );
-##
-## - invalid EID
-#$res = $test->request( req_demo GET => "$base/asas/$tsr" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/asas/$tsr" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DOCHAZKA_DBI_ERR' );
-#like( $status->text, qr/invalid input syntax for integer/ );
-#
-##
-## PUT, POST, DELETE
-##
-#$res = $test->request( req_json_demo PUT => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root PUT => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_demo POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_demo DELETE => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root DELETE => $uri );
-#is( $res->code, 405 );
+# - request as demo will fail with 403
+req( $test, 403, 'demo', 'POST', $base, $intvls_json );
 
+# - request as root with no request body will return DISPATCH_SCHEDINTVLS_MISSING
+$status = req( $test, 200, 'root', 'POST', $base );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_SCHEDINTVLS_MISSING' );
 
-##===========================================
-## "schedule/history/nick/:nick" resource
-##===========================================
-#$base = "schedule/history/nick"
-#docu_check($test, "$base/:nick");
-##
-## GET
-##
-## - root employee
-#$res = $test->request( req_demo GET => "$base/root" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/root" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'nick'} );
-#is( $status->payload->{'nick'}, 'root' );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, 1 );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## - non-existent employee
-#$res = $test->request( req_demo GET => "$base/humphreybogart" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/humphreybogart" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
-#
-##
-## PUT
-##
-#$j = '{ "effective":"1969-04-27 9:45", "priv":"inactive" }';
-#$res = $test->request( req_json_demo PUT => "$base/demo', undef, $j );
-#is( $res->code, 403 );
-#$res = $test->request( req_json_root PUT => "$base/demo', undef, $j );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#if ( $status->not_ok ) {
-#    diag( $status->code . ' ' . $status->text );
-#}
-#is( $status->level, 'OK' );
-#$pho = $status->payload;
-#push @ph_to_delete, { nick => 'demo', phid => $pho->{phid} };
-#
-##
-## POST
-##
-#$uri = "$base/asdf";
-#$res = $test->request( req_json_demo POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root POST => $uri );
-#is( $res->code, 405 );
-#
-##
-## DELETE
-##
-## - we have some records queued for deletion
-#foreach my $rec ( @ph_to_delete ) {
-#    $j = '{ "phid": ' . $rec->{phid} . ' }';
-#    $res = $test->request( req_json_root DELETE => $base . $rec->{nick}, undef, $j );
-#    is( $res->code, 200 );
-#    is_valid_json( $res->content );
-#    $status = status_from_json( $res->content );
-#    is( $status->level, 'OK' );
-#}
+# - request as root 
+$status = req( $test, 200, 'root', 'POST', $base, $intvls_json );
+diag( Dumper $status ) unless $status->ok;
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_SCHEDULE_INSERT_OK' );
+ok( exists $status->{'payload'} );
+ok( exists $status->payload->{'sid'} );
+my $sid = $status->payload->{'sid'};
 
-##===========================================
-## "schedule/history/nick/:nick/:tsrange" resource
-##===========================================
-#docu_check($test, "$base/:nick/:tsrange");
-##
-## GET
-##
-## - root employee, with tsrange, records found
-#$res = $test->request( req_demo GET => "$base/root/[999-12-31 23:59, 1000-01-01 00:01)" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/root/[999-12-31 23:59, 1000-01-01 00:01)' );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, "DISPATCH_RECORDS_FOUND" );
-#ok( defined $status->payload );
-#ok( exists $status->payload->{'nick'} );
-#is( $status->payload->{'nick'}, 'root' );
-#ok( exists $status->payload->{'history'} );
-#is( scalar @{ $status->payload->{'history'} }, 1 );
-#is( $status->payload->{'history'}->[0]->{'eid'}, 1 );
-#ok( exists $status->payload->{'history'}->[0]->{'effective'} );
-##
-## - non-existent employee
-#$tsr = '[999-12-31 23:59, 1000-01-01 00:01)';
-#$res = $test->request( req_demo GET => "$base/humphreybogart/$tsr" );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => "$base/humphreybogart/$tsr" );
-#is( $res->code, 200 );
-#is_valid_json( $res->content );
-#$status = status_from_json( $res->content );
-#is( $status->level, 'ERR' );
-#is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
-##
-## - root employee, with tsrange but no records found
-#$uri = "$base/root/[1999-12-31 23:59, 2000-01-01 00:01)";
-#$res = $test->request( req_demo GET => $uri );
-#is( $res->code, 403 );
-#$res = $test->request( req_root GET => $uri );
-#is( $res->code, 404 );
-#
-##
-## PUT, POST, DELETE
-##
-#$res = $test->request( req_json_demo PUT => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root PUT => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_demo POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root POST => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_demo DELETE => $uri );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root DELETE => $uri );
-#is( $res->code, 405 );
+# - request the same schedule - code should change to DISPATCH_SCHEDULE_OK
+$status = req( $test, 200, 'root', 'POST', $base, $intvls_json );
+diag( Dumper $status ) unless $status->ok;
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_SCHEDULE_OK' );
+ok( exists $status->{'payload'} );
+ok( exists $status->payload->{'sid'} );
+is( $status->payload->{'sid'}, $sid );
 
+# - and now delete the schedules record (schedintvls records are already gone)
+$status = req( $test, 200, 'root', 'DELETE', "schedule/sid/$sid" );
+diag( Dumper $status ) unless $status->ok;
+is( $status->code, 'DOCHAZKA_CUD_OK' );
 
-##===========================================
-## "schedule/history/phid/:phid" resource
-##===========================================
-#$base = "schedule/history/phid"
-#docu_check($test, "$base/:phid");
-##
-## preparation
-##
-## demo is a passerby
-#$res = $test->request( req_demo GET => "priv/self" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->payload->{'priv'}, "passerby" );
-##
-## make demo an 'inactive' user as of 1977-04-27 15:30
-#$res = $test->request( req_json_root PUT => "priv/history/nick/demo", undef,
-#    '{ "effective":"1977-04-27 15:30", "priv":"inactive" }' );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, 'DOCHAZKA_CUD_OK' );
-#is( $status->payload->{'effective'}, '1977-04-27 15:30:00' );
-#is( $status->payload->{'priv'}, 'inactive' );
-#is( $status->payload->{'remark'}, undef );
-#is( $status->payload->{'eid'}, 2 );
-#ok( $status->payload->{'phid'} );
-#my $tphid = $status->payload->{'phid'};
-##
-## demo is an inactive
-#$res = $test->request( req_demo GET => "priv/self" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->payload->{'priv'}, "inactive" );
-#
-##
-## GET
-##
-#$res = $test->request( req_json_root GET => "$base/$tphid" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-#is_deeply( $status->payload, {
-#    'remark' => undef,
-#    'priv' => 'inactive',
-#    'eid' => 2,
-#    'phid' => $tphid,
-#    'effective' => '1977-04-27 15:30:00'
-#} );
-#
-##
-## PUT, POST
-##
-#$res = $test->request( req_json_demo PUT => "$base/$tphid" );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root PUT => "$base/$tphid" );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_demo POST => "$base/$tphid" );
-#is( $res->code, 405 );
-#$res = $test->request( req_json_root POST => "$base/$tphid" );
-#is( $res->code, 405 );
-#
-##
-## DELETE
-##
-## delete the privhistory record we created earlier
-#$res = $test->request( req_json_root DELETE => "$base/$tphid" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->code, 'DOCHAZKA_CUD_OK' );
-##
-## not there anymore
-#$res = $test->request( req_json_root GET => "$base/$tphid" );
-#is( $res->code, 404 );
-##
-## and demo is a passerby again
-#$res = $test->request( req_demo GET => "priv/self" );
-#is( $res->code, 200 );
-#$status = status_from_json( $res->content );
-#ok( $status->ok );
-#is( $status->payload->{'priv'}, "passerby" );
+# - count should now be zero
+$status = req( $test, 404, 'root', 'GET', 'schedule/all/disabled' );
 
 
 #===========================================
@@ -1036,6 +616,74 @@ foreach my $user ( qw( demo root ) ) {
     }
 }
 
-delete_testing_schedule( $ts_sid );
+
+#===========================================
+# "schedule/sid/:sid" resource
+#===========================================
+$base = 'schedule/sid';
+docu_check( $test, "$base/:sid" );
+
+$sid = create_testing_schedule( $test );
+
+#
+# GET
+#
+$status = req( $test, 200, 'root', 'GET', "$base/$sid" );
+diag( Dumper $status ) unless $status->ok;
+#diag( Dumper $status );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->payload->{'disabled'}, 0 );
+is( $status->payload->{'remark'}, undef );
+is( $status->payload->{'schedule'}, '[{"high_dow":"FRI","high_time":"12:00","low_dow":"FRI","low_time":"08:00"},{"high_dow":"FRI","high_time":"16:30","low_dow":"FRI","low_time":"12:30"},{"high_dow":"SAT","high_time":"12:00","low_dow":"SAT","low_time":"08:00"},{"high_dow":"SAT","high_time":"16:30","low_dow":"SAT","low_time":"12:30"},{"high_dow":"SUN","high_time":"12:00","low_dow":"SUN","low_time":"08:00"},{"high_dow":"SUN","high_time":"16:30","low_dow":"SUN","low_time":"12:30"}]' );
+ok( $status->payload->{'sid'} > 0 );
+is( $status->payload->{'sid'}, $sid );
+
+#
+# PUT
+#
+req( $test, 405, 'demo', 'PUT', "$base/1" );
+req( $test, 405, 'root', 'PUT', "$base/1" );
+
+#
+# POST
+#
+# - add a remark to the schedule
+req( $test, 403, 'demo', 'POST', "$base/$sid" );
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "remark" : "foobar" }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+ok( exists( $status->{'payload'} ) );
+ok( defined( $status->payload ) );
+ok( exists( $status->{'payload'}->{'remark'} ) );
+ok( defined( $status->{'payload'}->{'remark'} ) );
+is( $status->{'payload'}->{'remark'}, "foobar" );
+#
+# verify with GET
+$status = req( $test, 200, 'root', 'GET', "$base/$sid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->payload->{'remark'}, 'foobar' );
+#
+# - disable the schedule in the wrong way
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":"hoogar" }' );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type boolean/ );
+#
+# - disable the schedule in the right way
+$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":true }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+
+
+#
+# DELETE
+#
+# - delete the testing schedule 
+$status = req( $test, 200, 'root', 'DELETE', "$base/$sid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+
 
 done_testing;

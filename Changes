@@ -1691,6 +1691,38 @@ Revision history for Dochazka-REST
 - t/dispatch/schedules.t: add proper minimal test cases for 'schedule/all' and
   'schedule/all/disabled'
 
-0.265  2014-11-10 17:49 CET
+0.265  2014-11-11 17:45 CET
+- config/dispatch/schedule_Config.pm: rewrite documentation of
+  'schedule/intervals' resource
+- Dispatch/Schedule.pm: cleanup
+- major refactor of history-related dispatch targets and supporting
+  code for code sharing between Privhistory and Schedhistory
+- lots of regressions; not testing cleanly yet
+- config/dispatch/schedule_Config.pm: activate history resources,
+  etc.
 - experimenting with metacpan POD rendering glitch
+
+0.266  2014-11-11 10:10 CET
+- docgen.plx: flesh out auto-generated resource documentation by adding
+  permitted methods and CLI command
+- more trial-and-error on metacpan POD rendering issue (change all heredocs
+  so the end flags are unique)
+- Model/Shared.pm: implement new 'load_multiple' routine to eliminate some
+  creeping code duplication
+- Model/Activity.pm: make get_all_activities use 'load_multiple'
+- Model/Schedule.pm: replace 'schedule_all' and 'schedule_all_disabled' with 
+  a single 'get_all_schedules' routine based on 'load_multiple'
+- Dispatch/Schedule.pm: adapt to the new routines
+- t/: adapt to current state; add test cases for get_all_activities
+
+0.267  2014-11-11 22:51 CET
+- complete refactor of shared history-related dispatch targets
+- integrate intervals.t into schedule.t
+- split history.t off from priv.t
+- remove history-related tests from schedule.t
+- (now ready to add schedhistory tests to history.t)
+
+0.268  2014-11-12 09:13 CET
+- t/dispatch/history.t: adapt to test both 'priv/history' and
+  'schedule/history' resources
 

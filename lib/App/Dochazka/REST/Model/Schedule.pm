@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( cud decode_schedule_json load );
+use App::Dochazka::REST::Model::Shared qw( cud decode_schedule_json load load_multiple );
 use Data::Dumper;
 use DBI;
 use JSON;
@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -259,9 +259,7 @@ This module provides the following exports:
 
 =item * C<get_schedule_json>
 
-=item * C<schedule_all> 
-
-=item * C<schedule_all_disabled> 
+=item * C<get_all_schedules>
 
 =item * C<sid_exists> (boolean)
 
@@ -271,8 +269,8 @@ This module provides the following exports:
 
 use Exporter qw( import );
 our @EXPORT_OK = qw( 
+    get_all_schedules
     get_schedule_json
-    schedule_all schedule_all_disabled
     sid_exists
 );
 
@@ -390,81 +388,30 @@ BEGIN {
 }
 
 
-=head2 _schedule_all
+=head2 get_all_schedules
 
-Returns a list of "all" (either including disabled or not) schedule objects,
-ordered by sid.
+Returns a list of all schedule objects, ordered by sid. Takes one
+argument - a paramhash that can contain only one key, 'disabled', 
+which can be either true or false (defaults to true). 
 
 =cut
 
-sub _schedule_all {
-    my ( $including_disabled ) = @_;
-
-    # determine whether to include disabled shedules 
-    my $sql;
-    if ( $including_disabled ) {
-        $log->debug( "Entering schedule_all with including disabled" );
-        $sql = $site->SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED;
-    } else { 
-        $log->debug( "Entering schedule_all * NOT * including disabled" );
-        $sql = $site->SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED;
-    }
+sub get_all_schedules {
+    my %PH = validate( @_, { 
+        disabled => { type => SCALAR, default => 0 }
+    } );
+    
+    my $sql = $PH{disabled}
+        ? $site->SQL_SCHEDULES_SELECT_ALL_INCLUDING_DISABLED
+        : $site->SQL_SCHEDULES_SELECT_ALL_EXCEPT_DISABLED;
 
     # run the query and gather the results
-    my @result;
-    my $status;
-    my $counter = 0;
-    try {
-        my $sth = $dbh->prepare( $sql );
-        $sth->execute;
-        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
-            $counter += 1;
-            push @result, $tmpres;
-        }
-    } catch {
-        my $arg = $dbh->err
-            ? $dbh->errstr
-            : $_;
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
-    };
-    $dbh->{RaiseError} = 0;
 
-    # interpret and return the results
-    return $status if defined $status;
-    if ( $counter > 0 ) {
-        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
-            [ $counter ], payload => \@result, count => $counter );
-    } else {
-        @result = ();
-        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
-            payload => \@result, count => $counter );
-    }
-    $dbh->{RaiseError} = 0;
-    return $status;
-}
-
-
-=head2 schedule_all
-
-Returns a list of all schedule objects, ordered by sid. The list does not
-include disabled schedules.
-
-=cut
-
-sub schedule_all {
-     return _schedule_all();
-}
-
-
-=head2 schedule_all_disabled
-
-Returns a list of all schedule objects, ordered by sid. The list includes all
-schedules regardless of 'disabled' status.
-
-=cut
-
-sub schedule_all_disabled {
-     return _schedule_all( 'including_disabled' );
+    return load_multiple(
+        class => __PACKAGE__,
+        sql => $sql,
+        keys => [],
+    );
 }
 
 

@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid );
+use App::Dochazka::REST::Model::Shared qw( cud load load_multiple priv_by_eid );
 use DBI;
 use Params::Validate qw{:all};
 use Try::Tiny;
@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.265
+Version 0.268
 
 =cut
 
-our $VERSION = '0.265';
+our $VERSION = '0.268';
 
 
 
@@ -154,7 +154,7 @@ This module provides the following exports:
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( aid_exists code_exists aid_by_code );
+our @EXPORT_OK = qw( aid_by_code aid_exists code_exists get_all_activities );
 
 
 
@@ -329,41 +329,18 @@ otherwise only the non-disabled activities will be retrieved.
 
 sub get_all_activities {
     my %PH = validate( @_, { 
-        disabled => { type => SCALAR, default => 1 }
+        disabled => { type => SCALAR, default => 0 }
     } );
     
     my $sql = $PH{disabled}
         ? $site->SQL_ACTIVITY_SELECT_ALL_INCLUDING_DISABLED
         : $site->SQL_ACTIVITY_SELECT_ALL_EXCEPT_DISABLED;
-    my ( $result, $status );
 
-    my $counter = 0;
-    $dbh->{RaiseError} = 1;
-    try {
-        my $sth = $dbh->prepare( $sql );
-        $sth->execute();
-        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
-            $counter += 1;
-            push @{ $result->{'activities'} }, $tmpres;
-        }
-    } catch {
-        my $arg = $dbh->err
-            ? $dbh->errstr
-            : $_;
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
-    };
-    $dbh->{RaiseError} = 0;
-    return $status if defined $status;
-    if ( $counter > 0 ) {
-        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args =>
-            [ $counter ], payload => $result, count => $counter );
-    } else {
-        $result->{'privhistory'} = [];
-        $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND',
-            payload => $result, count => $counter );
-    }
-    $dbh->{RaiseError} = 0;
-    return $status;
+    return load_multiple(
+        class => __PACKAGE__,
+        sql => $sql,
+        keys => [],
+    );
 }
 
 

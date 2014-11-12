@@ -63,7 +63,7 @@ t/203-util-timestamp.t
 t/301-resource.t
 t/dispatch/activity.t
 t/dispatch/employee.t
-t/dispatch/intervals.t
+t/dispatch/history.t
 t/dispatch/priv.t
 t/dispatch/schedule.t
 t/dispatch/top.t
