@@ -73,11 +73,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.271
+Version 0.272
 
 =cut
 
-our $VERSION = '0.271';
+our $VERSION = '0.272';
 
 
 

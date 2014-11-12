@@ -189,18 +189,22 @@ is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_EMPLOYEE_CURRENT_PRIV' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'priv'} );
+ok( exists $status->payload->{'schedule'} );
 ok( exists $status->payload->{'current_emp'} );
 is( $status->payload->{'current_emp'}->{'nick'}, 'demo' );
 is( $status->payload->{'priv'}, 'passerby' );
+is_deeply( $status->payload->{'schedule'}, {} );
 #
 $status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_EMPLOYEE_CURRENT_PRIV' );
 ok( defined $status->payload );
 ok( exists $status->payload->{'priv'} );
+ok( exists $status->payload->{'schedule'} );
 ok( exists $status->payload->{'current_emp'} );
 is( $status->payload->{'current_emp'}->{'nick'}, 'root' );
 is( $status->payload->{'priv'}, 'admin' );
+is_deeply( $status->payload->{'schedule'}, {} );
 
 #
 # PUT, POST, DELETE

@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.271;
+our $VERSION = 0.272;
 
 1;
 __END__
@@ -68,15 +68,10 @@ Miscellaneous resources that don't fit under any specific category.
 =head3 /
 
 Display available top-level resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
-
-=item CLI command: C<$METHOD >
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<DELETE> C<GET> C<POST> C<PUT> *** CLI: C<$METHOD > *** ACL: passerby ***
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -93,15 +88,10 @@ it returns the set of top-level resources available to the user.
 =head3 activity
 
 Display available employee resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
-
-=item CLI command: C<$METHOD employee>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> C<DELETE> C<PUT> C<POST> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists activity resources available to the logged-in employee.
 
@@ -109,15 +99,10 @@ Lists activity resources available to the logged-in employee.
 =head3 bugreport
 
 Display the address for reporting bugs in App::Dochazka::REST
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD bugreport>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD bugreport> *** ACL: passerby ***
 
 Returns a "report_bugs_to" key in the payload, containing the address to
 report bugs to.
@@ -126,15 +111,10 @@ report bugs to.
 =head3 docu
 
 Display on-line Plain Old Documentation (POD) on the resource whose name is provided in the request body (in double-quotes)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD docu $RESOURCE>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD docu $RESOURCE> *** ACL: passerby ***
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -146,15 +126,10 @@ resource documentation.
 =head3 docu/html
 
 Display on-line HTML documentation on the resource whose name is provided in the request body (in double-quotes)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD docu html $RESOURCE>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD docu html $RESOURCE> *** ACL: passerby ***
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -165,15 +140,10 @@ request body. It returns HTML source code of the resource documentation.
 =head3 echo
 
 Echo the request body
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD echo [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD echo [$JSON]> *** ACL: admin ***
 
 This resource simply takes whatever content body was sent and echoes it
 back in the response body.
@@ -182,15 +152,10 @@ back in the response body.
 =head3 employee
 
 Display available employee resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<GET> C<POST> C<DELETE> C<PUT>
-
-=item CLI command: C<$METHOD employee>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<DELETE> C<GET> C<POST> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists employee resources available to the logged-in employee.
 
@@ -198,15 +163,10 @@ Lists employee resources available to the logged-in employee.
 =head3 forbidden
 
 A resource that is forbidden to all
+
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD forbidden>
-
-=item ACL profile: forbidden to all
-
-=back
+*** HTTP: C<PUT> C<POST> C<GET> C<DELETE> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
 
 This resource always returns 405 Method Not Allowed, no matter what.
 
@@ -214,15 +174,10 @@ This resource always returns 405 Method Not Allowed, no matter what.
 =head3 help
 
 Display available top-level resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
-
-=item CLI command: C<$METHOD help>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<POST> C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD help> *** ACL: passerby ***
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -248,15 +203,10 @@ documentation.
 =head3 metaparam/:param
 
 Display (GET) or set (PUT) meta configuration parameter
+
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET>
-
-=item CLI command: C<$METHOD metaparam $PARAM [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
 
 =over 
 
@@ -284,15 +234,10 @@ If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED
 =head3 not_implemented
 
 A resource that will never be implemented
+
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<POST> C<DELETE>
-
-=item CLI command: C<$METHOD not_implemented>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> C<DELETE> C<PUT> C<POST> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
@@ -301,15 +246,10 @@ DISPATCH_RESOURCE_NOT_IMPLEMENTED
 =head3 priv
 
 Display available priv resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD priv>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<POST> C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD priv> *** ACL: passerby ***
 
 Lists priv resources available to the logged-in employee.
 
@@ -317,15 +257,10 @@ Lists priv resources available to the logged-in employee.
 =head3 schedule
 
 Display available schedule resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<DELETE> C<POST> C<GET> C<PUT>
-
-=item CLI command: C<$METHOD schedule>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<PUT> C<POST> C<GET> C<DELETE> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
 
 Lists schedule resources available to the logged-in employee.
 
@@ -333,15 +268,10 @@ Lists schedule resources available to the logged-in employee.
 =head3 session
 
 Display the current session
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD session>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD session> *** ACL: passerby ***
 
 Dumps the current session data (server-side).
 
@@ -349,15 +279,10 @@ Dumps the current session data (server-side).
 =head3 siteparam/:param
 
 Display site configuration parameter
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD siteparam $PARAM>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD siteparam $PARAM> *** ACL: admin ***
 
 Assuming that the argument ":param" is the name of an existing site
 parameter, displays the parameter's value and metadata (type, name, file and
@@ -367,15 +292,10 @@ line number where it was defined).
 =head3 version
 
 Display App::Dochazka::REST version
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD version>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD version> *** ACL: passerby ***
 
 Shows the L<App::Dochazka::REST> version running on the present instance.
 
@@ -383,15 +303,10 @@ Shows the L<App::Dochazka::REST> version running on the present instance.
 =head3 whoami
 
 Display the current employee (i.e. the one we authenticated with)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD whoami>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD whoami> *** ACL: passerby ***
 
 Displays the profile of the currently logged-in employee (same as
 "employee/current")
@@ -407,15 +322,10 @@ Resources related to activities.
 =head3 activity/aid
 
 Update an existing activity object via POST request (AID must be included in request body)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD activity aid>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD activity aid> *** ACL: admin ***
 
 Enables existing activity objects to be updated by sending a POST request to
 the REST server. Along with the properties to be modified, the request body
@@ -426,15 +336,10 @@ updated.
 =head3 activity/aid/:aid
 
 GET, PUT, or DELETE an activity object by its AID
+
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD activity aid $AID>
-
-=item ACL profile: PUT: admin, DELETE: admin, GET: active, 
-
-=back
+*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD activity aid $AID> *** ACL: DELETE admin, GET active, PUT admin ***
 
 =over
 
@@ -461,15 +366,10 @@ This will work only if nothing in the database refers to this activity.
 =head3 activity/all
 
 Retrieve all activity objects (excluding disabled ones)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD activity all>
-
-=item ACL profile: active
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD activity all> *** ACL: active ***
 
 Retrieves all activity objects in the database (excluding disabled activities).
 
@@ -477,15 +377,10 @@ Retrieves all activity objects in the database (excluding disabled activities).
 =head3 activity/all/disabled
 
 Retrieve all activity objects, including disabled ones
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD activity all disabled>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD activity all disabled> *** ACL: admin ***
 
 Retrieves all activity objects in the database (including disabled activities).
 
@@ -493,15 +388,10 @@ Retrieves all activity objects in the database (including disabled activities).
 =head3 activity/code
 
 Update an existing activity object via POST request (activity code must be included in request body)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD activity aid>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD activity aid> *** ACL: admin ***
 
 This resource enables existing activity objects to be updated, and new
 activity objects to be inserted, by sending a POST request to the REST server.
@@ -513,15 +403,10 @@ updated.
 =head3 activity/code/:code
 
 GET, PUT, or DELETE an activity object by its code
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<PUT>
-
-=item CLI command: C<$METHOD activity code $CODE>
-
-=item ACL profile: DELETE: admin, GET: active, PUT: admin, 
-
-=back
+*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD activity code $CODE> *** ACL: PUT admin, GET active, DELETE admin ***
 
 =over
 
@@ -549,15 +434,10 @@ activity.
 =head3 activity/help
 
 Display available activity resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD activity help>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> C<DELETE> C<PUT> C<POST> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
@@ -573,15 +453,10 @@ Resources related to employee profiles.
 =head3 employee/count
 
 Display total count of employees (all privilege levels)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD employee count>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD employee count> *** ACL: admin ***
 
 Gets the total number of employees in the database. This includes employees
 of all privilege levels, including not only administrators and active
@@ -592,15 +467,10 @@ evaluating the number returned.
 =head3 employee/count/:priv
 
 Display total count of employees with given privilege level
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD employee count $PRIV>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD employee count $PRIV> *** ACL: admin ***
 
 Gets the number of employees with a given privilege level. Valid
 privlevels are: 
@@ -621,15 +491,10 @@ privlevels are:
 =head3 employee/current
 
 Display the current employee (i.e. the one we authenticated with)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD employee current>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD employee current> *** ACL: passerby ***
 
 Displays the profile of the currently logged-in employee. The information
 is limited to just the employee object itself.
@@ -638,15 +503,10 @@ is limited to just the employee object itself.
 =head3 employee/current/priv
 
 Display the privilege level of the current employee (i.e. the one we authenticated with)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD employee current priv>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD employee current priv> *** ACL: passerby ***
 
 Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
@@ -656,15 +516,10 @@ the employee's privlevel in the 'priv' property.
 =head3 employee/eid
 
 Update existing employee (JSON request body with EID required)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD employee eid $JSON>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD employee eid $JSON> *** ACL: admin ***
 
 This resource provides a way to update employee objects using the
 POST method, provided the employee's EID is provided in the content body.
@@ -679,15 +534,10 @@ Bariful" (provided such an employee exists).
 =head3 employee/eid/:eid
 
 GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee
+
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD employee eid $EID [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -717,15 +567,10 @@ exists and nothing in the database refers to it).
 =head3 employee/help
 
 Display available employee resources for given HTTP method
+
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
-
-=item CLI command: C<$METHOD employee help>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> C<DELETE> C<PUT> C<POST> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
@@ -734,15 +579,10 @@ employee, according to her privlevel.
 =head3 employee/nick
 
 Insert new/update existing employee (JSON request body with nick required)
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD employee nick $JSON>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD employee nick $JSON> *** ACL: admin ***
 
 This resource provides a way to insert/update employee objects using the
 POST method, provided the employee's nick is provided in the content body.
@@ -760,15 +600,10 @@ created.
 =head3 employee/nick/:nick
 
 Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter
+
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET>
-
-=item CLI command: C<$METHOD employee nick $NICK [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -810,15 +645,10 @@ Resources related to employee privileges and privhistories.
 =head3 priv/eid/:eid/?:ts
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv eid $EID [$TIMESTAMP]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv eid $EID [$TIMESTAMP]> *** ACL: admin ***
 
 This resource retrieves the privlevel of an arbitrary employee specified by EID.
 
@@ -829,15 +659,10 @@ is present, the privlevel as of that timestamp is retrieved.
 =head3 priv/help
 
 Display priv resources
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
-
-=item CLI command: C<$METHOD priv help>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<PUT> C<POST> C<GET> C<DELETE> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
@@ -846,15 +671,10 @@ caller (currently logged-in employee).
 =head3 priv/history/eid/:eid
 
 Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (POST) a record to employee's privhistory
+
 =over
 
-=item HTTP methods: C<GET> C<POST>
-
-=item CLI command: C<$METHOD priv history eid $EID [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -878,15 +698,10 @@ records.
 =head3 priv/history/eid/:eid/:tsrange
 
 Get a slice of history of privilege level changes for employee with the given EID
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv history eid $EID $TSRANGE>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv history eid $EID $TSRANGE> *** ACL: admin ***
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
@@ -895,15 +710,10 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 =head3 priv/history/nick/:nick
 
 Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee's privhistory
+
 =over
 
-=item HTTP methods: C<POST> C<GET>
-
-=item CLI command: C<$METHOD priv history nick $NICK [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -927,15 +737,10 @@ records.
 =head3 priv/history/nick/:nick/:tsrange
 
 Get partial history of privilege level changes for employee with the given nick (i.e, limit to given tsrange)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv history nick $NICK $TSRANGE>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv history nick $NICK $TSRANGE> *** ACL: admin ***
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
@@ -944,15 +749,10 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 =head3 priv/history/phid/:phid
 
 Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID
+
 =over
 
-=item HTTP methods: C<GET> C<DELETE>
-
-=item CLI command: C<$METHOD priv history phid $PHID>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<DELETE> *** CLI: C<$METHOD priv history phid $PHID> *** ACL: admin ***
 
 =over
 
@@ -973,15 +773,10 @@ Deletes a privhistory record by its PHID.
 =head3 priv/history/self/?:tsrange
 
 Retrieves privhistory of present employee, with option to limit to :tsrange
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv history self [$TSRANGE]>
-
-=item ACL profile: active
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv history self [$TSRANGE]> *** ACL: active ***
 
 This resource retrieves the "privhistory", or history of changes in
 privilege level, of the present employee. Optionally, the listing can be
@@ -991,15 +786,10 @@ limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 =head3 priv/nick/:nick/?:ts
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv nick $NICK [$TIMESTAMP]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv nick $NICK [$TIMESTAMP]> *** ACL: admin ***
 
 This resource retrieves the privlevel of an arbitrary employee specified by nick.
 
@@ -1010,15 +800,10 @@ is present, the privlevel as of that timestamp is retrieved.
 =head3 priv/self/?:ts
 
 Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee's privlevel as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD priv self [$TIMESTAMP]>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD priv self [$TIMESTAMP]> *** ACL: passerby ***
 
 This resource retrieves the privlevel of the caller (currently logged-in employee).
 
@@ -1036,15 +821,10 @@ Resources related to employee schedules and schedhistories.
 =head3 schedule/all
 
 Retrieves (GET) all non-disabled schedules
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule all>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule all> *** ACL: admin ***
 
 This resource returns a list (array) of all schedules for which the 'disabled' field has
 either not been set or has been set to 'false'.
@@ -1053,15 +833,10 @@ either not been set or has been set to 'false'.
 =head3 schedule/all/disabled
 
 Retrieves (GET) all schedules (disabled and non-disabled)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule all disabled>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule all disabled> *** ACL: admin ***
 
 This resource returns a list (array) of all schedules, regardless of the contents
 of the 'disabled' field.
@@ -1070,15 +845,10 @@ of the 'disabled' field.
 =head3 schedule/eid/:eid/?:ts
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule eid $EID [$TIMESTAMP]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule eid $EID [$TIMESTAMP]> *** ACL: admin ***
 
 This resource retrieves the schedule of an arbitrary employee specified by EID.
 
@@ -1089,15 +859,10 @@ is present, the schedule as of that timestamp is retrieved.
 =head3 schedule/help
 
 Display schedule resources
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
-
-=item CLI command: C<$METHOD schedule help>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<DELETE> C<GET> C<POST> C<PUT> *** CLI: C<$METHOD schedule help> *** ACL: passerby ***
 
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
@@ -1106,15 +871,10 @@ caller (currently logged-in employee).
 =head3 schedule/history/eid/:eid
 
 Retrieves (GET) entire history of schedule changes for employee with the given EID; adds (POST) a record to schedule history of employee
+
 =over
 
-=item HTTP methods: C<GET> C<POST>
-
-=item CLI command: C<$METHOD schedule history eid $EID [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD schedule history eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -1134,15 +894,10 @@ body should contain two properties: "effective" (timestamp) and "sid" (integer).
 =head3 schedule/history/eid/:eid/:tsrange
 
 Retrieves a slice of history of schedule changes for employee with the given EID
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule history eid $EID $TSRANGE>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule history eid $EID $TSRANGE> *** ACL: admin ***
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule). 
@@ -1151,15 +906,10 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 =head3 schedule/history/nick/:nick
 
 Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee
+
 =over
 
-=item HTTP methods: C<POST> C<GET>
-
-=item CLI command: C<$METHOD schedule history nick $NICK [$JSON]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD schedule history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -1179,15 +929,10 @@ body should contain two properties: "effective" (timestamp) and "sid" (integer).
 =head3 schedule/history/nick/:nick/:tsrange
 
 Get partial history of schedule changes for employee with the given nick (i.e, limit to given tsrange)
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule history nick $NICK $TSRANGE>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule history nick $NICK $TSRANGE> *** ACL: admin ***
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule).
@@ -1196,15 +941,10 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 =head3 schedule/history/self/?:tsrange
 
 Get schedule history of current employee, with option to limit to :tsrange
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule history current [$TSRANGE]>
-
-=item ACL profile: active
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule history current [$TSRANGE]> *** ACL: active ***
 
 This resource retrieves the "schedule history", or history of changes in
 schedule, of the current employee. Optionally, the listing can be
@@ -1214,15 +954,10 @@ limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 =head3 schedule/history/shid/:shid
 
 GET or DELETE a schedule record by its SHID
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET>
-
-=item CLI command: C<$METHOD schedule history shid $SHID>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<DELETE> C<GET> *** CLI: C<$METHOD schedule history shid $SHID> *** ACL: admin ***
 
 =over
 
@@ -1243,15 +978,10 @@ Deletes a schedule history record by its SHID.
 =head3 schedule/intervals
 
 Insert schedules
+
 =over
 
-=item HTTP methods: C<POST>
-
-=item CLI command: C<$METHOD schedule intervals>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<POST> *** CLI: C<$METHOD schedule intervals> *** ACL: admin ***
 
 Given a set of intervals, all of which must fall within a single contiguous
 168-hour (7-day) period, this resource performs all actions necessary to either
@@ -1301,15 +1031,10 @@ corresponding to a given set of intervals.
 =head3 schedule/nick/:nick/?:ts
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule nick $NICK [$TIMESTAMP]>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule nick $NICK [$TIMESTAMP]> *** ACL: admin ***
 
 This resource retrieves the schedule of an arbitrary employee specified by nick.
 
@@ -1320,15 +1045,10 @@ is present, the schedule as of that timestamp is retrieved.
 =head3 schedule/self/?:ts
 
 Get the current schedule of the currently logged-in employee, or with optional timestamp, that employee's schedule as of that timestamp
+
 =over
 
-=item HTTP methods: C<GET>
-
-=item CLI command: C<$METHOD schedule current [$TIMESTAMP]>
-
-=item ACL profile: passerby
-
-=back
+*** HTTP: C<GET> *** CLI: C<$METHOD schedule current [$TIMESTAMP]> *** ACL: passerby ***
 
 This resource retrieves the schedule of the caller (currently logged-in employee).
 
@@ -1339,15 +1059,10 @@ is present, the schedule as of that timestamp is retrieved.
 =head3 schedule/sid/:sid
 
 Retrieves, updates, or deletes a schedule by its SID
+
 =over
 
-=item HTTP methods: C<DELETE> C<GET> C<POST>
-
-=item CLI command: C<$METHOD schedule sid $SID>
-
-=item ACL profile: admin
-
-=back
+*** HTTP: C<GET> C<DELETE> C<POST> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
 
 =over
 

@@ -596,7 +596,7 @@ $status = req( $test, 200, 'root', 'DELETE', "$base/foobarpus" );
 is( $status->level, 'OK', "DELETE $base/foobarpus 2" );
 is( $status->code, 'DOCHAZKA_CUD_OK', "DELETE $base/foobarpus 3" );
 
-delete_active_employee( $test );
+delete_employee_by_nick( $test, 'active' );
 
 
 #=============================
@@ -614,6 +614,8 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 1 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
+ok( ! exists $status->payload->{'resources'}->{'activity/aid'} );
+ok( ! exists $status->payload->{'resources'}->{'activity/aid/:aid'} );
 #
 $status = req( $test, 200, 'root', 'GET', $base );
 is( $status->level, 'OK' );
@@ -622,6 +624,9 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 3 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
+ok( ! exists $status->payload->{'resources'}->{'activity/aid'} );  # POST only
+#FIXME: ok( exists $status->payload->{'resources'}->{'activity/aid/:aid'} );
+#FIXME: ok( exists $status->payload->{'resources'}->{'activity/code/:code'} );
 
 #
 # PUT
@@ -652,14 +657,16 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 1 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
+ok( ! exists $status->payload->{'resources'}->{'activity/aid'} );  # admin only
 #
-$status = req( $test, 200, 'root', 'PUT', $base );
+$status = req( $test, 200, 'root', 'POST', $base );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 1 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
+ok( exists $status->payload->{'resources'}->{'activity/aid'} );  # admin only
 
 #
 # DELETE

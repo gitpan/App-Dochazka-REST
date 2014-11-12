@@ -53,11 +53,11 @@ dochazka-rest - App::Dochazka::REST server startup script
 
 =head1 VERSION
 
-Version 0.271
+Version 0.272
 
 =cut
 
-our $VERSION = '0.271';
+our $VERSION = '0.272';
 
 
 

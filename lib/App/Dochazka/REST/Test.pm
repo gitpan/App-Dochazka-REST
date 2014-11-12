@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
+use App::Dochazka::REST::Model::Schedhistory qw( get_schedhistory );
 use Data::Dumper;
 use HTTP::Request::Common qw( GET PUT POST DELETE );
 use JSON;
@@ -60,11 +61,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.271
+Version 0.272
 
 =cut
 
-our $VERSION = '0.271';
+our $VERSION = '0.272';
 
 
 
@@ -86,7 +87,8 @@ This module provides helper code for unit tests.
 use Exporter qw( import );
 our @EXPORT = qw( 
     req docu_check 
-    create_testing_employee create_active_employee delete_testing_employee delete_active_employee
+    create_testing_employee create_active_employee create_inactive_employee
+    delete_testing_employee delete_employee_by_nick
     create_testing_activity delete_testing_activity
     create_testing_schedule delete_testing_schedule 
 );
@@ -163,6 +165,8 @@ sub req {
     my $pass;
     if ( $user eq 'root' ) {
         $pass = 'immutable';
+    } elsif ( $user eq 'inactive' ) {
+        $pass = 'inactive';
     } elsif ( $user eq 'active' ) {
         $pass = 'active';
     } elsif ( $user eq 'demo' ) {
@@ -261,9 +265,25 @@ sub create_active_employee {
 }
 
 
+=head2 create_inactive_employee
+
+Create testing employee with 'active' privilege
+
+=cut
+
+sub create_inactive_employee {
+    my ( $test ) = @_;
+    my $eid_of_inactive = create_testing_employee( nick => 'inactive', passhash => 'inactive' )->{'eid'};
+    my $status = req( $test, 200, 'root', 'POST', "priv/history/eid/$eid_of_inactive", 
+        '{ "effective":"1000-01-01", "priv":"inactive" }' );
+    ok( $status->ok, "Create inactive employee 2" );
+    is( $status->code, 'DOCHAZKA_CUD_OK', "Create inactive employee 3" );
+}
+
+
 =head2 delete_testing_employee
 
-Tests will need to set up and tear down testing employees
+Tests will need to set up and tear down testing employees (takes EID)
 
 =cut
 
@@ -278,34 +298,55 @@ sub delete_testing_employee {
 }
 
 
-=head2 delete_active_employee
+=head2 delete_employee_by_nick
 
-Delete testing employee with 'active' privilege
+Delete testing employee (takes Plack::Test object and nick)
 
 =cut
 
-sub delete_active_employee {
-    my ( $test ) = @_;
-    my ( $res, $status, $ph );
+sub delete_employee_by_nick {
+    my ( $test, $nick ) = @_;
+    my ( $res, $status );
 
-    # get privhistory of 'active'
-    $status = get_privhistory( nick => 'active' );
-    ok( $status->ok, "Delete active employee 0" );
-    $ph = $status->payload->{'history'};
+    # get and delete privhistory
+    $status = get_privhistory( nick => $nick );
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $ph = $status->payload->{'history'};
+        # delete the privhistory records one by one
+        foreach my $phrec ( @$ph ) {
+            my $phid = $phrec->{phid};
+            $status = req( $test, 200, 'root', 'DELETE', "priv/history/phid/$phid" );
+            ok( $status->ok, "Delete employee by nick 2" );
+            is( $status->code, 'DOCHAZKA_CUD_OK', "Delete employee by nick 3" );
+        }
+    } else {
+        diag( "Unexpected return value from get_privhistory: " . Dumper( $status ) );
+        BAIL_OUT(0);
+    }
 
-    # delete the privhistory records one by one
-    foreach my $phrec ( @$ph ) {
-        my $phid = $phrec->{phid};
-        $status = req( $test, 200, 'root', 'DELETE', "priv/history/phid/$phid" );
-        ok( $status->ok, "Delete active employee 2" );
-        is( $status->code, 'DOCHAZKA_CUD_OK', "Delete active employee 3" );
+    # get and delete schedhistory
+    $status = get_schedhistory( nick => $nick );
+    if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $sh = $status->payload->{'history'};
+        # delete the schedhistory records one by one
+        foreach my $shrec ( @$sh ) {
+            my $shid = $shrec->{shid};
+            $status = req( $test, 200, 'root', 'DELETE', "schedule/history/shid/$shid" );
+            ok( $status->ok, "Delete employee by nick 5" );
+            is( $status->code, 'DOCHAZKA_CUD_OK', "Delete employee by nick 5" );
+        }
+    } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        ok( 1, "$nick has no schedule history" );
+    } else {
+        diag( "Unexpected return value from get_schedhistory: " . Dumper( $status ) );
+        BAIL_OUT(0);
     }
 
     # delete the employee record
-    $status = req( $test, 200, 'root', 'DELETE', "employee/nick/active" );
+    $status = req( $test, 200, 'root', 'DELETE', "employee/nick/$nick" );
     BAIL_OUT($status->text) unless $status->ok;
-    is( $status->level, 'OK', "Delete active employee 5" );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK', "Delete active employee 6" );
+    is( $status->level, 'OK', "Delete employee by nick 6" );
+    is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK', "Delete employee by nick 7" );
 
     return;
 }

@@ -44,7 +44,7 @@ use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared qw( pre_update_comparison );
 use App::Dochazka::REST::Model::Employee qw( noof_employees_by_priv );
-use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid );
+use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid schedule_by_eid );
 use Carp;
 use Data::Dumper;
 use Params::Validate qw( :all );
@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.271
+Version 0.272
 
 =cut
 
-our $VERSION = '0.271';
+our $VERSION = '0.272';
 
 
 
@@ -125,11 +125,13 @@ sub _get_current_priv {
 
     my $current_emp = $context->{'current'};
     my $current_priv = priv_by_eid( $current_emp->{'eid'} );
+    my $current_sched = schedule_by_eid( $current_emp->{'eid'} );
     $CELL->status_ok( 
         'DISPATCH_EMPLOYEE_CURRENT_PRIV', 
         args => [ $current_emp->{'nick'}, $current_priv ], 
         payload => { 
             'priv' => $current_priv,
+            'schedule' => $current_sched,
             'current_emp' => $current_emp,
         } 
     );

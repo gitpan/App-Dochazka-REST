@@ -1739,3 +1739,15 @@ Revision history for Dochazka-REST
 0.271  2014-11-12 11:43 CET
 - cleanup distro infrastructure
 
+0.272  2014-11-12 13:38 CET
+- Dispatch/Employee.pm, t/dispatch/employee.t: add current schedule to payload
+  of 'employee/current/priv' resource
+- Docs/Workflow.pm: new POD module describing workflow scenarios from an
+  end-user perspective
+- dispatch_Message_en.conf: add DISPATCH_EMPLOYEE_CURRENT_PRIV
+- Test.pm: add 'create_inactive_employee'; rename 'delete_active_employee' to
+  'delete_employee_by_nick' (complete re-write)
+- t/dispatch/activity.t: add some tests for 'activity/help'; prepare for this
+  resource to handle resources where 'acl_profile' is a HASHREF
+- ../release/docgen.plx: tweak POD formatting some more
+
