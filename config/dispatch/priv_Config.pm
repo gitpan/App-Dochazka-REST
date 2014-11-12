@@ -44,24 +44,6 @@
 #    - the values of those keys are hashes containing resource metadata
 set( 'DISPATCH_RESOURCES_PRIV', {
 
-    'priv/self/?:ts' => 
-    { 
-        target => {
-            GET => '_current_priv',
-        },
-        target_module => 'App::Dochazka::REST::Dispatch::Priv',
-        acl_profile => 'passerby', 
-        cli => 'priv self [$TIMESTAMP]',
-        description => 'Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee\'s privlevel as of that timestamp',
-        documentation => <<'EOH',
-=pod
-
-This resource retrieves the privlevel of the caller (currently logged-in employee).
-
-If no timestamp is given, the present privlevel is retrieved. If a timestamp
-is present, the privlevel as of that timestamp is retrieved.
-EOH
-    },
     'priv/eid/:eid/?:ts' => 
     { 
         target => {
@@ -257,6 +239,24 @@ EOH
 =pod
 
 This resource retrieves the privlevel of an arbitrary employee specified by nick.
+
+If no timestamp is given, the present privlevel is retrieved. If a timestamp
+is present, the privlevel as of that timestamp is retrieved.
+EOH
+    },
+    'priv/self/?:ts' => 
+    { 
+        target => {
+            GET => '_current_priv',
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Priv',
+        acl_profile => 'passerby', 
+        cli => 'priv self [$TIMESTAMP]',
+        description => 'Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee\'s privlevel as of that timestamp',
+        documentation => <<'EOH',
+=pod
+
+This resource retrieves the privlevel of the caller (currently logged-in employee).
 
 If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.

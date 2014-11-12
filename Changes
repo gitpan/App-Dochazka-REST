@@ -1733,3 +1733,6 @@ Revision history for Dochazka-REST
 - ../release/release.sh not incrementing version number of Docs/Resources.pm -
   attempt to fix
 
+0.270  2014-11-12 11:39 CET
+- ../release/docgen.plx: tweak POD formatting
+

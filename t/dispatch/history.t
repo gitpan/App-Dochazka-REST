@@ -246,6 +246,10 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     #
     # DELETE
     #
+    req( $test, 405, 'demo', 'DELETE', "$base/2" );
+    req( $test, 405, 'active', 'DELETE', "$base/2" );
+    req( $test, 405, 'root', 'DELETE', "$base/2" );
+    
     # - we have some records queued for deletion
     delete_history_recs( $base, \@history_recs_to_delete );
     @history_recs_to_delete = ();
@@ -358,6 +362,10 @@ foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     #
     # DELETE
     #
+    req( $test, 405, 'demo', 'DELETE', "$base/madagascar" );
+    req( $test, 405, 'active', 'DELETE', "$base/madagascar" );
+    req( $test, 405, 'root', 'DELETE', "$base/madagascar" );
+    
     # - we have some records queued for deletion
     delete_history_recs( $base, \@history_recs_to_delete );
     @history_recs_to_delete = ();

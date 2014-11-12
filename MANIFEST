@@ -2,6 +2,7 @@ bin/dochazka-dbinit
 bin/dochazka-rest
 Build.PL
 Changes
+config/dispatch/.schedule_Config.pm.swp
 config/dispatch/activity_Config.pm
 config/dispatch/employee_Config.pm
 config/dispatch/priv_Config.pm
