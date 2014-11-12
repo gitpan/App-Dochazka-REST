@@ -1736,3 +1736,6 @@ Revision history for Dochazka-REST
 0.270  2014-11-12 11:39 CET
 - ../release/docgen.plx: tweak POD formatting
 
+0.271  2014-11-12 11:43 CET
+- cleanup distro infrastructure
+

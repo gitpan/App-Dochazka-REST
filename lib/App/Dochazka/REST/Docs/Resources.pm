@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.270;
+our $VERSION = 0.271;
 
 1;
 __END__
@@ -70,7 +70,7 @@ Miscellaneous resources that don't fit under any specific category.
 Display available top-level resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<DELETE> C<POST>
+=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
 
 =item CLI command: C<$METHOD >
 
@@ -95,7 +95,7 @@ it returns the set of top-level resources available to the user.
 Display available employee resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
+=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
 
 =item CLI command: C<$METHOD employee>
 
@@ -184,7 +184,7 @@ back in the response body.
 Display available employee resources for given HTTP method
 =over
 
-=item HTTP methods: C<GET> C<DELETE> C<POST> C<PUT>
+=item HTTP methods: C<GET> C<POST> C<DELETE> C<PUT>
 
 =item CLI command: C<$METHOD employee>
 
@@ -216,7 +216,7 @@ This resource always returns 405 Method Not Allowed, no matter what.
 Display available top-level resources for given HTTP method
 =over
 
-=item HTTP methods: C<POST> C<DELETE> C<GET> C<PUT>
+=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
 
 =item CLI command: C<$METHOD help>
 
@@ -286,7 +286,7 @@ If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED
 A resource that will never be implemented
 =over
 
-=item HTTP methods: C<GET> C<DELETE> C<POST> C<PUT>
+=item HTTP methods: C<PUT> C<GET> C<POST> C<DELETE>
 
 =item CLI command: C<$METHOD not_implemented>
 
@@ -303,7 +303,7 @@ DISPATCH_RESOURCE_NOT_IMPLEMENTED
 Display available priv resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<DELETE> C<GET>
+=item HTTP methods: C<PUT> C<POST> C<GET> C<DELETE>
 
 =item CLI command: C<$METHOD priv>
 
@@ -319,7 +319,7 @@ Lists priv resources available to the logged-in employee.
 Display available schedule resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<DELETE> C<GET>
+=item HTTP methods: C<DELETE> C<POST> C<GET> C<PUT>
 
 =item CLI command: C<$METHOD schedule>
 
@@ -515,11 +515,11 @@ updated.
 GET, PUT, or DELETE an activity object by its code
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<DELETE>
+=item HTTP methods: C<DELETE> C<GET> C<PUT>
 
 =item CLI command: C<$METHOD activity code $CODE>
 
-=item ACL profile: GET: active, DELETE: admin, PUT: admin, 
+=item ACL profile: DELETE: admin, GET: active, PUT: admin, 
 
 =back
 
@@ -551,7 +551,7 @@ activity.
 Display available activity resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
+=item HTTP methods: C<PUT> C<POST> C<GET> C<DELETE>
 
 =item CLI command: C<$METHOD activity help>
 
@@ -719,7 +719,7 @@ exists and nothing in the database refers to it).
 Display available employee resources for given HTTP method
 =over
 
-=item HTTP methods: C<PUT> C<POST> C<DELETE> C<GET>
+=item HTTP methods: C<PUT> C<DELETE> C<GET> C<POST>
 
 =item CLI command: C<$METHOD employee help>
 
@@ -762,7 +762,7 @@ created.
 Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter
 =over
 
-=item HTTP methods: C<PUT> C<GET> C<DELETE>
+=item HTTP methods: C<PUT> C<DELETE> C<GET>
 
 =item CLI command: C<$METHOD employee nick $NICK [$JSON]>
 
@@ -831,7 +831,7 @@ is present, the privlevel as of that timestamp is retrieved.
 Display priv resources
 =over
 
-=item HTTP methods: C<GET> C<DELETE> C<POST> C<PUT>
+=item HTTP methods: C<DELETE> C<GET> C<POST> C<PUT>
 
 =item CLI command: C<$METHOD priv help>
 
@@ -1341,7 +1341,7 @@ is present, the schedule as of that timestamp is retrieved.
 Retrieves, updates, or deletes a schedule by its SID
 =over
 
-=item HTTP methods: C<GET> C<DELETE> C<POST>
+=item HTTP methods: C<DELETE> C<GET> C<POST>
 
 =item CLI command: C<$METHOD schedule sid $SID>
 
