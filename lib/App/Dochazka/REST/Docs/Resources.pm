@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.268;
+our $VERSION = 0.269;
 
 1;
 __END__
@@ -69,9 +69,11 @@ Miscellaneous resources that don't fit under any specific category.
 
 Display available top-level resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD 
+B<CLI>: C<$METHOD >
+
+B<ACL profile>: passerby
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -89,9 +91,11 @@ it returns the set of top-level resources available to the user.
 
 Display available employee resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<PUT> C<DELETE> C<GET> C<POST>
 
-B<CLI>: $METHOD employee
+B<CLI>: C<$METHOD employee>
+
+B<ACL profile>: passerby
 
 Lists activity resources available to the logged-in employee.
 
@@ -100,9 +104,11 @@ Lists activity resources available to the logged-in employee.
 
 Display the address for reporting bugs in App::Dochazka::REST
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD bugreport
+B<CLI>: C<$METHOD bugreport>
+
+B<ACL profile>: passerby
 
 Returns a "report_bugs_to" key in the payload, containing the address to
 report bugs to.
@@ -112,9 +118,11 @@ report bugs to.
 
 Display on-line Plain Old Documentation (POD) on the resource whose name is provided in the request body (in double-quotes)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD docu $RESOURCE
+B<CLI>: C<$METHOD docu $RESOURCE>
+
+B<ACL profile>: passerby
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -127,9 +135,11 @@ resource documentation.
 
 Display on-line HTML documentation on the resource whose name is provided in the request body (in double-quotes)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD docu html $RESOURCE
+B<CLI>: C<$METHOD docu html $RESOURCE>
+
+B<ACL profile>: passerby
 
 This resource provides access to App::Dochazka::REST on-line help
 documentation. It expects to find a resource (e.g. "employee/eid/:eid"
@@ -141,9 +151,11 @@ request body. It returns HTML source code of the resource documentation.
 
 Echo the request body
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD echo [$JSON]
+B<CLI>: C<$METHOD echo [$JSON]>
+
+B<ACL profile>: admin
 
 This resource simply takes whatever content body was sent and echoes it
 back in the response body.
@@ -153,9 +165,11 @@ back in the response body.
 
 Display available employee resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<DELETE> C<PUT> C<GET>
 
-B<CLI>: $METHOD employee
+B<CLI>: C<$METHOD employee>
+
+B<ACL profile>: passerby
 
 Lists employee resources available to the logged-in employee.
 
@@ -164,9 +178,11 @@ Lists employee resources available to the logged-in employee.
 
 A resource that is forbidden to all
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD forbidden
+B<CLI>: C<$METHOD forbidden>
+
+B<ACL profile>: forbidden to all
 
 This resource always returns 405 Method Not Allowed, no matter what.
 
@@ -175,9 +191,11 @@ This resource always returns 405 Method Not Allowed, no matter what.
 
 Display available top-level resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<PUT> C<DELETE> C<GET> C<POST>
 
-B<CLI>: $METHOD help
+B<CLI>: C<$METHOD help>
+
+B<ACL profile>: passerby
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -204,9 +222,11 @@ documentation.
 
 Display (GET) or set (PUT) meta configuration parameter
 
-Works with HTTP methods: DELETE, PUT, GET
+B<HTTP methods>: C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD metaparam $PARAM [$JSON]
+B<CLI>: C<$METHOD metaparam $PARAM [$JSON]>
+
+B<ACL profile>: admin
 
 =over 
 
@@ -235,9 +255,11 @@ If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED
 
 A resource that will never be implemented
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<GET> C<DELETE> C<PUT> C<POST>
 
-B<CLI>: $METHOD not_implemented
+B<CLI>: C<$METHOD not_implemented>
+
+B<ACL profile>: passerby
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
@@ -247,9 +269,11 @@ DISPATCH_RESOURCE_NOT_IMPLEMENTED
 
 Display available priv resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<DELETE> C<PUT> C<GET> C<POST>
 
-B<CLI>: $METHOD priv
+B<CLI>: C<$METHOD priv>
+
+B<ACL profile>: passerby
 
 Lists priv resources available to the logged-in employee.
 
@@ -258,9 +282,11 @@ Lists priv resources available to the logged-in employee.
 
 Display available schedule resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<GET> C<PUT> C<DELETE> C<POST>
 
-B<CLI>: $METHOD schedule
+B<CLI>: C<$METHOD schedule>
+
+B<ACL profile>: passerby
 
 Lists schedule resources available to the logged-in employee.
 
@@ -269,9 +295,11 @@ Lists schedule resources available to the logged-in employee.
 
 Display the current session
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD session
+B<CLI>: C<$METHOD session>
+
+B<ACL profile>: passerby
 
 Dumps the current session data (server-side).
 
@@ -280,9 +308,11 @@ Dumps the current session data (server-side).
 
 Display site configuration parameter
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD siteparam $PARAM
+B<CLI>: C<$METHOD siteparam $PARAM>
+
+B<ACL profile>: admin
 
 Assuming that the argument ":param" is the name of an existing site
 parameter, displays the parameter's value and metadata (type, name, file and
@@ -293,9 +323,11 @@ line number where it was defined).
 
 Display App::Dochazka::REST version
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD version
+B<CLI>: C<$METHOD version>
+
+B<ACL profile>: passerby
 
 Shows the L<App::Dochazka::REST> version running on the present instance.
 
@@ -304,9 +336,11 @@ Shows the L<App::Dochazka::REST> version running on the present instance.
 
 Display the current employee (i.e. the one we authenticated with)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD whoami
+B<CLI>: C<$METHOD whoami>
+
+B<ACL profile>: passerby
 
 Displays the profile of the currently logged-in employee (same as
 "employee/current")
@@ -323,9 +357,11 @@ Resources related to activities.
 
 Update an existing activity object via POST request (AID must be included in request body)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD activity aid
+B<CLI>: C<$METHOD activity aid>
+
+B<ACL profile>: admin
 
 Enables existing activity objects to be updated by sending a POST request to
 the REST server. Along with the properties to be modified, the request body
@@ -337,9 +373,11 @@ updated.
 
 GET, PUT, or DELETE an activity object by its AID
 
-Works with HTTP methods: DELETE, PUT, GET
+B<HTTP methods>: C<PUT> C<DELETE> C<GET>
 
-B<CLI>: $METHOD activity aid $AID
+B<CLI>: C<$METHOD activity aid $AID>
+
+B<ACL profile>: DELETE: admin, PUT: admin, GET: active, 
 
 =over
 
@@ -367,9 +405,11 @@ This will work only if nothing in the database refers to this activity.
 
 Retrieve all activity objects (excluding disabled ones)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD activity all
+B<CLI>: C<$METHOD activity all>
+
+B<ACL profile>: active
 
 Retrieves all activity objects in the database (excluding disabled activities).
 
@@ -378,9 +418,11 @@ Retrieves all activity objects in the database (excluding disabled activities).
 
 Retrieve all activity objects, including disabled ones
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD activity all disabled
+B<CLI>: C<$METHOD activity all disabled>
+
+B<ACL profile>: admin
 
 Retrieves all activity objects in the database (including disabled activities).
 
@@ -389,9 +431,11 @@ Retrieves all activity objects in the database (including disabled activities).
 
 Update an existing activity object via POST request (activity code must be included in request body)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD activity aid
+B<CLI>: C<$METHOD activity aid>
+
+B<ACL profile>: admin
 
 This resource enables existing activity objects to be updated, and new
 activity objects to be inserted, by sending a POST request to the REST server.
@@ -404,9 +448,11 @@ updated.
 
 GET, PUT, or DELETE an activity object by its code
 
-Works with HTTP methods: DELETE, PUT, GET
+B<HTTP methods>: C<GET> C<PUT> C<DELETE>
 
-B<CLI>: $METHOD activity code $CODE
+B<CLI>: C<$METHOD activity code $CODE>
+
+B<ACL profile>: GET: active, PUT: admin, DELETE: admin, 
 
 =over
 
@@ -435,9 +481,11 @@ activity.
 
 Display available activity resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<GET> C<DELETE> C<PUT> C<POST>
 
-B<CLI>: $METHOD activity help
+B<CLI>: C<$METHOD activity help>
+
+B<ACL profile>: passerby
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
@@ -454,9 +502,11 @@ Resources related to employee profiles.
 
 Display total count of employees (all privilege levels)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD employee count
+B<CLI>: C<$METHOD employee count>
+
+B<ACL profile>: admin
 
 Gets the total number of employees in the database. This includes employees
 of all privilege levels, including not only administrators and active
@@ -468,9 +518,11 @@ evaluating the number returned.
 
 Display total count of employees with given privilege level
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD employee count $PRIV
+B<CLI>: C<$METHOD employee count $PRIV>
+
+B<ACL profile>: admin
 
 Gets the number of employees with a given privilege level. Valid
 privlevels are: 
@@ -492,9 +544,11 @@ privlevels are:
 
 Display the current employee (i.e. the one we authenticated with)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD employee current
+B<CLI>: C<$METHOD employee current>
+
+B<ACL profile>: passerby
 
 Displays the profile of the currently logged-in employee. The information
 is limited to just the employee object itself.
@@ -504,9 +558,11 @@ is limited to just the employee object itself.
 
 Display the privilege level of the current employee (i.e. the one we authenticated with)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD employee current priv
+B<CLI>: C<$METHOD employee current priv>
+
+B<ACL profile>: passerby
 
 Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
@@ -517,9 +573,11 @@ the employee's privlevel in the 'priv' property.
 
 Update existing employee (JSON request body with EID required)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD employee eid $JSON
+B<CLI>: C<$METHOD employee eid $JSON>
+
+B<ACL profile>: admin
 
 This resource provides a way to update employee objects using the
 POST method, provided the employee's EID is provided in the content body.
@@ -535,9 +593,11 @@ Bariful" (provided such an employee exists).
 
 GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee
 
-Works with HTTP methods: DELETE, PUT, GET
+B<HTTP methods>: C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD employee eid $EID [$JSON]
+B<CLI>: C<$METHOD employee eid $EID [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -568,9 +628,11 @@ exists and nothing in the database refers to it).
 
 Display available employee resources for given HTTP method
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD employee help
+B<CLI>: C<$METHOD employee help>
+
+B<ACL profile>: passerby
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
@@ -580,9 +642,11 @@ employee, according to her privlevel.
 
 Insert new/update existing employee (JSON request body with nick required)
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD employee nick $JSON
+B<CLI>: C<$METHOD employee nick $JSON>
+
+B<ACL profile>: admin
 
 This resource provides a way to insert/update employee objects using the
 POST method, provided the employee's nick is provided in the content body.
@@ -601,9 +665,11 @@ created.
 
 Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter
 
-Works with HTTP methods: DELETE, PUT, GET
+B<HTTP methods>: C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD employee nick $NICK [$JSON]
+B<CLI>: C<$METHOD employee nick $NICK [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -646,9 +712,11 @@ Resources related to employee privileges and privhistories.
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv eid $EID [$TIMESTAMP]
+B<CLI>: C<$METHOD priv eid $EID [$TIMESTAMP]>
+
+B<ACL profile>: admin
 
 This resource retrieves the privlevel of an arbitrary employee specified by EID.
 
@@ -660,9 +728,11 @@ is present, the privlevel as of that timestamp is retrieved.
 
 Display priv resources
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD priv help
+B<CLI>: C<$METHOD priv help>
+
+B<ACL profile>: passerby
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
@@ -672,9 +742,11 @@ caller (currently logged-in employee).
 
 Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (POST) a record to employee's privhistory
 
-Works with HTTP methods: POST, GET
+B<HTTP methods>: C<GET> C<POST>
 
-B<CLI>: $METHOD priv history eid $EID [$JSON]
+B<CLI>: C<$METHOD priv history eid $EID [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -699,9 +771,11 @@ records.
 
 Get a slice of history of privilege level changes for employee with the given EID
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv history eid $EID $TSRANGE
+B<CLI>: C<$METHOD priv history eid $EID $TSRANGE>
+
+B<ACL profile>: admin
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
@@ -711,9 +785,11 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 
 Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee's privhistory
 
-Works with HTTP methods: POST, GET
+B<HTTP methods>: C<POST> C<GET>
 
-B<CLI>: $METHOD priv history nick $NICK [$JSON]
+B<CLI>: C<$METHOD priv history nick $NICK [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -738,9 +814,11 @@ records.
 
 Get partial history of privilege level changes for employee with the given nick (i.e, limit to given tsrange)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv history nick $NICK $TSRANGE
+B<CLI>: C<$METHOD priv history nick $NICK $TSRANGE>
+
+B<ACL profile>: admin
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
@@ -750,9 +828,11 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 
 Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID
 
-Works with HTTP methods: DELETE, GET
+B<HTTP methods>: C<DELETE> C<GET>
 
-B<CLI>: $METHOD priv history phid $PHID
+B<CLI>: C<$METHOD priv history phid $PHID>
+
+B<ACL profile>: admin
 
 =over
 
@@ -774,9 +854,11 @@ Deletes a privhistory record by its PHID.
 
 Retrieves privhistory of present employee, with option to limit to :tsrange
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv history self [$TSRANGE]
+B<CLI>: C<$METHOD priv history self [$TSRANGE]>
+
+B<ACL profile>: active
 
 This resource retrieves the "privhistory", or history of changes in
 privilege level, of the present employee. Optionally, the listing can be
@@ -787,9 +869,11 @@ limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
 Get the present privlevel of arbitrary employee, or with optional timestamp, that employee's privlevel as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv nick $NICK [$TIMESTAMP]
+B<CLI>: C<$METHOD priv nick $NICK [$TIMESTAMP]>
+
+B<ACL profile>: admin
 
 This resource retrieves the privlevel of an arbitrary employee specified by nick.
 
@@ -801,9 +885,11 @@ is present, the privlevel as of that timestamp is retrieved.
 
 Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee's privlevel as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD priv self [$TIMESTAMP]
+B<CLI>: C<$METHOD priv self [$TIMESTAMP]>
+
+B<ACL profile>: passerby
 
 This resource retrieves the privlevel of the caller (currently logged-in employee).
 
@@ -822,9 +908,11 @@ Resources related to employee schedules and schedhistories.
 
 Retrieves (GET) all non-disabled schedules
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule all
+B<CLI>: C<$METHOD schedule all>
+
+B<ACL profile>: admin
 
 This resource returns a list (array) of all schedules for which the 'disabled' field has
 either not been set or has been set to 'false'.
@@ -834,9 +922,11 @@ either not been set or has been set to 'false'.
 
 Retrieves (GET) all schedules (disabled and non-disabled)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule all disabled
+B<CLI>: C<$METHOD schedule all disabled>
+
+B<ACL profile>: admin
 
 This resource returns a list (array) of all schedules, regardless of the contents
 of the 'disabled' field.
@@ -846,9 +936,11 @@ of the 'disabled' field.
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule eid $EID [$TIMESTAMP]
+B<CLI>: C<$METHOD schedule eid $EID [$TIMESTAMP]>
+
+B<ACL profile>: admin
 
 This resource retrieves the schedule of an arbitrary employee specified by EID.
 
@@ -860,9 +952,11 @@ is present, the schedule as of that timestamp is retrieved.
 
 Display schedule resources
 
-Works with HTTP methods: DELETE, POST, PUT, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE> C<PUT>
 
-B<CLI>: $METHOD schedule help
+B<CLI>: C<$METHOD schedule help>
+
+B<ACL profile>: passerby
 
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
@@ -872,9 +966,11 @@ caller (currently logged-in employee).
 
 Retrieves (GET) entire history of schedule changes for employee with the given EID; adds (POST) a record to schedule history of employee
 
-Works with HTTP methods: POST, GET
+B<HTTP methods>: C<POST> C<GET>
 
-B<CLI>: $METHOD schedule history eid $EID [$JSON]
+B<CLI>: C<$METHOD schedule history eid $EID [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -895,9 +991,11 @@ body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 Retrieves a slice of history of schedule changes for employee with the given EID
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule history eid $EID $TSRANGE
+B<CLI>: C<$METHOD schedule history eid $EID $TSRANGE>
+
+B<ACL profile>: admin
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule). 
@@ -907,9 +1005,11 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 
 Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee
 
-Works with HTTP methods: POST, GET
+B<HTTP methods>: C<POST> C<GET>
 
-B<CLI>: $METHOD schedule history nick $NICK [$JSON]
+B<CLI>: C<$METHOD schedule history nick $NICK [$JSON]>
+
+B<ACL profile>: admin
 
 =over
 
@@ -930,9 +1030,11 @@ body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 Get partial history of schedule changes for employee with the given nick (i.e, limit to given tsrange)
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule history nick $NICK $TSRANGE
+B<CLI>: C<$METHOD schedule history nick $NICK $TSRANGE>
+
+B<ACL profile>: admin
 
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule).
@@ -942,9 +1044,11 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 
 Get schedule history of current employee, with option to limit to :tsrange
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule history current [$TSRANGE]
+B<CLI>: C<$METHOD schedule history current [$TSRANGE]>
+
+B<ACL profile>: active
 
 This resource retrieves the "schedule history", or history of changes in
 schedule, of the current employee. Optionally, the listing can be
@@ -955,9 +1059,11 @@ limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
 GET or DELETE a schedule record by its SHID
 
-Works with HTTP methods: DELETE, GET
+B<HTTP methods>: C<DELETE> C<GET>
 
-B<CLI>: $METHOD schedule history shid $SHID
+B<CLI>: C<$METHOD schedule history shid $SHID>
+
+B<ACL profile>: admin
 
 =over
 
@@ -979,9 +1085,11 @@ Deletes a schedule history record by its SHID.
 
 Insert schedules
 
-Works with HTTP methods: POST
+B<HTTP methods>: C<POST>
 
-B<CLI>: $METHOD schedule intervals
+B<CLI>: C<$METHOD schedule intervals>
+
+B<ACL profile>: admin
 
 Given a set of intervals, all of which must fall within a single contiguous
 168-hour (7-day) period, this resource performs all actions necessary to either
@@ -1032,9 +1140,11 @@ corresponding to a given set of intervals.
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule nick $NICK [$TIMESTAMP]
+B<CLI>: C<$METHOD schedule nick $NICK [$TIMESTAMP]>
+
+B<ACL profile>: admin
 
 This resource retrieves the schedule of an arbitrary employee specified by nick.
 
@@ -1046,9 +1156,11 @@ is present, the schedule as of that timestamp is retrieved.
 
 Get the current schedule of the currently logged-in employee, or with optional timestamp, that employee's schedule as of that timestamp
 
-Works with HTTP methods: GET
+B<HTTP methods>: C<GET>
 
-B<CLI>: $METHOD schedule current [$TIMESTAMP]
+B<CLI>: C<$METHOD schedule current [$TIMESTAMP]>
+
+B<ACL profile>: passerby
 
 This resource retrieves the schedule of the caller (currently logged-in employee).
 
@@ -1060,9 +1172,11 @@ is present, the schedule as of that timestamp is retrieved.
 
 Retrieves, updates, or deletes a schedule by its SID
 
-Works with HTTP methods: DELETE, POST, GET
+B<HTTP methods>: C<POST> C<GET> C<DELETE>
 
-B<CLI>: $METHOD schedule sid $SID
+B<CLI>: C<$METHOD schedule sid $SID>
+
+B<ACL profile>: admin
 
 =over
 

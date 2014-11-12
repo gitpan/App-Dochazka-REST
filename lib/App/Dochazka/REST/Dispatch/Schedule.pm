@@ -67,11 +67,11 @@ App::Dochazka::REST::Dispatch::Schedule - path dispatch
 
 =head1 VERSION
 
-Version 0.268
+Version 0.269
 
 =cut
 
-our $VERSION = '0.268';
+our $VERSION = '0.269';
 
 
 

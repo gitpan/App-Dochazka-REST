@@ -1725,4 +1725,11 @@ Revision history for Dochazka-REST
 0.268  2014-11-12 09:13 CET
 - t/dispatch/history.t: adapt to test both 'priv/history' and
   'schedule/history' resources
+- ../release/docgen.plx: add ACL profile to each resource; tweak display of
+  HTTP methods
+- t/dispatch/history.t: clean up comments, variable and function names
+
+0.269  2014-11-12 11:15 CET
+- ../release/release.sh not incrementing version number of Docs/Resources.pm -
+  attempt to fix
 

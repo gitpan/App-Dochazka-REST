@@ -52,11 +52,11 @@ App::Dochazka::REST::dbh - database handle module (parent of data model classes)
 
 =head1 VERSION
 
-Version 0.268
+Version 0.269
 
 =cut
 
-our $VERSION = '0.268';
+our $VERSION = '0.269';
 
 
 

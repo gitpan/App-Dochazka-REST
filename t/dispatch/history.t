@@ -30,7 +30,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
 #
-# test history (priv/sched) resources
+# test history (priv/sched) resources:
+# - since all the history dispatch logic is shared, most of the tests
+#   for 'priv/history/...' and 'schedule/history/...' resources are either
+#   identical or very similar, so it makes sense to test them as a unit
 #
 
 #!perl
@@ -62,7 +65,7 @@ my $test = Plack::Test->create( $app );
 
 my $res;
 
-sub delete_ph_recs {
+sub delete_history_recs {
     my ( $base, $set ) = @_;
     my $prop = ( $base =~ m/^priv/ ) 
         ? 'phid'
@@ -195,7 +198,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     #
     # - we will be inserting a bunch of records so push them onto an array 
     #   for easy deletion later
-    my @ph_to_delete;
+    my @history_recs_to_delete;
     # - be nice
     my $j = ( $base =~ m/^priv/ )
         ? '{ "effective":"1969-04-28 19:15", "priv":"inactive" }'
@@ -211,7 +214,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     my $prop = ( $base =~ m/^priv/ ) ? 'phid' : 'shid';
     ok( exists $pho->{$prop}, "$prop exists in payload after POST $base/2" );
     ok( defined $pho->{$prop}, "$prop defined in payload after POST $base/2" );
-    push @ph_to_delete, { eid => $pho->{eid}, $prop => $pho->{$prop} };
+    push @history_recs_to_delete, { eid => $pho->{eid}, $prop => $pho->{$prop} };
     #
     # - be pathological
     $j = '{ "effective":"1979-05-24", "horse" : "E-Or" }';
@@ -228,7 +231,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     $status = req( $test, 200, 'root', 'POST', "$base/2", $j );
     is( $status->level, 'OK' );
     $pho = $status->payload;
-    push @ph_to_delete, { eid => $pho->{eid}, $prop => $pho->{$prop} };
+    push @history_recs_to_delete, { eid => $pho->{eid}, $prop => $pho->{$prop} };
     #
     if ( $base =~ m/^priv/ ) {
         # check if demo really is an admin
@@ -244,8 +247,8 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     # DELETE
     #
     # - we have some records queued for deletion
-    delete_ph_recs( $base, \@ph_to_delete );
-    @ph_to_delete = ();
+    delete_history_recs( $base, \@history_recs_to_delete );
+    @history_recs_to_delete = ();
 }
     
 
@@ -304,7 +307,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
 
 
 #===========================================
-# "priv/history/nick/:nick" resource
+# "{priv,schedule}/history/nick/:nick" resource
 #===========================================
 foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     docu_check($test, "$base/:nick");
@@ -350,19 +353,19 @@ foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     is( $status->level, 'OK' );
     my $pho = $status->payload;
     my $prop = ( $base =~ m/^priv/ ) ? 'phid' : 'shid';
-    push my @ph_to_delete, { nick => 'demo', $prop => $pho->{$prop} };
+    push my @history_recs_to_delete, { nick => 'demo', $prop => $pho->{$prop} };
     
     #
     # DELETE
     #
     # - we have some records queued for deletion
-    delete_ph_recs( $base, \@ph_to_delete );
-    @ph_to_delete = ();
+    delete_history_recs( $base, \@history_recs_to_delete );
+    @history_recs_to_delete = ();
 }
 
 
 #===========================================
-# "priv/history/nick/:nick/:tsrange" resource
+# "{priv,schedule}/history/nick/:nick/:tsrange" resource
 #===========================================
 foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     docu_check($test, "$base/:nick/:tsrange");
