@@ -57,11 +57,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.290
+Version 0.291
 
 =cut
 
-our $VERSION = '0.290';
+our $VERSION = '0.291';
 
 
 
@@ -357,7 +357,7 @@ sub history {
             die "AAAAAAAAAAHHHHAAHHHH";
         }
     } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-        return $CELL->status_err( 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => $PH{key} );
+        return $CELL->status_err('DOCHAZKA_NOT_FOUND_404');
     }
     return $status;
 }

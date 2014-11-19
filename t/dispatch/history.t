@@ -159,8 +159,10 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     #
     # GET
     #
-    # - root employee
+    # get history of EID 1 (root)
+    # - as demo
     req( $test, 403, 'demo', 'GET', $base . '/' . $site->DOCHAZKA_EID_OF_ROOT );
+    # - as root
     $status = req( $test, 200, 'root', 'GET', $base . '/' . $site->DOCHAZKA_EID_OF_ROOT );
     is( $status->level, 'OK' );
     is( $status->code, "DISPATCH_RECORDS_FOUND" );
@@ -172,20 +174,35 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
     ok( exists $status->payload->{'history'}->[0]->{'effective'} );
     #
-    # - non-existent EID
+    # get history of non-existent EID
+    # - as demo
     req( $test, 403, 'demo', 'GET', "$base/4534" );
-    $status = req( $test, 200, 'root', 'GET', "$base/4534" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
-    
+    # - as root
+    req( $test, 404, 'root', 'GET', "$base/4534" );
     #
-    # - invalid EID
-    req( $test, 403, 'demo', 'GET', "$base/asas" );
-    $status = req( $test, 200, 'root', 'GET', "$base/asas" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DOCHAZKA_DBI_ERR' );
-    like( $status->text, qr/invalid input syntax for integer/ );
-    
+    # get history of various invalid EIDs
+    foreach my $inv_eid ( 'asas', '!*!*', 'A long list of useless words followed by lots of spaces                                           \\,', '3.1415926', '; drop database dochazka-test;' ) {
+        # - as demo
+        req( $test, 403, 'demo', 'GET', "$base/$inv_eid" );
+        # - as root
+        $status = req( $test, 200, 'root', 'GET', "$base/$inv_eid" );
+        is( $status->level, 'ERR' );
+        is( $status->code, 'DOCHAZKA_DBI_ERR' );
+        like( $status->text, qr/invalid input syntax for integer/ );
+    }
+    foreach my $inv_eid ( '0', '-1' ) {
+        # - as demo
+        req( $test, 403, 'demo', 'GET', "$base/$inv_eid" );
+        # - as root
+        req( $test, 404, 'root', 'GET', "$base/$inv_eid" );
+    }
+    foreach my $inv_eid ( '3443/plus/several/bogus/levels/of/subresources' ) {
+        # - as demo (entire resource is invalid, so ACL check is not reached)
+        req( $test, 404, 'demo', 'GET', "$base/$inv_eid" );
+        # - as root
+        req( $test, 404, 'root', 'GET', "$base/$inv_eid" );
+    }
+
     #
     # PUT
     #
@@ -286,9 +303,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     # - non-existent EID
     my $tsr = '[1999-12-31 23:59, 2000-01-01 00:01)';
     req( $test, 403, 'demo', 'GET', "$base/4534/$tsr" );
-    $status = req( $test, 200, 'root', 'GET', "$base/4534/$tsr" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+    req( $test, 404, 'root', 'GET', "$base/4534/$tsr" );
     #
     # - invalid EID
     req( $test, 403, 'demo', 'GET', "$base/asas/$tsr" );
@@ -331,9 +346,7 @@ foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     #
     # - non-existent employee
     req( $test, 403, 'demo', 'GET', "$base/rotoroot" );
-    $status = req( $test, 200, 'root', 'GET', "$base/rotoroot" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+    req( $test, 404, 'root', 'GET', "$base/rotoroot" );
     
     #
     # PUT
@@ -394,9 +407,7 @@ foreach $base ( "priv/history/nick", "schedule/history/nick" ) {
     # - non-existent employee
     my $tsr = '[999-12-31 23:59, 1000-01-01 00:01)';
     req( $test, 403, 'demo', 'GET', "$base/humphreybogart/$tsr" );
-    $status = req( $test, 200, 'root', 'GET', "$base/humphreybogart/$tsr" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+    req( $test, 404, 'root', 'GET', "$base/humphreybogart/$tsr" );
     #
     # - root employee, with tsrange but no records found
     req( $test, 403, 'demo', 'GET', "$base/root/[1999-12-31 23:59, 2000-01-01 00:01)" );

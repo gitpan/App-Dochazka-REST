@@ -75,11 +75,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.290
+Version 0.291
 
 =cut
 
-our $VERSION = '0.290';
+our $VERSION = '0.291';
 
 
 
@@ -123,6 +123,7 @@ my $router;
 my %status_http_map = (
     'DOCHAZKA_MALFORMED_400' => \400,
     'DOCHAZKA_FORBIDDEN_403' => \403,
+    'DOCHAZKA_NOT_FOUND_404' => \404,
 );
 
 

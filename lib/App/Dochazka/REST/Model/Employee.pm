@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.290
+Version 0.291
 
 =cut
 
-our $VERSION = '0.290';
+our $VERSION = '0.291';
 
 
 
@@ -419,7 +419,7 @@ sub select_multiple_by_nick {
                 args => [ $counter ], payload => { 'result_set' => $result , 
                 count => $counter, search_key => $sk } );
         } else {
-            $status = $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND', 
+            $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
                 payload => { 'result_set' => [], count => $counter, 
                 search_key => $sk } );
         }   

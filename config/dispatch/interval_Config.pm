@@ -61,7 +61,7 @@ With this resource, administrators can retrieve any employee's intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
     'interval/help' =>
@@ -177,7 +177,7 @@ With this resource, administrators can retrieve any employee's intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
     'interval/self/:tsrange' => 
@@ -197,7 +197,7 @@ With this resource, employees can retrieve their own attendance intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
 

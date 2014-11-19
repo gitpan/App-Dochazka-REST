@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.290;
+our $VERSION = 0.291;
 
 1;
 __END__
@@ -71,7 +71,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD > *** ACL: passerby ***
+*** HTTP: C<GET> C<DELETE> C<POST> C<PUT> *** CLI: C<$METHOD > *** ACL: passerby ***
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -85,16 +85,20 @@ In terms of behavior, the "" resource is identical to "help" --
 it returns the set of top-level resources available to the user.
 
 
+=back
+
 =head3 activity
 
 Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists activity resources available to the logged-in employee.
 
+
+=back
 
 =head3 bugreport
 
@@ -107,6 +111,8 @@ Display the address for reporting bugs in App::Dochazka::REST
 Returns a "report_bugs_to" key in the payload, containing the address to
 report bugs to.
 
+
+=back
 
 =head3 docu
 
@@ -123,6 +129,8 @@ request body. It returns a string containing the POD source code of the
 resource documentation.
 
 
+=back
+
 =head3 docu/html
 
 Display on-line HTML documentation on the resource whose name is provided in the request body (in double-quotes)
@@ -137,6 +145,8 @@ including the double-quotes, and without leading or trailing slash) in the
 request body. It returns HTML source code of the resource documentation.
 
 
+=back
+
 =head3 echo
 
 Echo the request body
@@ -149,16 +159,20 @@ This resource simply takes whatever content body was sent and echoes it
 back in the response body.
 
 
+=back
+
 =head3 employee
 
 Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<GET> C<POST> C<PUT> C<DELETE> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists employee resources available to the logged-in employee.
 
+
+=back
 
 =head3 forbidden
 
@@ -168,8 +182,10 @@ A resource that is forbidden to all
 
 *** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
 
-This resource always returns 405 Method Not Allowed, no matter what.
+This resource returns 403 Forbidden for all allowed methods, regardless of user.
 
+
+=back
 
 =head3 help
 
@@ -177,7 +193,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD help> *** ACL: passerby ***
+*** HTTP: C<GET> C<DELETE> C<POST> C<PUT> *** CLI: C<$METHOD help> *** ACL: passerby ***
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -200,13 +216,15 @@ description, as well as a link to the App::Dochazka::REST on-line
 documentation.
 
 
+=back
+
 =head3 metaparam/:param
 
 Display (GET) or set (PUT) meta configuration parameter
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
+*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
 
 =over 
 
@@ -231,17 +249,21 @@ If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED
 =back
 
 
+=back
+
 =head3 not_implemented
 
 A resource that will never be implemented
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
+*** HTTP: C<PUT> C<GET> C<DELETE> C<POST> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
 
+
+=back
 
 =head3 priv
 
@@ -249,10 +271,12 @@ Display available priv resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD priv> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<GET> C<PUT> *** CLI: C<$METHOD priv> *** ACL: passerby ***
 
 Lists priv resources available to the logged-in employee.
 
+
+=back
 
 =head3 schedule
 
@@ -260,10 +284,12 @@ Display available schedule resources for given HTTP method
 
 =over
 
-*** HTTP: C<GET> C<POST> C<PUT> C<DELETE> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
+*** HTTP: C<POST> C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
 
 Lists schedule resources available to the logged-in employee.
 
+
+=back
 
 =head3 session
 
@@ -275,6 +301,8 @@ Display the current session
 
 Dumps the current session data (server-side).
 
+
+=back
 
 =head3 siteparam/:param
 
@@ -289,6 +317,8 @@ parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined).
 
 
+=back
+
 =head3 version
 
 Display App::Dochazka::REST version
@@ -299,6 +329,8 @@ Display App::Dochazka::REST version
 
 Shows the L<App::Dochazka::REST> version running on the present instance.
 
+
+=back
 
 =head3 whoami
 
@@ -311,6 +343,8 @@ Display the current employee (i.e. the one we authenticated with)
 Displays the profile of the currently logged-in employee (same as
 "employee/current")
 
+
+=back
 
 =head2 Activity
 
@@ -333,13 +367,15 @@ must include an 'aid' property, the value of which specifies the AID to be
 updated.
 
 
+=back
+
 =head3 activity/aid/:aid
 
 GET, PUT, or DELETE an activity object by its AID
 
 =over
 
-*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD activity aid $AID> *** ACL: PUT admin, DELETE admin, GET active ***
+*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD activity aid $AID> *** ACL: DELETE admin, GET active, PUT admin ***
 
 =over
 
@@ -363,6 +399,8 @@ This will work only if nothing in the database refers to this activity.
 =back
 
 
+=back
+
 =head3 activity/all
 
 Retrieve all activity objects (excluding disabled ones)
@@ -374,6 +412,8 @@ Retrieve all activity objects (excluding disabled ones)
 Retrieves all activity objects in the database (excluding disabled activities).
 
 
+=back
+
 =head3 activity/all/disabled
 
 Retrieve all activity objects, including disabled ones
@@ -384,6 +424,8 @@ Retrieve all activity objects, including disabled ones
 
 Retrieves all activity objects in the database (including disabled activities).
 
+
+=back
 
 =head3 activity/code
 
@@ -400,13 +442,15 @@ include an 'code' property, the value of which specifies the activity to be
 updated.  
 
 
+=back
+
 =head3 activity/code/:code
 
 GET, PUT, or DELETE an activity object by its code
 
 =over
 
-*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD activity code $CODE> *** ACL: GET active, DELETE admin, PUT admin ***
+*** HTTP: C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD activity code $CODE> *** ACL: PUT admin, DELETE admin, GET active ***
 
 =over
 
@@ -431,17 +475,21 @@ activity.
 =back
 
 
+=back
+
 =head3 activity/help
 
 Display available activity resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
 
+
+=back
 
 =head2 Employee
 
@@ -463,6 +511,8 @@ of all privilege levels, including not only administrators and active
 employees, but inactives and passerbies as well. Keep this in mind when
 evaluating the number returned.
 
+
+=back
 
 =head3 employee/count/:priv
 
@@ -488,13 +538,15 @@ privlevels are:
 =back
 
 
+=back
+
 =head3 employee/current
 
 Retrieve (GET) and edit (POST) our own employee profile
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD employee current> *** ACL: GET passerby, POST inactive ***
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD employee current> *** ACL: POST inactive, GET passerby ***
 
 =over
 
@@ -512,6 +564,8 @@ profile. Exactly which fields can be updated may differ from site to site
 =back
 
 
+=back
+
 =head3 employee/current/priv
 
 Retrieve our own employee profile, privlevel, and schedule
@@ -524,6 +578,8 @@ Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
 the employee's privlevel in the 'priv' property.
 
+
+=back
 
 =head3 employee/eid
 
@@ -543,13 +599,15 @@ This would change the 'fullname' property of the employee with EID 43 to "Foo
 Bariful" (provided such an employee exists).
 
 
+=back
+
 =head3 employee/eid/:eid
 
 GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -576,17 +634,21 @@ exists and nothing in the database refers to it).
 =back
 
 
+=back
+
 =head3 employee/help
 
 Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
 
+
+=back
 
 =head3 employee/nick
 
@@ -609,13 +671,15 @@ doesn't exist this HTTP request would cause a new employee 'foobar' to be
 created.
 
 
+=back
+
 =head3 employee/nick/:nick
 
 Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -647,6 +711,8 @@ in question.
 =back
 
 
+=back
+
 =head3 employee/self
 
 Retrieve (GET) and edit (POST) our own employee profile
@@ -671,6 +737,8 @@ profile. Exactly which fields can be updated may differ from site to site
 =back
 
 
+=back
+
 =head3 employee/self/priv
 
 Retrieve our own employee profile, privlevel, and schedule
@@ -683,6 +751,8 @@ Displays the "full profile" of the currently logged-in employee. The
 information includes the employee object in the 'current_emp' property and
 the employee's privlevel in the 'priv' property.
 
+
+=back
 
 =head2 Privilege
 
@@ -705,17 +775,21 @@ If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
 
+=back
+
 =head3 priv/help
 
 Display priv resources
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
 
+
+=back
 
 =head3 priv/history/eid/:eid
 
@@ -723,7 +797,7 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD priv history eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -749,6 +823,8 @@ performed with due care - especially with regard to existing employee
 attendance data (if any).
 
 
+=back
+
 =head3 priv/history/eid/:eid/:tsrange
 
 Get a slice of history of privilege level changes for employee with the given EID
@@ -761,13 +837,15 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
 
 
+=back
+
 =head3 priv/history/nick/:nick
 
 Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee's privhistory
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -793,6 +871,8 @@ performed with due care - especially with regard to existing employee
 attendance data (if any).
 
 
+=back
+
 =head3 priv/history/nick/:nick/:tsrange
 
 Get partial history of privilege level changes for employee with the given nick (i.e, limit to given tsrange)
@@ -805,13 +885,15 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 "privhistory" (history of changes in privilege level).
 
 
+=back
+
 =head3 priv/history/phid/:phid
 
 Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID
 
 =over
 
-*** HTTP: C<DELETE> C<GET> *** CLI: C<$METHOD priv history phid $PHID> *** ACL: admin ***
+*** HTTP: C<GET> C<DELETE> *** CLI: C<$METHOD priv history phid $PHID> *** ACL: admin ***
 
 =over
 
@@ -829,6 +911,8 @@ Deletes a privhistory record by its PHID.
 "priv/history/nick/:nick")
 
 
+=back
+
 =head3 priv/history/self/?:tsrange
 
 Retrieves privhistory of present employee, with option to limit to :tsrange
@@ -841,6 +925,8 @@ This resource retrieves the "privhistory", or history of changes in
 privilege level, of the present employee. Optionally, the listing can be
 limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
+
+=back
 
 =head3 priv/nick/:nick/?:ts
 
@@ -856,6 +942,8 @@ If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
 
+=back
+
 =head3 priv/self/?:ts
 
 Get the present privlevel of the currently logged-in employee, or with optional timestamp, that employee's privlevel as of that timestamp
@@ -869,6 +957,8 @@ This resource retrieves the privlevel of the caller (currently logged-in employe
 If no timestamp is given, the present privlevel is retrieved. If a timestamp
 is present, the privlevel as of that timestamp is retrieved.
 
+
+=back
 
 =head2 Schedule
 
@@ -889,6 +979,8 @@ This resource returns a list (array) of all schedules for which the 'disabled' f
 either not been set or has been set to 'false'.
 
 
+=back
+
 =head3 schedule/all/disabled
 
 Retrieves (GET) all schedules (disabled and non-disabled)
@@ -900,6 +992,8 @@ Retrieves (GET) all schedules (disabled and non-disabled)
 This resource returns a list (array) of all schedules, regardless of the contents
 of the 'disabled' field.
 
+
+=back
 
 =head3 schedule/eid/:eid/?:ts
 
@@ -915,6 +1009,8 @@ If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
 
+=back
+
 =head3 schedule/help
 
 Display schedule resources
@@ -926,6 +1022,8 @@ Display schedule resources
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
 
+
+=back
 
 =head3 schedule/history/eid/:eid
 
@@ -955,6 +1053,8 @@ performed with due care - especially with regard to existing employee
 attendance data (if any).
 
 
+=back
+
 =head3 schedule/history/eid/:eid/:tsrange
 
 Retrieves a slice of history of schedule changes for employee with the given EID
@@ -967,13 +1067,15 @@ Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule). 
 
 
+=back
+
 =head3 schedule/history/nick/:nick
 
 Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee
 
 =over
 
-*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD schedule history nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD schedule history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -995,6 +1097,8 @@ performed with due care - especially with regard to existing employee
 attendance data (if any).
 
 
+=back
+
 =head3 schedule/history/nick/:nick/:tsrange
 
 Get partial history of schedule changes for employee with the given nick (i.e, limit to given tsrange)
@@ -1006,6 +1110,8 @@ Get partial history of schedule changes for employee with the given nick (i.e, l
 Retrieves a slice (given by the tsrange argument) of the employee's
 "schedule history" (history of changes in schedule).
 
+
+=back
 
 =head3 schedule/history/self/?:tsrange
 
@@ -1020,13 +1126,15 @@ schedule, of the current employee. Optionally, the listing can be
 limited to a specific tsrange such as "[2014-01-01, 2014-12-31)".
 
 
+=back
+
 =head3 schedule/history/shid/:shid
 
 GET or DELETE a schedule record by its SHID
 
 =over
 
-*** HTTP: C<DELETE> C<GET> *** CLI: C<$METHOD schedule history shid $SHID> *** ACL: admin ***
+*** HTTP: C<GET> C<DELETE> *** CLI: C<$METHOD schedule history shid $SHID> *** ACL: admin ***
 
 =over
 
@@ -1043,6 +1151,8 @@ Deletes a schedule history record by its SHID.
 (N.B.: history records can be added using POST requests on "priv/history/eid/:eid" or
 "priv/history/nick/:nick")
 
+
+=back
 
 =head3 schedule/intervals
 
@@ -1097,6 +1207,8 @@ N.B. At present there is no way to just check for the existence of a schedule
 corresponding to a given set of intervals. 
 
 
+=back
+
 =head3 schedule/nick/:nick/?:ts
 
 Get the current schedule of arbitrary employee, or with optional timestamp, that employee's schedule as of that timestamp
@@ -1110,6 +1222,8 @@ This resource retrieves the schedule of an arbitrary employee specified by nick.
 If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
+
+=back
 
 =head3 schedule/self/?:ts
 
@@ -1125,13 +1239,15 @@ If no timestamp is given, the current schedule is retrieved. If a timestamp
 is present, the schedule as of that timestamp is retrieved.
 
 
+=back
+
 =head3 schedule/sid/:sid
 
 Retrieves, updates, or deletes a schedule by its SID
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
+*** HTTP: C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
 
 =over
 
@@ -1157,6 +1273,8 @@ the return status will be "OK".
 =back
 
 
+=back
+
 =head2 Interval
 
 Resources related to attendance intervals
@@ -1176,8 +1294,10 @@ With this resource, administrators can retrieve any employee's intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 
+
+=back
 
 =head3 interval/help
 
@@ -1185,11 +1305,13 @@ Display available interval resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<POST> C<DELETE> C<GET> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
 
 Displays information on all interval resources available to the logged-in
 employee, according to her privlevel.
 
+
+=back
 
 =head3 interval/iid
 
@@ -1205,13 +1327,15 @@ must include an 'iid' property, the value of which specifies the iid to be
 updated.
 
 
+=back
+
 =head3 interval/iid/:iid
 
 GET, PUT, or DELETE an interval object by its iid
 
 =over
 
-*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: PUT active, DELETE active, GET active ***
+*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: PUT active, GET active, DELETE active ***
 
 =over
 
@@ -1238,6 +1362,8 @@ will probably work as expected.
 ACL note: 'active' employees can update/delete only their own unlocked intervals.
 
 
+=back
+
 =head3 interval/new
 
 Add a new attendance data interval
@@ -1252,6 +1378,8 @@ C<intvl> properties. Additionally, it can contain C<long_desc>, while
 administrators can also specify C<eid> and C<remark>.
 
 
+=back
+
 =head3 interval/nick/:nick/:tsrange
 
 Retrieve an arbitrary employee's intervals over the given tsrange
@@ -1264,8 +1392,10 @@ With this resource, administrators can retrieve any employee's intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 
+
+=back
 
 =head3 interval/self/:tsrange
 
@@ -1279,8 +1409,10 @@ With this resource, employees can retrieve their own attendance intervals
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
-be fetched, the return status will be 'DISPATCH_TOO_MANY_INTERVALS'.
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 
+
+=back
 
 
 =head1 AUTHOR

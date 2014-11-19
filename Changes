@@ -1865,3 +1865,14 @@ Revision history for Dochazka-REST
 - t/dispatch/interval.t: $base for 'interval/nick/:nick/:tsrange' resource was
   set to wrong value - fixed
 
+0.291  2014-11-19 15:19 CET
+- HTTP_Message_en.conf, Resources.pm: add 404 status trigger
+- interval_Config.pm: call the hypothetical error code DISPATCH_TOO_MANY_RECORDS_FOUND
+- top_Config.pm: fix factual error in documentation 
+- dispatch_Message_en.conf: add DISPATCH_TOO_MANY_RECORDS_FOUND definition 
+- Dispatch/Shared.pm->history: trigger 404 when no records found
+- Model/Employee.pm: return DISPATCH_NO_RECORDS_FOUND with status level 'NOTICE'
+- t/dispatch/history.t: explore more possibilities for entering an invalid EID; 
+  adapt to current state (status-triggered 404 errors)
+- t/dispatch/interval.t: add basic tests for 'interval/self/:tsrange'
+

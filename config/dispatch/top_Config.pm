@@ -189,7 +189,7 @@ EOH
         documentation => <<'EOH',
 =pod
 
-This resource always returns 405 Method Not Allowed, no matter what.
+This resource returns 403 Forbidden for all allowed methods, regardless of user.
 EOH
     },
     'help' => 

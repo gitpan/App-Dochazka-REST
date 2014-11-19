@@ -462,4 +462,20 @@ foreach my $method ( qw( PUT POST DELETE ) ) {
 }
 
 
+#=============================
+# "interval/self/:tsrange" resource
+#=============================
+$base = 'interval/self';
+docu_check($test, "$base/:tsrange");
+
+#
+# PUT, POST, DELETE
+#
+foreach my $method ( qw( PUT POST DELETE ) ) {
+    foreach my $user ( 'demo', 'root', 'WAMBLE owdkmdf 5**' ) {
+        req( $test, 405, $user, $method, "$base/[,)" );
+    }
+}
+
+
 done_testing;
