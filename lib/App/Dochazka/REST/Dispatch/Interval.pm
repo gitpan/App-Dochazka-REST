@@ -61,11 +61,11 @@ App::Dochazka::REST::Dispatch::Interval - path dispatch
 
 =head1 VERSION
 
-Version 0.291
+Version 0.292
 
 =cut
 
-our $VERSION = '0.291';
+our $VERSION = '0.292';
 
 
 
@@ -105,6 +105,59 @@ BEGIN {
         App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'PUT' );
     *{"_delete_default"} =
         App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'DELETE' );
+}
+
+
+# 'interval/eid/:eid/:tsrange'
+sub _fetch_by_eid {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_eid" ); 
+    my ( $eid, $tsrange ) = ( $context->{'mapping'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
+    $log->debug("About to fetch intervals for EID $eid in tsrange $tsrange" );
+    
+    my $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
+}
+
+# 'interval/nick/:nick/:tsrange'
+sub _fetch_by_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
+    my ( $nick, $tsrange ) = ( $context->{'mapping'}->{'nick'}, $context->{'mapping'}->{'tsrange'} );
+    $log->debug("About to fetch intervals for nick $nick in tsrange $tsrange" );
+
+    # get EID
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    } elsif ( $status->not_ok ) {
+        return $status;
+    }
+    my $eid = $status->payload->{'eid'};
+    
+    $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
+}
+
+
+# 'interval/self/:tsrange'
+sub _fetch_own {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
+    my ( $eid, $tsrange ) = ( $context->{'current'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
+    $log->debug("About to fetch intervals for EID $eid (current employee) in tsrange $tsrange" );
+
+    my $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
 }
 
 

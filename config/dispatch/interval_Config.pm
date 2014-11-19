@@ -47,8 +47,7 @@ set( 'DISPATCH_RESOURCES_INTERVAL', {
     'interval/eid/:eid/:tsrange' => 
     {
         target => {
-#            GET => '_fetch_by_eid',
-            GET => 'not_implemented',
+            GET => '_fetch_by_eid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Interval',
         acl_profile => 'admin', 
@@ -163,8 +162,7 @@ EOH
     'interval/nick/:nick/:tsrange' => 
     {
         target => {
-#            GET => '_fetch_by_nick',
-            GET => 'not_implemented',
+            GET => '_fetch_by_nick',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Interval',
         acl_profile => 'admin', 
@@ -183,8 +181,7 @@ EOH
     'interval/self/:tsrange' => 
     {
         target => {
-#            GET => '_fetch_own',
-            GET => 'not_implemented',
+            GET => '_fetch_own',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Interval',
         acl_profile => 'inactive', 

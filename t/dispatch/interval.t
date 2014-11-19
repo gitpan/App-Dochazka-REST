@@ -84,31 +84,51 @@ sub disable_testing_activity {
 my $eid_active = create_active_employee( $test );
 create_inactive_employee( $test );
 
-# get AID of WORK
-$status = req( $test, 200, 'root', 'GET', 'activity/code/WORK' );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( $status->{'payload'} );
-ok( $status->{'payload'}->{'aid'} );
-is( $status->{'payload'}->{'code'}, 'WORK' );
-my $aid_of_work = $status->{'payload'}->{'aid'};
-
-# create a testing interval
-$status = req( $test, 200, 'root', 'POST', 'interval/new', <<"EOH" );
+sub create_testing_interval {
+    my ( $test ) = @_;
+    # get AID of WORK
+    $status = req( $test, 200, 'root', 'GET', 'activity/code/WORK' );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    ok( $status->{'payload'} );
+    ok( $status->{'payload'}->{'aid'} );
+    is( $status->{'payload'}->{'code'}, 'WORK' );
+    my $aid_of_work = $status->{'payload'}->{'aid'};
+    
+    # create a testing interval
+    $status = req( $test, 200, 'root', 'POST', 'interval/new', <<"EOH" );
 { "eid" : $eid_active, "aid" : $aid_of_work, "intvl" : "[2014-10-01 08:00, 2014-10-01 12:00)" }
 EOH
-is( $status->level, 'OK' );
-is( $status->code, 'DOCHAZKA_CUD_OK' );
-ok( $status->{'payload'} );
-is( $status->{'payload'}->{'aid'}, $aid_of_work );
-ok( $status->{'payload'}->{'iid'} );
-my $test_iid = $status->{'payload'}->{'iid'};
+    is( $status->level, 'OK' );
+    is( $status->code, 'DOCHAZKA_CUD_OK' );
+    ok( $status->{'payload'} );
+    is( $status->{'payload'}->{'aid'}, $aid_of_work );
+    ok( $status->{'payload'}->{'iid'} );
+    return $status->{'payload'}->{'iid'};
+}
+
+my $test_iid = create_testing_interval( $test );
 
 #=============================
 # "interval/eid/:eid/:tsrange" resource
 #=============================
 my $base = 'interval/eid';
 docu_check($test, "$base/:eid/:tsrange");
+
+#
+# GET
+#
+# - root has no intervals but these users can't find that out
+foreach my $user ( qw( demo inactive active ) ) {
+    req( $test, 403, $user, 'GET', "$base/1/[,)" );
+}
+# - root has no intervals
+req( $test, 404, 'root', 'GET', "$base/1/[,)" );
+# - active has one interval
+$status = req( $test, 200, 'root', 'GET', "$base/$eid_active/[,)" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, 1 );
 
 #
 # PUT, POST, DELETE
@@ -417,12 +437,6 @@ is( $status->code, 'DOCHAZKA_DBI_ERR', "DELETE $base/:iid 9" );
 like( $status->text, qr/invalid input syntax for integer/, "DELETE $base/:iid 10" );
 
 
-# delete the testing employees
-delete_employee_by_nick( $test, 'active' );
-delete_employee_by_nick( $test, 'inactive' );
-delete_employee_by_nick( $test, 'bubba' );
-
-
 #=============================
 # "interval/new" resource
 #=============================
@@ -446,11 +460,35 @@ req( $test, 405, 'root', 'DELETE', $base );
 req( $test, 405, 'WOMBAT5', 'DELETE', $base );
 
 
+# re-create the testing interval
+$test_iid = create_testing_interval( $test );
+
 #=============================
 # "interval/nick/:nick/:tsrange" resource
 #=============================
 $base = 'interval/nick';
 docu_check($test, "$base/:nick/:tsrange");
+
+#
+# GET
+#
+# - these users have no intervals but these users can't find that out
+foreach my $user ( qw( demo inactive active ) ) {
+    foreach my $nick ( qw( root whanger foobar tsw57 ) ) {
+        req( $test, 403, $user, 'GET', "$base/$nick/[,)" );
+    }
+}
+# - root has no intervals
+req( $test, 404, 'root', 'GET', "$base/root/[,)" );
+# - whinger has no intervals
+req( $test, 404, 'root', 'GET', "$base/whinger/[,)" );
+# - -1 has no intervals
+req( $test, 404, 'root', 'GET', "$base/-1/[,)" );
+# - active has one interval
+$status = req( $test, 200, 'root', 'GET', "$base/active/[,)" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, 1 );
 
 #
 # PUT, POST, DELETE
@@ -469,6 +507,22 @@ $base = 'interval/self';
 docu_check($test, "$base/:tsrange");
 
 #
+# GET
+#
+# - demo is not allowed to see any intervals (even his own)
+req( $test, 403, 'demo', 'GET', "$base/[,)" );
+#
+# - inactive and root don't have any intervals
+foreach my $user ( qw( inactive root ) ) {
+    req( $test, 404, $user, 'GET', "$base/[,)" );
+}
+# - active has one interval
+$status = req( $test, 200, 'active', 'GET', "$base/[,)" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+is( $status->{'count'}, 1 );
+
+#
 # PUT, POST, DELETE
 #
 foreach my $method ( qw( PUT POST DELETE ) ) {
@@ -476,6 +530,16 @@ foreach my $method ( qw( PUT POST DELETE ) ) {
         req( $test, 405, $user, $method, "$base/[,)" );
     }
 }
+
+# delete the testing interval
+$status = req( $test, 200, 'root', 'DELETE', "/interval/iid/$test_iid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+
+# delete the testing employees
+delete_employee_by_nick( $test, 'active' );
+delete_employee_by_nick( $test, 'inactive' );
+delete_employee_by_nick( $test, 'bubba' );
 
 
 done_testing;

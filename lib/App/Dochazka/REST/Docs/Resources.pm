@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.291;
+our $VERSION = 0.292;
 
 1;
 __END__
@@ -71,7 +71,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<GET> C<DELETE> C<POST> C<PUT> *** CLI: C<$METHOD > *** ACL: passerby ***
+*** HTTP: C<POST> C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD > *** ACL: passerby ***
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -93,7 +93,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists activity resources available to the logged-in employee.
 
@@ -167,7 +167,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists employee resources available to the logged-in employee.
 
@@ -180,7 +180,7 @@ A resource that is forbidden to all
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
+*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
 
 This resource returns 403 Forbidden for all allowed methods, regardless of user.
 
@@ -193,7 +193,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<GET> C<DELETE> C<POST> C<PUT> *** CLI: C<$METHOD help> *** ACL: passerby ***
+*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD help> *** ACL: passerby ***
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -224,7 +224,7 @@ Display (GET) or set (PUT) meta configuration parameter
 
 =over
 
-*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
 
 =over 
 
@@ -257,7 +257,7 @@ A resource that will never be implemented
 
 =over
 
-*** HTTP: C<PUT> C<GET> C<DELETE> C<POST> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
@@ -271,7 +271,7 @@ Display available priv resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<POST> C<GET> C<PUT> *** CLI: C<$METHOD priv> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD priv> *** ACL: passerby ***
 
 Lists priv resources available to the logged-in employee.
 
@@ -284,7 +284,7 @@ Display available schedule resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
 
 Lists schedule resources available to the logged-in employee.
 
@@ -375,7 +375,7 @@ GET, PUT, or DELETE an activity object by its AID
 
 =over
 
-*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD activity aid $AID> *** ACL: DELETE admin, GET active, PUT admin ***
+*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD activity aid $AID> *** ACL: PUT admin, DELETE admin, GET active ***
 
 =over
 
@@ -450,7 +450,7 @@ GET, PUT, or DELETE an activity object by its code
 
 =over
 
-*** HTTP: C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD activity code $CODE> *** ACL: PUT admin, DELETE admin, GET active ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD activity code $CODE> *** ACL: GET active, DELETE admin, PUT admin ***
 
 =over
 
@@ -483,7 +483,7 @@ Display available activity resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
+*** HTTP: C<GET> C<POST> C<DELETE> C<PUT> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
@@ -546,7 +546,7 @@ Retrieve (GET) and edit (POST) our own employee profile
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD employee current> *** ACL: POST inactive, GET passerby ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD employee current> *** ACL: POST inactive, GET passerby ***
 
 =over
 
@@ -607,7 +607,7 @@ GET: look up employee (exact match); PUT: update existing employee; DELETE: dele
 
 =over
 
-*** HTTP: C<PUT> C<GET> C<DELETE> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -642,7 +642,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
@@ -679,7 +679,7 @@ Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee spe
 
 =over
 
-*** HTTP: C<DELETE> C<GET> C<PUT> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -719,7 +719,7 @@ Retrieve (GET) and edit (POST) our own employee profile
 
 =over
 
-*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD employee current> *** ACL: POST inactive, GET passerby ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD employee current> *** ACL: GET passerby, POST inactive ***
 
 =over
 
@@ -783,7 +783,7 @@ Display priv resources
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
@@ -845,7 +845,7 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -1017,7 +1017,7 @@ Display schedule resources
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD schedule help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD schedule help> *** ACL: passerby ***
 
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
@@ -1031,7 +1031,7 @@ Retrieves (GET) entire history of schedule changes for employee with the given E
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD schedule history eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD schedule history eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -1075,7 +1075,7 @@ Retrieves (GET) entire history of schedule changes for employee with the given n
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD schedule history nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD schedule history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -1134,7 +1134,7 @@ GET or DELETE a schedule record by its SHID
 
 =over
 
-*** HTTP: C<GET> C<DELETE> *** CLI: C<$METHOD schedule history shid $SHID> *** ACL: admin ***
+*** HTTP: C<DELETE> C<GET> *** CLI: C<$METHOD schedule history shid $SHID> *** ACL: admin ***
 
 =over
 
@@ -1247,7 +1247,7 @@ Retrieves, updates, or deletes a schedule by its SID
 
 =over
 
-*** HTTP: C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
+*** HTTP: C<GET> C<POST> C<DELETE> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
 
 =over
 
@@ -1305,7 +1305,7 @@ Display available interval resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<POST> C<DELETE> C<GET> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
+*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
 
 Displays information on all interval resources available to the logged-in
 employee, according to her privlevel.
@@ -1335,7 +1335,7 @@ GET, PUT, or DELETE an interval object by its iid
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: PUT active, GET active, DELETE active ***
+*** HTTP: C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: DELETE active, PUT active, GET active ***
 
 =over
 

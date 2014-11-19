@@ -1876,3 +1876,14 @@ Revision history for Dochazka-REST
   adapt to current state (status-triggered 404 errors)
 - t/dispatch/interval.t: add basic tests for 'interval/self/:tsrange'
 
+0.292  2014-11-19 16:40 CET
+- dispatch/interval_Config.pm: enable _fetch_* dispatch targets
+- sql/interval_Config.pm: add SQL_INTERVAL_SELECT_BY_EID_AND_TSRANGE
+- Dispatch/Interval.pm: implement _fetch_* dispatch targets
+- Model/Interval.pm: implement a fetch_by_eid_and_tsrange function
+- Model/Shared.pm: load_multiple had no provision for binding parameters -
+  fixed
+- t/dispatch/interval.t: add some basic tests for
+  '/interval/eid/:eid/:tsrange', 'interval/nick/:nick/:tsrange' and
+  '/interval/self/:tsrange'
+

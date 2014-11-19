@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.291
+Version 0.292
 
 =cut
 
-our $VERSION = '0.291';
+our $VERSION = '0.292';
 
 
 
@@ -279,7 +279,7 @@ sub load {
         if $dbh->err;
 
     # report the result
-    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ 1 ],
+    return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ '1' ],
         payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
     return $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
 }
@@ -319,6 +319,11 @@ sub load_multiple {
     try {
         # prepare and execute SQL
         my $sth = $dbh->prepare( $ARGS{'sql'} );
+        my $bc = 0;
+        map {
+             $bc += 1;
+             $sth->bind_param( $bc, $_ || undef );
+        } @{ $ARGS{'keys'} };
         $sth->execute();
         # assuming they are objects, spawn them and push them onto @results
         while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
@@ -338,7 +343,7 @@ sub load_multiple {
             [ $counter ], payload => \@results, count => $counter );
     } else {
         $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND',
-            payload => @results, count => $counter );
+            payload => \@results, count => $counter );
     }
     $dbh->{RaiseError} = 0;
     return $status;

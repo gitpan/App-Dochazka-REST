@@ -45,6 +45,12 @@ set( 'SQL_INTERVAL_SELECT_BY_IID', q/
       / );
 
 #
+set( 'SQL_INTERVAL_SELECT_BY_EID_AND_TSRANGE', q/
+      SELECT iid, eid, aid, intvl, long_desc, remark
+      FROM intervals WHERE eid = ? AND intvl && ?
+      / );
+
+#
 set( 'SQL_INTERVAL_INSERT', q/
       INSERT INTO intervals
                 (eid, aid, intvl, long_desc, remark)

@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.291;
+our $VERSION = 0.292;
 
 1;
 __END__

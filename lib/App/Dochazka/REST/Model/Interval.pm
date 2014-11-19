@@ -39,7 +39,7 @@ use App::CELL qw( $CELL $log $meta $site );
 #use App::Dochazka::REST::dbh qw( $dbh );
 use Carp;
 use Data::Dumper;
-use App::Dochazka::REST::Model::Shared qw( load cud );
+use App::Dochazka::REST::Model::Shared qw( cud load load_multiple );
 use DBI;
 use Params::Validate qw( :all );
 
@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.291
+Version 0.292
 
 =cut
 
-our $VERSION = '0.291';
+our $VERSION = '0.292';
 
 
 
@@ -256,6 +256,22 @@ Boolean function
 BEGIN {
     no strict 'refs';
     *{'iid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'iid' );
+}
+
+=head2 fetch_by_eid_and_tsrange
+
+Boilerplate.
+
+=cut
+
+sub fetch_by_eid_and_tsrange {
+    my ( $eid, $tsrange ) = @_;
+
+    return load_multiple(
+        class => __PACKAGE__,
+        sql => $site->SQL_INTERVAL_SELECT_BY_EID_AND_TSRANGE,
+        keys => [ $eid, $tsrange ],
+    );
 }
 
 
