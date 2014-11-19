@@ -170,6 +170,17 @@ set( 'DOCHAZKA_REST_SESSION_EXPIRATION_TIME', 3600 );
 #     whether or not debug- and trace-level messages are logged
 set( 'DOCHAZKA_REST_DEBUG_MODE', 0 );
 
+# DOCHAZKA_PROFILE_EDITABLE_FIELDS
+#     which employee fields can be updated by employees with privlevel 'inactive' and 'active'
+#     N.B. 1 administrators can edit all fields, and passerbies can't edit any
+#     N.B. 2 if LDAP authentication and LDAP import/sync are being used, it may not 
+#            make sense for employees to edit *any* of the fields
+#     N.B. 3 this site param affects the functioning of the "POST employee/self" and "POST employee/current" resources
+set( 'DOCHAZKA_PROFILE_EDITABLE_FIELDS', {
+    'inactive' => [ 'passhash', 'salt' ],
+    'active' => [ 'passhash', 'salt' ],
+});
+
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE
 # -----------------------------------

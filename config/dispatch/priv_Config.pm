@@ -108,11 +108,16 @@ privilege level, of the employee with the given EID.
 Adds a record to the privhistory of the given employee. The content
 body should contain two properties: "timestamp" and "privlevel".
 
-It is assumed that privhistories will be built up record-by-record, but this
-dispatch target could conceivably support insertion of multiple privhistory
-records.
+N.B. It is assumed that privhistories will be built up record-by-record, but
+this dispatch target could conceivably support insertion of multiple
+privhistory records.
 
 =back
+
+Update note: histories can be updated by adding new records and deleting old
+ones. Existing history records cannot be changed. Adds/deletes should be
+performed with due care - especially with regard to existing employee
+attendance data (if any).
 EOH
     },
     'priv/history/eid/:eid/:tsrange' =>
@@ -161,6 +166,11 @@ dispatch target could conceivably support insertion of multiple privhistory
 records.
 
 =back
+
+Update note: histories can be updated by adding new records and deleting old
+ones. Existing history records cannot be changed. Adds/deletes should be
+performed with due care - especially with regard to existing employee
+attendance data (if any).
 EOH
     },
     'priv/history/nick/:nick/:tsrange' =>
@@ -205,8 +215,8 @@ Deletes a privhistory record by its PHID.
 
 =back
 
-(N.B.: to add a privhistory record, use "PUT priv/history/eid/:eid" or
-"PUT priv/history/nick/:nick")
+(N.B.: history records can be added using POST requests on "priv/history/eid/:eid" or
+"priv/history/nick/:nick")
 EOH
     },
     'priv/history/self/?:tsrange' =>
@@ -215,7 +225,7 @@ EOH
             GET => '_history_self', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
-        acl_profile => 'active',
+        acl_profile => 'inactive',
         cli => 'priv history self [$TSRANGE]',
         description => 'Retrieves privhistory of present employee, with option to limit to :tsrange',
         documentation => <<'EOH',

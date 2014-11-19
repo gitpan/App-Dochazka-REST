@@ -1751,3 +1751,111 @@ Revision history for Dochazka-REST
   resource to handle resources where 'acl_profile' is a HASHREF
 - ../release/docgen.plx: tweak POD formatting some more
 
+0.273  2014-11-12 16:49 CET
+- Dispatch/Shared.pm: make 'make_default' handle resources that use
+  fine-grained acl_profile definition
+- t/dispatch/activity.t: test above handler
+
+0.274  2014-11-13 10:43 CET
+- config/dispatch/: allow 'inactive' to view own priv/schedule history
+- Dispatch/Shared.pm: refactor 'current' routine to use a dispatch table
+- Docs/Workflow.pm: add verbiage
+- Test.pm: create_{active,inactive}_employee return $eid
+- t/: start fixing regressions
+
+0.275  2014-11-13 15:01 CET
+- fix regression: "GET schedule/eid/:eid vomits 500 or returns nonsense"
+- Dispatch/Shared.pm: the regression was caused by not saving the return
+  value from the call to {priv,schedule}_by_eid in the 'current' routine
+- t/dispatch/schedule.t: add test case for this regression 
+
+0.276  2014-11-13 15:37 CET
+- t/dispatch/schedule.t: add more positive tests focused on 'current' dispatch
+  target
+
+0.277  2014-11-13 16:30 CET
+- Dispatch/Schedule.pm: cleanup
+- t/dispatch/schedule.t: add negative tests for 'schedule/eid/:eid/?:ts'
+
+0.278  2014-11-13 22:32 CET
+- t/dispatch/schedule.t: add more negative tests
+- ../development-checklist, Docs/Workflow.pm: start blocking in interval
+  and lock resources; add verbiage
+- config/dispatch/: make 'employee/self' be a synonym for 'employee/current'
+  and enable POST requests on these resources so employees can, e.g., change
+  their own password; update documentation of history resources
+- REST_Config.pm: add 'DOCHAZKA_PROFILE_EDITABLE_FIELDS' for POST requests
+  on 'employee/self' 
+- t/dispatch/employee.t: run all 'employee/current' tests on 'employee/self'
+  as well; realize that if a resource returns 405 it will do so regardless
+  of which user we authenticate as (even non-existent user)
+
+0.279  2014-11-14 10:39 CET
+- Dispatch/Employee.pm: add _post_current (dispatch target for POST
+  'employee/{current, self}'
+- t/dispatch/employee.t: ACL checks are not working for resources with
+  fine-grained ACL profile definition: add a test case for this
+
+0.280  2014-11-14 11:29 CET
+- employee_Config.pm: fix 'employee/self' acl_profile property
+- Dispatch/Employee.pm: request body needs to be a hashref - check for that
+  where we really care about it - in _put_post_delete_employee_by_eid
+- Dispatch/Shared.pm: pre_update_comparison was causing DOCHAZKA_BAD_INPUT to
+  be returned if no fields would actually change on update, but this might be
+  confusing - change it to allow updates in such cases
+- t/dispatch/employee.t: add test cases for POST employee/{current,self} by
+  inactive and active employees; adapt tests to current state
+
+0.281  2014-11-14 16:42 CET
+- finish implementation (including test cases) of POST dispatch
+  target for 'employee/{current,self}' resource
+
+0.282  2014-11-14 21:36 CET
+- dbinit_Config.pm: add trigger clause to make 'sid' field immutable
+- Docs/Workflow.pm: add verbiage
+- t/model/schedule.t: add test case verifying that 'update' method does not
+  change the database even if the 'sid' field is changed
+
+0.283  2014-11-18 07:45 CET
+- REST_Message_en.conf: add finer-grained notice messages for 'cud'
+- Model/Shared.pm: in cud, check return value of '$sth->execute' and
+  return finer-grained notices to distinguish various edge cases
+- t/: adapt to current state
+
+0.284  2014-11-18 11:01 CET
+- unit tests: move existing '002-root' and '003-current-priv' units to 
+  new t/sql directory; add new 't/sql/immutable_id.t' unit to test 
+  new triggers to make 'eid', 'iid', etc. fields immutable
+- config/sql/dbinit_Config.pm: add "immutability" triggers for 'employees.eid',
+  'schedhistory.shid' and 'privhistory.phid'
+
+0.285  2014-11-18 11:53 CET
+- dbinit_Config.pm, t/sql/immutable_id.t: finish making '*id' fields immutable
+
+0.286  2014-11-18 12:49 CET
+- dispatch_Config.pm, interval_Config.pm: add basic set of 'intervals'
+  resources
+
+0.287  2014-11-18 15:33 CET
+- config/dispatch/HTTP_Message_en.conf: make a separate message file for codes
+  that map directly to an HTTP error code
+- config/, lib/: transform DOCHAZKA_BAD_INPUT and DOCHAZKA_INSUFFICENT_PRIV into 
+  special status codes that map directly to HTTP error codes
+- Resource.pm: when target returns certain status codes (see package variable
+  %status_http_map), translate them directly into HTTP error codes
+- t/: adapt to current state
+
+0.288  2014-11-19 10:05 CET
+- Dispatch/Lock.pm: lay groundwork for locks
+- t/dispatch/interval.t: new tests 
+- interval_Config.pm, dispatch_Message_en.conf: minor fixes
+- Dispatch/Interval.pm: add special ACL handling
+- Model/Interval.pm: fix bug (wrong order of properties in call to 'cud')
+- Test.pm: let 'req' handle any user as long as "passhash" property is
+  set the same as "nick"
+
+0.289  2014-11-19 11:08 CET
+- interval_Config.pm: make not-implemented resources use 'not_implemented'
+  dispatch target
+- t/dispatch/interval.pm: add some missing boilerplate tests
+

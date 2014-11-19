@@ -86,7 +86,7 @@ SQL
 
 # attempt to change EID of root employee -- FAIL
 #diag( "attempt to change EID of root employee" );
-test_sql_fail(qr/violates foreign key constraint/, <<SQL);
+test_sql_fail(qr/employees\.eid field is immutable/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_root
 SQL
 

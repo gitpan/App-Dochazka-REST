@@ -45,6 +45,8 @@ use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch;
 use App::Dochazka::REST::Dispatch::Activity;
 use App::Dochazka::REST::Dispatch::Employee;
+use App::Dochazka::REST::Dispatch::Interval;
+use App::Dochazka::REST::Dispatch::Lock;
 use App::Dochazka::REST::Dispatch::Priv;
 use App::Dochazka::REST::Dispatch::Schedule;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
@@ -73,11 +75,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -118,6 +120,10 @@ L<App::Dochazka::REST>.
 my $JSON = JSON->new->allow_nonref->utf8->pretty;
 # a package variable to store the Path::Router instance
 my $router;
+my %status_http_map = (
+    'DOCHAZKA_MALFORMED_400' => \400,
+    'DOCHAZKA_FORBIDDEN_403' => \403,
+);
 
 
 =head1 METHODS
@@ -162,10 +168,14 @@ server's JSON response and wraps it up in a nice package.
 sub _render_response_html { 
     my ( $self ) = @_;
     
+    my $json = $self->_make_json;
+    if ( ref( $json ) eq 'SCALAR' ) { # statuses listed in %status_http_map
+        return $json
+    }
     my $msgobj = $CELL->msg( 
         'DOCHAZKA_REST_HTML', 
         $VERSION, 
-        $self->_make_json,
+        $json,
         App::Dochazka::REST::dbh->status,
     );
     $msgobj
@@ -182,7 +192,14 @@ used in '_render_response_html'.
 
 =cut
 
-sub _render_response_json { ( shift )->_make_json; }
+sub _render_response_json { 
+    my $self = shift;
+    my $json = $self->_make_json;
+    if ( ref( $json ) eq 'SCALAR' ) { # statuses listed in %status_http_map
+        return $json
+    }
+    return $json;
+}
 
 
 
@@ -209,7 +226,11 @@ sub _handle_request_json {
     my $self = shift;
     $log->debug("Entering _handle_request_json");
     $self->response->header('Content-Type' => 'application/json' );
-    $self->response->body( $self->_make_json );
+    my $json = $self->_make_json;
+    if ( ref( $json ) eq 'SCALAR' ) { # statuses listed in %status_http_map
+        return $json
+    }
+    $self->response->body( $json );
     return 1;
 }
 
@@ -592,8 +613,10 @@ sub forbidden {
     my $acl_profile;
     if ( ! ref( $self->context->{'acl_profile'} ) ) {
         $acl_profile = $self->context->{'acl_profile'} || "undefined";
+        $log->debug( "ACL profile is $acl_profile for all methods" );
     } elsif ( ref( $self->context->{'acl_profile'} ) eq 'HASH' ) {
         $acl_profile = $self->context->{'acl_profile'}->{$method} || "undefined";
+        $log->debug( "ACL profile for $method requests is $acl_profile" );
     } else {
         $log->crit("Cannot determine ACL profile of resource!!! Path is " . $self->context->{'path'} );
         return 1;
@@ -745,7 +768,11 @@ sub delete_resource {
     my $self = shift;
     $log->debug("Entering delete_resource");
     $self->response->header('Content-Type' => 'application/json' );
-    $self->response->body( $self->_make_json );
+    my $json = $self->_make_json;
+    if ( ref( $json ) eq 'SCALAR' ) { # statuses listed in %status_http_map
+        return $json;
+    }
+    $self->response->body( $json );
     return 1;
 };
 
@@ -761,7 +788,11 @@ sub process_post {
     my $self = shift;
     $log->debug("Entering process_post");
     $self->response->header('Content-Type' => 'application/json' );
-    $self->response->body( $self->_make_json );
+    my $json = $self->_make_json;
+    if ( ref( $json ) eq 'SCALAR' ) {  # statuses listed in %status_http_map
+        return $json;
+    }
+    $self->response->body( $json );
     return 1;
 }
 
@@ -802,6 +833,8 @@ sub _push_onto_context {
 =head2 _make_json
 
 Makes the JSON for inclusion in the response entity.
+Alternatively, if the status code is one of those listed in the
+package variable %status_http_map, return the associated HTTP code.
 
 =cut
 
@@ -809,6 +842,14 @@ sub _make_json {
     my ( $self ) = @_;
     my ( $d, %h, $before, $after, $after_utf8 );
 
+    my $code = $self->context->{'entity'}->{'code'};
+    if ( ! defined( $code ) ) {
+        return $CELL->status_crit( 'DOCHAZKA_UNKNOWN_STATUS' );
+    }
+    $log->debug( "Comparing $code with \%status_http_map" );
+    if ( grep { $code eq $_; } keys %status_http_map ) {
+        return $status_http_map{ $code };
+    }
     ## We can't send the context to JSON->encode directly because the
     ## context contains a code reference and JSON->encode finds that
     ## offensive: our deep_copy routine replaces the code reference with
@@ -822,9 +863,12 @@ sub _make_json {
 
     $after = JSON->new->pretty->convert_blessed->allow_nonref->encode( $self->context->{'entity'} );
     $after_utf8 = encode_utf8($after);
-    $log->debug( "_make_json (before): " . Dumper $before );
-    $log->debug( "_make_json (after): " . Dumper $after );
-    $log->debug( "_make_json (after UTF-8): " . Dumper $after_utf8 );
+    #$log->debug( "_make_json (before): " . Dumper $before );
+    $log->debug( "_make_json: " . Dumper( $after ) );
+    $log->debug( "_make_json (UTF-8): " . Dumper( $after_utf8 ) );
+    if ( ref( $after_utf8 ) eq '' ) {
+        $log->info( "Returning a JSON string" );
+    }
     return $after_utf8;
 }
 

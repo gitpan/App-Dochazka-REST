@@ -219,9 +219,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     # - be pathological
     $j = '{ "effective":"1979-05-24", "horse" : "E-Or" }';
     req( $test, 403, 'demo', 'POST', "$base/2", $j );
-    $status = req( $test, 200, 'root', 'POST', "$base/2", $j );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DOCHAZKA_BAD_INPUT' );
+    req( $test, 400, 'root', 'POST', "$base/2", $j );
     #
     # - addition of privlevel makes the above request less pathological
     $j = ( $base =~ m/^priv/ )

@@ -57,11 +57,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -110,6 +110,8 @@ sub make_default {
         my $server_status = App::Dochazka::REST::dbh::status();
         my $uri = $context->{'uri'};
         $uri =~ s/\/*$//;
+
+        # determine the ACL profile (some resources have separate ACL profiles for each method)
         my $acl_priv = $context->{'acl_priv'};
         my $acls;
         $acls = { 'passerby' => '', 'inactive' => '', 'active' => '', 'admin' => '', } if $acl_priv eq 'admin';
@@ -125,16 +127,25 @@ sub make_default {
             # include resource in help list only if current employee is authorized to access it
             # _AND_ the method is allowed
             my $rspec = $resource_defs->{ $entry };
-            if ( defined( $rspec->{'acl_profile'} ) and exists( $acls->{ $rspec->{'acl_profile'} } )
-                 and grep { $_ eq $method; } keys( %{ $rspec->{'target'} } ) ) {
-                $resources->{ $entry } = {
-                    link => "$uri/$entry",
-                    description => $rspec->{'description'},
-                    acl_profile => $rspec->{'acl_profile'},
-                };
+            my $acl_profile;
+            if ( defined( $rspec->{'acl_profile'} ) ) {
+                $acl_profile = ref( $rspec->{'acl_profile'} )
+                    ? $rspec->{'acl_profile'}->{ $method }
+                    : $rspec->{'acl_profile'};
+                if ( defined( $acl_profile ) and exists( $acls->{ $acl_profile } ) and 
+                     grep { $_ eq $method; } keys( %{ $rspec->{'target'} } ) ) {
+                    $resources->{ $entry } = {
+                        link => "$uri/$entry",
+                        description => $rspec->{'description'},
+                        acl_profile => $rspec->{'acl_profile'},
+                    };
+                }
             }
         }
 
+        #my $acl_priv = ( ref( $context->{'acl_priv'} ) )
+        #    ? $context->{'acl_priv'}->{ $context->{'method'} }
+        #    : $context->{'acl_priv'};
         my $status = $CELL->status_ok( 
             'DISPATCH_DEFAULT', 
             args => [ $VERSION, $server_status ],
@@ -184,15 +195,15 @@ sub pre_update_comparison {
     foreach my $prop (keys %$over) {
         if ( exists $obj->{$prop} ) {
             next if not defined $obj->{$prop} and not defined $over->{$prop};
-            next if ( defined $obj->{$prop} and defined $over->{$prop} ) and ( $obj->{$prop} eq $over->{$prop} );
-            if (
-                 ( defined $obj->{$prop} and not defined $over->{$prop} ) or
-                 ( not defined $obj->{$prop} and defined $over->{$prop} ) or
-                 ( $obj->{$prop} ne $over->{$prop} ) 
-               ) {
+#            next if ( defined $obj->{$prop} and defined $over->{$prop} ) and ( $obj->{$prop} eq $over->{$prop} );
+#            if (
+#                 ( defined $obj->{$prop} and not defined $over->{$prop} ) or
+#                 ( not defined $obj->{$prop} and defined $over->{$prop} ) or
+#                 ( $obj->{$prop} ne $over->{$prop} ) 
+#               ) {
                 $obj->{$prop} = $over->{$prop};
                 $c += 1;
-            }
+#            }
         }
     }
     return $c;
@@ -203,8 +214,8 @@ sub pre_update_comparison {
 
 Generalized routine for the following resources:
 
-    /priv/current/?:ts
-    /schedule/current/?:ts
+    /priv/self/?:ts
+    /schedule/self/?:ts
     /priv/eid/:eid/?:ts
     /schedule/eid/:eid/?:ts
     /priv/nick/:nick/?:ts
@@ -228,6 +239,10 @@ sub current {
     my $nick = $context->{'mapping'}->{'nick'};
     my $resource;
     my $status;
+    my %dispatch = (
+        'priv' => \&priv_by_eid,
+        'schedule' => \&schedule_by_eid,
+    );
 
     # determine which resource was requested
     if ( not $eid and not $nick ) {
@@ -243,78 +258,52 @@ sub current {
 
     # we have one of {EID,nick} but we need both
     if ( $nick ) {
-        # "$t/current/nick/:nick/?:ts" resource
+        # "$t/nick/:nick/?:ts" resource
         $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
         $eid = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'eid'}
             : undef;
-        return $CELL->status_err('DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ]) unless $eid;
+        return $CELL->status_err('DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'nick', $nick ]) unless $eid;
     } else {
-        # "$t/current/?:ts" resource
-        # "$t/current/eid/:eid/?:ts" resource
+        # "$t/self/?:ts" resource
+        # "$t/eid/:eid/?:ts" resource
         $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
         $nick = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'nick'}
             : undef;
-        return $CELL->status_err('DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ]) unless $nick;
+        return $CELL->status_err('DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'EID', $eid ]) unless $nick;
     }
 
-    # employee exists and we have her EID and nick: get privlevel
-    if ( $t eq 'priv' ) {
-        $status = priv_by_eid( $eid, $ts );
-        # on success, $status will be a SCALAR like 'inactive'
-        if ( not ref($status) ) {
-            if ( $ts ) {
-                return $CELL->status_ok(
-                    'DISPATCH_EMPLOYEE_PRIV_AS_AT', 
-                    args => [ $ts, $nick, $status ],
-                    payload => { 
-                        eid => $eid += 0,  # "numify"
-                        nick => $nick,
-                        priv => $status,
-                        timestamp => $ts,
-                    }, 
-                );
-            } else {
-                return $CELL->status_ok(
-                    'DISPATCH_EMPLOYEE_PRIV', 
-                    args => [ $nick, $status ],
-                    payload => { 
-                        eid => $eid += 0,  # "numify"
-                        nick => $nick,
-                        priv => $status,
-                    }, 
-                );
-            }
-        }
-    } elsif ( $t eq 'schedule' ) {
-        $status = schedule_by_eid( $eid, $ts );
-        # on success, $status will be a HASHREF like {}
-        if ( ref($status) eq 'HASH' ) {
-            if ( $ts ) {
-                return $CELL->status_ok(
-                    'DISPATCH_EMPLOYEE_SCHEDULE_AS_AT', 
-                    args => [ $nick, $ts ],
-                    payload => { 
-                        eid => $eid += 0,
-                        nick => $nick,
-                        schedule => $status,
-                        timestamp => $ts,
-                    }, 
-                );
-            } else {
-                return $CELL->status_ok(
-                    'DISPATCH_EMPLOYEE_SCHEDULE', 
-                    args => [ $nick ],
-                    payload => { 
-                        eid => $eid += 0,
-                        nick => $nick,
-                        schedule => $status,
-                    }, 
-                );
-            }
+    # employee exists and we have her EID and nick: get privlevel/schedule
+    $status = $dispatch{$t}->( $eid, $ts );
+    # on success, $status will be a SCALAR like 'inactive' (priv) or a long JSON string (schedule)
+    if ( ref($status) ne 'App::CELL::Status' ) {
+        my @privsched = ( $t, $status );
+        if ( $ts ) {
+            return $CELL->status_ok(
+                'DISPATCH_EMPLOYEE_' . uc( $t ) . '_AS_AT',
+                args => [ $ts, $nick, $status ],
+                payload => { 
+                    eid => $eid += 0,  # "numify"
+                    nick => $nick,
+                    timestamp => $ts,
+                    @privsched,
+                }, 
+            );
+        } else {
+            return $CELL->status_ok(
+                'DISPATCH_EMPLOYEE_' . uc( $t ),
+                args => [ $nick, $status ],
+                payload => { 
+                    eid => $eid += 0,  # "numify"
+                    nick => $nick,
+                    @privsched,
+                }, 
+            );
         }
     }
+    # something very strange and unexpected happened
+    $status->level( 'CRIT' );
     return $status;
 }
 
@@ -401,7 +390,7 @@ sub _put_history {
     } );
     $log->debug( "Entering " . __PACKAGE__ . " _put_history with PARAMHASH " . Dumper( \%PH ) );
     my $prop = _prop_from_class( $PH{class} );
-    return $CELL->status_err('DOCHAZKA_BAD_INPUT') if not $PH{body}->{'effective'} or not $PH{body}->{$prop};
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400') if not $PH{body}->{'effective'} or not $PH{body}->{$prop};
     my $ho;
     try {
         $ho = $PH{class}->spawn( 

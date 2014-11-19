@@ -34,7 +34,7 @@ WriteMakefile
                  ],
   'PL_FILES' => {},
   'test' => {
-              'TESTS' => 't/*.t t/dispatch/*.t t/model/*.t'
+              'TESTS' => 't/*.t t/sql/*.t t/dispatch/*.t t/model/*.t'
             }
 )
 ;

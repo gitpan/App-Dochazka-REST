@@ -75,6 +75,20 @@ set( 'DBINIT_CREATE', [
         CONSTRAINT kosher_nick CHECK (nick ~* '^[A-Za-z0-9][A-Za-z0-9]+$')
       )/,
 
+    q/-- trigger function to make 'eid' field immutable
+    CREATE OR REPLACE FUNCTION eid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.eid <> NEW.eid THEN
+              RAISE EXCEPTION 'employees.eid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_eid_update BEFORE UPDATE ON employees
+      FOR EACH ROW EXECUTE PROCEDURE eid_immutable()/,
+    
     q/-- sequence for use with the schedintvls table -- this is a 
       -- "scratch" version of the SID, if you will
       CREATE SEQUENCE scratch_sid_seq
@@ -159,6 +173,9 @@ set( 'DBINIT_CREATE', [
           IF OLD.schedule <> NEW.schedule THEN
               RAISE EXCEPTION 'schedule field is immutable'; 
           END IF;
+          IF OLD.sid <> NEW.sid THEN
+              RAISE EXCEPTION 'schedules.sid field is immutable'; 
+          END IF; 
           RETURN NEW;
       END;
     $IMM$ LANGUAGE plpgsql/,
@@ -173,9 +190,24 @@ set( 'DBINIT_CREATE', [
         sid        integer REFERENCES schedules (sid) NOT NULL,
         effective  timestamp NOT NULL,
         remark     text,
-        stamp      json
+        stamp      json,
+        UNIQUE (eid, effective)
       )/,
 
+    q/-- trigger function to make 'shid' field immutable
+    CREATE OR REPLACE FUNCTION shid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.shid <> NEW.shid THEN
+              RAISE EXCEPTION 'schedhistory.shid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_shid_update BEFORE UPDATE ON schedhistory
+      FOR EACH ROW EXECUTE PROCEDURE shid_immutable()/,
+    
     q/CREATE TYPE privilege AS ENUM ('passerby', 'inactive', 'active', 'admin')/,
 
     q/CREATE TABLE IF NOT EXISTS privhistory (
@@ -188,6 +220,20 @@ set( 'DBINIT_CREATE', [
         UNIQUE (eid, effective)
     )/,
 
+    q/-- trigger function to make 'phid' field immutable
+    CREATE OR REPLACE FUNCTION phid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.phid <> NEW.phid THEN
+              RAISE EXCEPTION 'privhistory.phid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_phid_update BEFORE UPDATE ON privhistory
+      FOR EACH ROW EXECUTE PROCEDURE phid_immutable()/,
+    
     q/CREATE OR REPLACE FUNCTION round_effective() RETURNS trigger AS $$
         BEGIN
             NEW.effective = round_time(NEW.effective);
@@ -258,6 +304,20 @@ set( 'DBINIT_CREATE', [
           CONSTRAINT kosher_code CHECK (code ~* '^[A-Za-z][A-Za-z0-9_]+$')
       )/,
   
+    q/-- trigger function to make 'aid' field immutable
+    CREATE OR REPLACE FUNCTION aid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.aid <> NEW.aid THEN
+              RAISE EXCEPTION 'activities.aid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_aid_update BEFORE UPDATE ON activities
+      FOR EACH ROW EXECUTE PROCEDURE aid_immutable()/,
+    
     q/CREATE OR REPLACE FUNCTION code_to_upper() RETURNS trigger AS $$
         BEGIN
             NEW.code = upper(NEW.code);
@@ -279,6 +339,20 @@ set( 'DBINIT_CREATE', [
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
 
+    q/-- trigger function to make 'iid' field immutable
+    CREATE OR REPLACE FUNCTION iid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.iid <> NEW.iid THEN
+              RAISE EXCEPTION 'intervals.iid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_iid_update BEFORE UPDATE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE iid_immutable()/,
+    
     q/-- locks
       CREATE TABLE locks (
           lid     serial PRIMARY KEY,
@@ -288,6 +362,20 @@ set( 'DBINIT_CREATE', [
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
 
+    q/-- trigger function to make 'lid' field immutable
+    CREATE OR REPLACE FUNCTION lid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.lid <> NEW.lid THEN
+              RAISE EXCEPTION 'locks.lid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_lid_update BEFORE UPDATE ON locks
+      FOR EACH ROW EXECUTE PROCEDURE lid_immutable()/,
+    
     q/-- insert root employee into employees table and grant admin
       -- privilege to the resulting EID
       WITH cte AS (

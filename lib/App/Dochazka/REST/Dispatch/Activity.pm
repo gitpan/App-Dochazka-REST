@@ -61,11 +61,11 @@ App::Dochazka::REST::Dispatch::Activity - path dispatch
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -133,7 +133,7 @@ sub _aid {
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_aid" ); 
     my $aid;
     if ( $context->{'method'} eq 'POST' ) {
-        return $CELL->status_err('DOCHAZKA_BAD_INPUT') unless exists $context->{'request_body'}->{'aid'};
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'aid'};
         $aid = $context->{'request_body'}->{'aid'};
         return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING') unless $aid;
         delete $context->{'request_body'}->{'aid'};
@@ -165,7 +165,7 @@ sub _code {
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_code" ); 
     my $code;
     if ( $context->{'method'} eq 'POST' ) {
-        return $CELL->status_err('DOCHAZKA_BAD_INPUT') unless exists $context->{'request_body'}->{'code'};
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'code'};
         $code = $context->{'request_body'}->{'code'};
         return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING') unless $code;
         delete $context->{'request_body'}->{'code'};
@@ -205,11 +205,11 @@ sub _update_activity {
     my ($act, $over) = @_;
     $log->debug("Entering App::Dochazka::REST::Dispatch::Activity::_update_activity" );
     if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_BAD_INPUT')
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
     delete $over->{'aid'} if exists $over->{'aid'};
     return $act->update if pre_update_comparison( $act, $over );
-    return $CELL->status_err('DOCHAZKA_BAD_INPUT');
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
 # takes PROPLIST; 'code' property is mandatory and must be first in the list

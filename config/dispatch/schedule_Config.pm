@@ -139,6 +139,11 @@ Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
+
+Update note: histories can be updated by adding new records and deleting old
+ones. Existing history records cannot be changed. Adds/deletes should be
+performed with due care - especially with regard to existing employee
+attendance data (if any).
 EOH
     },
     'schedule/history/eid/:eid/:tsrange' =>
@@ -183,6 +188,11 @@ Adds a record to the schedule history of the given employee. The content
 body should contain two properties: "effective" (timestamp) and "sid" (integer).
 
 =back
+
+Update note: histories can be updated by adding new records and deleting old
+ones. Existing history records cannot be changed. Adds/deletes should be
+performed with due care - especially with regard to existing employee
+attendance data (if any).
 EOH
     },
     'schedule/history/nick/:nick/:tsrange' =>
@@ -208,8 +218,8 @@ EOH
             GET => '_history_self', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
-        acl_profile => 'active',
-        cli => 'schedule history current [$TSRANGE]',
+        acl_profile => 'inactive',
+        cli => 'schedule history self [$TSRANGE]',
         description => 'Get schedule history of current employee, with option to limit to :tsrange',
         documentation => <<'EOH',
 =pod
@@ -244,8 +254,8 @@ Deletes a schedule history record by its SHID.
 
 =back
 
-(N.B.: to add a schedule history record, use "PUT schedule/history/eid/:eid" or
-"PUT schedule/history/nick/:nick")
+(N.B.: history records can be added using POST requests on "priv/history/eid/:eid" or
+"priv/history/nick/:nick")
 EOH
     },
     'schedule/intervals' => 

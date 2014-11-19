@@ -57,11 +57,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -215,7 +215,7 @@ sub update {
     my $status = cud( 
         object => $self,
         sql => $site->SQL_INTERVAL_UPDATE,
-        attrs => [ 'iid', 'eid', 'aid', 'intvl', 'long_desc', 'remark' ],
+        attrs => [ qw( eid aid intvl long_desc remark iid ) ],
     );
 
     return $status;

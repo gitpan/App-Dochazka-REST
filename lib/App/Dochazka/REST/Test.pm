@@ -61,11 +61,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -172,7 +172,7 @@ sub req {
     } elsif ( $user eq 'demo' ) {
         $pass = 'demo';
     } else {
-        $pass = 'some invalid credential';
+        $pass = $user;
     }
 
     $r->authorization_basic( $user, $pass );
@@ -242,7 +242,8 @@ sub create_testing_employee {
     is( ref($emp), 'App::Dochazka::REST::Model::Employee', 'create_testing_employee 1' );
     my $status = $emp->insert;
     if ( $status->not_ok ) {
-        BAIL_OUT( $status->code . " " . $status->text );
+        diag( Dumper $status );
+        BAIL_OUT(0);
     }
     is( $status->level, "OK", 'create_testing_employee 2' );
     return $status->payload;
@@ -262,6 +263,7 @@ sub create_active_employee {
         '{ "effective":"1000-01-01", "priv":"active" }' );
     ok( $status->ok, "Create active employee 2" );
     is( $status->code, 'DOCHAZKA_CUD_OK', "Create active employee 3" );
+    return $eid_of_active;
 }
 
 
@@ -278,6 +280,7 @@ sub create_inactive_employee {
         '{ "effective":"1000-01-01", "priv":"inactive" }' );
     ok( $status->ok, "Create inactive employee 2" );
     is( $status->code, 'DOCHAZKA_CUD_OK', "Create inactive employee 3" );
+    return $eid_of_inactive;
 }
 
 

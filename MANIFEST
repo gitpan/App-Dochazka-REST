@@ -4,6 +4,8 @@ Build.PL
 Changes
 config/dispatch/activity_Config.pm
 config/dispatch/employee_Config.pm
+config/dispatch/HTTP_Message_en.conf
+config/dispatch/interval_Config.pm
 config/dispatch/priv_Config.pm
 config/dispatch/schedule_Config.pm
 config/dispatch/top_Config.pm
@@ -28,6 +30,8 @@ lib/App/Dochazka/REST/Dispatch.pm
 lib/App/Dochazka/REST/Dispatch/ACL.pm
 lib/App/Dochazka/REST/Dispatch/Activity.pm
 lib/App/Dochazka/REST/Dispatch/Employee.pm
+lib/App/Dochazka/REST/Dispatch/Interval.pm
+lib/App/Dochazka/REST/Dispatch/Lock.pm
 lib/App/Dochazka/REST/Dispatch/Priv.pm
 lib/App/Dochazka/REST/Dispatch/Schedule.pm
 lib/App/Dochazka/REST/Dispatch/Shared.pm
@@ -55,8 +59,6 @@ META.yml
 README
 t/000-depends.t
 t/001-init.t
-t/002-root.t
-t/003-current_priv.t
 t/004-shared-paramvalid.t
 t/011-tsrange_equal.t
 t/201-LDAP.t
@@ -65,6 +67,7 @@ t/301-resource.t
 t/dispatch/activity.t
 t/dispatch/employee.t
 t/dispatch/history.t
+t/dispatch/interval.t
 t/dispatch/priv.t
 t/dispatch/schedule.t
 t/dispatch/top.t
@@ -77,3 +80,6 @@ t/model/privhistory.t
 t/model/reset.t
 t/model/schedintvls.t
 t/model/schedule.t
+t/sql/current_priv.t
+t/sql/immutable_id.t
+t/sql/root.t

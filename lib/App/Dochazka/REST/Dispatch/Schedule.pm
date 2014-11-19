@@ -67,11 +67,11 @@ App::Dochazka::REST::Dispatch::Schedule - path dispatch
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -265,7 +265,7 @@ sub _sched_by_shid {
 # '/schedule/sid/:sid'
 sub _schedule_get {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . ":_intervals_get" ); 
+    $log->debug( "Entering " . __PACKAGE__ . ":_schedule_get" ); 
 
     my $sid;
     if ( exists $context->{'mapping'}->{'sid'} ) {
@@ -304,7 +304,7 @@ sub _schedule_post {
 # '/schedule/sid/:sid'
 sub _schedule_delete {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . ":_intervals_delete" ); 
+    $log->debug( "Entering " . __PACKAGE__ . ":_schedule_delete" ); 
     my ( $status, $sid );
 
     # get SID
@@ -340,7 +340,7 @@ sub _update_schedule {
     my ($sched, $over) = @_;
     $log->debug("Entering App::Dochazka::REST::Dispatch::Schedule::_update_schedule" );
     if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_BAD_INPUT')
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
     delete $over->{'sid'} if exists $over->{'sid'};
     delete $over->{'schedule'} if exists $over->{'schedule'};
@@ -348,7 +348,7 @@ sub _update_schedule {
         $log->debug( "After pre_update_comparison: " . Dumper $sched );
         return $sched->update;
     }
-    return $CELL->status_err('DOCHAZKA_BAD_INPUT');
+    return $CELL->status_err('DOCHAZKA_MALFORMED_40O');
 }
 
 

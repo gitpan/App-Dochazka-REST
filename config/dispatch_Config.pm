@@ -42,37 +42,48 @@
 # DISPATCH_RESOURCE_LISTS
 #    list of resource lists -- see, e.g., dispatch_Employee_Config.pm
 set( 'DISPATCH_RESOURCE_LISTS', [
-    [ 'DISPATCH_RESOURCES_TOP' => <<'EOHA' ],
+    [ 'DISPATCH_RESOURCES_TOP' => <<'EOH' ],
 =head2 Top-level
 
 Miscellaneous resources that don't fit under any specific category.
 
-EOHA
-    [ 'DISPATCH_RESOURCES_ACTIVITY' => <<'EOHB' ],
+EOH
+    [ 'DISPATCH_RESOURCES_ACTIVITY' => <<'EOH' ],
 =head2 Activity
 
 Resources related to activities.
 
-EOHB
-    [ 'DISPATCH_RESOURCES_EMPLOYEE' => <<'EOHC' ],
+EOH
+    [ 'DISPATCH_RESOURCES_EMPLOYEE' => <<'EOH' ],
 =head2 Employee
 
 Resources related to employee profiles.
 
-EOHC
-    [ 'DISPATCH_RESOURCES_PRIV' => <<'EOHD' ],
+EOH
+    [ 'DISPATCH_RESOURCES_PRIV' => <<'EOH' ],
 =head2 Privilege
 
 Resources related to employee privileges and privhistories.
 
-EOHD
-    [ 'DISPATCH_RESOURCES_SCHEDULE' => <<'EOHE' ],
+EOH
+    [ 'DISPATCH_RESOURCES_SCHEDULE' => <<'EOH' ],
 =head2 Schedule
 
 Resources related to employee schedules and schedhistories.
 
-EOHE
-#    'Interval', 'Lock',
+EOH
+    [ 'DISPATCH_RESOURCES_INTERVAL' => <<'EOH' ],
+=head2 Interval
+
+Resources related to attendance intervals
+
+EOH
+#    [ 'DISPATCH_RESOURCES_LOCK' => <<'EOH' ],
+#=head2 Lock
+#
+#Resources related to lock intervals
+#
+#EOH
 ] );
 
 1;

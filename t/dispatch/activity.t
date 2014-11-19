@@ -80,11 +80,9 @@ sub disable_testing_activity {
     return App::Dochazka::REST::Model::Activity->spawn( $act );
 }
 
-#
-# create a testing employee with 'active' privlevel
-#
+# create a testing employees with 'active' and 'inactive' privlevels
 create_active_employee( $test );
-
+create_inactive_employee( $test );
 
 #=============================
 # "activity/aid" resource
@@ -95,12 +93,11 @@ docu_check($test, "$base");
 #
 # GET, PUT
 #
-req( $test, 405, 'demo', 'GET', $base );
-req( $test, 405, 'active', 'GET', $base );
-req( $test, 405, 'root', 'GET', $base );
-req( $test, 405, 'demo', 'PUT', $base );
-req( $test, 405, 'active', 'PUT', $base );
-req( $test, 405, 'root', 'PUT', $base );
+foreach my $method ( 'GET', 'PUT' ) {
+    foreach my $user ( 'demo', 'active', 'root', 'WOMBAT5', 'WAMBLE owdkmdf 5**' ) {
+        req( $test, 405, $user, $method, $base );
+    }
+}
 
 #
 # POST
@@ -135,9 +132,7 @@ is( $status->code, "DISPATCH_AID_DOES_NOT_EXIST", "POST $base 7.4" );
 #
 # - throw a couple curve balls
 my $weirded_object = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo", "disabled" : "f" }';
-$status = req( $test, 200, 'root', 'POST', $base, $weirded_object );
-is( $status->level, 'ERR', "POST $base 8" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "POST $base 9" );
+req( $test, 400, 'root', 'POST', $base, $weirded_object );
 #
 my $no_closing_bracket = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo", "disabled" : "f"';
 req( $test, 400, 'root', 'POST', $base, $no_closing_bracket );
@@ -151,13 +146,12 @@ like( $status->text, qr/invalid input syntax for integer/, "POST $base 15" );
 delete_testing_activity( $aid_of_foowop );
 
 
-
 #
 # DELETE
 #
 req( $test, 405, 'demo', 'DELETE', $base );
-req( $test, 405, 'active', 'DELETE', $base );
 req( $test, 405, 'root', 'DELETE', $base );
+req( $test, 405, 'WOMBAT5', 'DELETE', $base );
 
 
 
@@ -234,9 +228,7 @@ is( $foobar->remark, "Change is good", "PUT $base/:aid 6" );
 ok( $foobar->disabled, "PUT $base/:aid 7" );
 #
 # - test with root no request body
-$status = req( $test, 200, 'root', 'PUT', "$base/$aid_of_foobar" );
-is( $status->level, 'ERR', "PUT $base/:aid 9" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "PUT $base/:aid 10" );
+req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar" );
 #
 # - test with root fail invalid JSON
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
@@ -254,14 +246,10 @@ is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:aid 16" );
 like( $status->text, qr/invalid input syntax for integer/, "PUT $base/:aid 17" );
 #
 # - with valid JSON that is not what we are expecting (valid AID)
-$status = req( $test, 200, 'root', 'PUT', "$base/$aid_of_foobar", '0' );
-is( $status->level, 'ERR', "PUT $base/:aid 19" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "PUT $base/:aid 20" );
+req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '0' );
 #
 # - with valid JSON that has some bogus properties
-$status = req( $test, 200, 'root', 'PUT', "$base/$aid_of_foobar", '{ "legal":"json" }' );
-is( $status->level, 'ERR', "PUT $base/:aid 22" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "PUT $base/:aid 23" );
+req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ "legal":"json" }' );
 
 #
 # POST
@@ -432,9 +420,7 @@ is( $status->payload->{'long_desc'}, 'wang wang wazoo', "POST $base 7" );
 #
 # - throw a couple curve balls
 $weirded_object = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo", "disabled" : "f" }';
-$status = req( $test, 200, 'root', 'POST', $base, $weirded_object );
-is( $status->level, 'ERR', "POST $base 8" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "POST $base 9" );
+req( $test, 400, 'root', 'POST', $base, $weirded_object );
 #
 $no_closing_bracket = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo", "disabled" : "f"';
 req( $test, 400, 'root', 'POST', $base, $no_closing_bracket );
@@ -526,9 +512,7 @@ req( $test, 403, 'demo', 'PUT', "$base/FOOBAR" );
 req( $test, 403, 'active', 'PUT', "$base/FOOBAR" );
 #
 # - test as root no request body
-$status = req( $test, 200, 'root', 'PUT', "$base/FOOBAR" );
-is( $status->level, 'ERR', "PUT $base/:aid 10" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "PUT $base/:aid 11" );
+req( $test, 400, 'root', 'PUT', "$base/FOOBAR" );
 #
 # - test as root fail invalid JSON
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
@@ -539,9 +523,7 @@ is( $status->level, 'ERR', "PUT $base/:aid 14" );
 is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:aid 15" );
 #
 # - with valid JSON that is not what we are expecting
-$status = req( $test, 200, 'root', 'PUT', "$base/FOOBAR", '0' );
-is( $status->level, 'ERR', "PUT $base/:aid 18" );
-is( $status->code, 'DOCHAZKA_BAD_INPUT', "PUT $base/:aid 19" );
+req( $test, 400, 'root', 'PUT', "$base/FOOBAR", '0' );
 #
 # - update with combination of valid and invalid properties
 $status = req( $test, 200, 'root', 'PUT', "$base/FOOBAR", 
@@ -596,7 +578,6 @@ $status = req( $test, 200, 'root', 'DELETE', "$base/foobarpus" );
 is( $status->level, 'OK', "DELETE $base/foobarpus 2" );
 is( $status->code, 'DOCHAZKA_CUD_OK', "DELETE $base/foobarpus 3" );
 
-delete_employee_by_nick( $test, 'active' );
 
 
 #=============================
@@ -604,6 +585,7 @@ delete_employee_by_nick( $test, 'active' );
 #=============================
 $base = "activity/help";
 docu_check($test, "activity/help");
+
 #
 # GET
 #
@@ -625,8 +607,19 @@ ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 3 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
 ok( ! exists $status->payload->{'resources'}->{'activity/aid'} );  # POST only
-#FIXME: ok( exists $status->payload->{'resources'}->{'activity/aid/:aid'} );
-#FIXME: ok( exists $status->payload->{'resources'}->{'activity/code/:code'} );
+ok( exists $status->payload->{'resources'}->{'activity/aid/:aid'} );
+ok( exists $status->payload->{'resources'}->{'activity/code/:code'} );
+#
+$status = req( $test, 200, 'active', 'GET', $base );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_DEFAULT' );
+ok( exists $status->payload->{'documentation'} );
+ok( exists $status->payload->{'resources'} );
+ok( keys %{ $status->payload->{'resources'} } >= 3 );
+ok( exists $status->payload->{'resources'}->{'activity/help'} );
+ok( ! exists $status->payload->{'resources'}->{'activity/aid'} );  # POST only
+ok( exists $status->payload->{'resources'}->{'activity/aid/:aid'} );
+ok( exists $status->payload->{'resources'}->{'activity/code/:code'} );
 
 #
 # PUT
@@ -686,5 +679,9 @@ ok( exists $status->payload->{'documentation'} );
 ok( exists $status->payload->{'resources'} );
 ok( keys %{ $status->payload->{'resources'} } >= 1 );
 ok( exists $status->payload->{'resources'}->{'activity/help'} );
+
+# delete the 'active' employee
+delete_employee_by_nick( $test, 'active' );
+delete_employee_by_nick( $test, 'inactive' );
 
 done_testing;

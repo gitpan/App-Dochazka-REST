@@ -81,6 +81,20 @@ diag( $status->text ) if $status->not_ok;
 ok( $status->ok, "Post-insert status ok" );
 ok( $priv->phid > 0, "INSERT assigned an phid" );
 
+# do a dastardly deed (insert the same privhistory row a second time)
+my $dastardly_sh = App::Dochazka::REST::Model::Privhistory->spawn(
+    eid => $ins_eid,
+    priv => $ins_priv,
+    effective => $ins_effective,
+    remark => 'Dastardly',
+);
+is( ref( $dastardly_sh ), 'App::Dochazka::REST::Model::Privhistory', "privhistory object is an object" );
+$status = undef;
+$status = $dastardly_sh->insert;
+is( $status->level, 'ERR', "ERR privhistory insert ERR" );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/duplicate key value violates unique constraint \"privhistory_eid_effective_key\"/ );
+
 # get the entire privhistory record just inserted
 $status = $priv->load_by_eid( $emp->eid );
 ok( $status->ok, "No DBI error" );

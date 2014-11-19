@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.272;
+our $VERSION = 0.289;
 
 1;
 __END__
@@ -81,7 +81,19 @@ passerby employee will be created whenever an as-yet unseen employee logs in
 (authenticates herself to the REST server). Otherwise, a passerby employee can
 log in only if an administrator has created the corresponding employee profile.
 
-=head3 View own employee profile
+=head3 Explore available resources 
+
+Any logged-in employee is free to explore available resources. The starting
+point for such exploration can be C<GET /> (i.e. a GET request for the
+top-level resource), which is the same as C<GET /help>. The information
+returned is specific to the HTTP method used, so for PUT resources one needs to
+use C<PUT /> (or C<PUT /help>), etc.
+
+Only accessible resources are displayed. For example, a passerby employee will
+not see admin resources. A few resources (e.g. C<activity/aid/:aid>), have
+different ACL profiles depending on which HTTP method is used.
+
+=head3 Retrieve one's own employee profile
 
 Using C<GET employee/current>, any employee can view her own employee profile.
 The payload is a valid employee object.
@@ -90,27 +102,94 @@ Alternatively, C<GET employee/current/priv> can be used, in which case the
 employee's current privilege level and schedule are returned along with the
 employee object.
 
-=head3 Explore available resources 
+=head3 Retrieve one's own current schedule/privlevel
 
-Any logged-in employee is free to explore available resources. The starting
-point for such exploration can be C<GET /> (i.e. a GET request for the
-top-level resource). The information returned is specific to the HTTP method
-used, so for PUT resources one needs to use C<PUT />, etc.
-
-Only accessible resources are displayed. For example, a passerby employee will
-not see admin resources. A few resources (e.g. C<activity/aid/:aid>), have
-different ACL profiles depending on which HTTP method is used.
+Using C<GET /priv/self/?:ts> and C<GET /schedule/self/?:ts>, any employee 
+can retrieve her own current privlevel and schedule. By including a timestamp
+she can also retrieve her privlevel and schedule as of any arbitrary date/time.
 
 
-=head3 
+=head2 inactive
+
+The inactive privlevel is intended for employees who are not currently
+attending work, but are expected to resume doing so at some point in the
+future: employees on maternity leave, sabbatical, etc.
+
+Though such employees might not be expected to even log in to Dochazka, 
+if they happen to do so they can engage in the following workflows (in addition
+to the passerby workflows described in the previous section).
+
+=head3 Retrieve one's own schedule/privilege history
+
+Employee schedules and privlevels change over time. To ensure that historical
+attendance data is always associated with the schedule and privlevel in effect
+at the time the attendance took place, all changes to employee schedules and
+privlevels are recorded in a "history table". 
+
+Employees with privlevel 'inactive' or higher are authorized to view (retrieve)
+their privilege/schedule histories using the C<schedule/history/self/?:tsrange>
+and C<priv/history/self/?:tsrange> resources.
+
+=head3 Edit one's own employee profile (certain fields)
+
+Inactive employees are authorized to edit certain fields of their employee
+profile (e.g., to change their password or correct the spelling of their full
+name, etc.). These fields are configurable via the DOCHAZKA_PROFILE_EDITABLE_FIELDS site
+parameter.
+
 
 =head2 active
+
+=head3 Add new attendance intervals
+
+Active employees can add new attendance data ("intervals") subject to the
+following limitations: (a), the date must not be locked, (b), the date must
+be no later than the end of the current month and, (c), the interval must
+not overlap with an existing interval.
+
+    Example 1: Employee 'pepik' tries to insert an attendance interval
+               [1985-04-27 08:00, 1985-04-27 12:00) but there is a 
+	       lock in place for that date. In such a case, the lock would have
+               to be removed by an administrator, or 'pepik' would be out of luck.
+
+    Example 2: Today's date is 2014-10-22 and 'pepik' attempts to insert
+               an attendance interval [2014-11-07 08:00, 2014-11-07 08:30) -
+	       this will not be possible until 2014-11-01..
+
+New attendance data is added via POST requests on C<interval/new>.
+
+=head3 Retrieve list of non-disabled activities
+
+Since attendance data must be associated with a valid activity, active employees
+are authorized to retrieve the entire list of non-disabled activities using
+a GET request on the C<activity/all> resource.
+
+=head3 Retrieve one's own past attendance data
+
+Active employees can retrieve (view) their own past attendance data.
+
+=head3 Look up disabled activities
+
+Since past attendance data can refer to activities that have since been disabled,
+active employees are authorized to look up activities (including disabled
+ones) by code or AID using GET requests on C<activity/aid/:aid> and
+C<activity/code/:code>.
+
+=head3 Edit one's own employee profile (certain fields)
+
+Depending on the exact setting of the DOCHAZKA_PROFILE_EDITABLE_FIELDS site
+parameter, active employees may be authorized to edit more fields than inactive
+employees.
 
 
 =head2 admin
 
+=head3 Edit any employee's profile
 
+Administrators can edit any employee's profile. The only limitation is that the
+EID cannot be changed.
 
+=head3 
 
 =head1 AUTHOR
 

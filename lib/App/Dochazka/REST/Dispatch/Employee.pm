@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -137,6 +137,36 @@ sub _get_current_priv {
     );
 }
 
+# POST 'employee/current'
+# POST 'employee/self'
+sub _post_current {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid" );
+
+    # check that the request body is a hashref
+    if ( ref( $context->{'request_body'} ) ne 'HASH' ) {
+        return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
+    }
+
+    # if privlevel is inactive or active, analyze which fields the user wants to update
+    # (passerbies will be rejected earlier in Resource.pm, and admins can edit any field)
+    my $cp = $context->{'current_priv'};
+    $log->debug( "Current privilege level is $cp" );
+    if ( $cp =~ m/active/ ) {
+        foreach my $prop ( keys %{ $context->{'request_body'} } ) {
+            $log->debug( "Checking property $prop" );
+            next if grep { $_ eq $prop; } @{ $site->DOCHAZKA_PROFILE_EDITABLE_FIELDS->{$cp} };
+#            return $CELL->status_err( 'DOCHAZKA_EMPLOYEE_UPDATE_UNAUTHORIZED_FIELD',
+#                args => [ $prop ] );
+            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+        }
+    }
+
+    # copy current's EID to request body
+    $context->{'request_body'}->{'eid'} = $context->{'current'}->{'eid'};
+
+    return _put_post_delete_employee_by_eid( $context );
+}
 
 # a little piece of shared code
 sub _assemble_employee_object {
@@ -154,8 +184,7 @@ sub _assemble_employee_object {
 # DELETE employee/eid/:eid
 sub _put_post_delete_employee_by_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    $log->debug( "Entering _put_post_delete_employee_by_eid" );
+    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid" );
 
     # get eid
     my $eid;
@@ -171,6 +200,12 @@ sub _put_post_delete_employee_by_eid {
         my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
         if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
             if ( $context->{'method'} =~ /^(PUT)|(POST)/i ) {
+
+                # check that the request body is a hashref
+                if ( ref( $context->{'request_body'} ) ne 'HASH' ) {
+                    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
+                }
+
                 #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
                 my $oldemp = $status->payload;
                 return _update_employee( $oldemp, $context->{'request_body'} );
@@ -179,7 +214,7 @@ sub _put_post_delete_employee_by_eid {
                 return $status->payload->delete;  # employee object is in the payload
             }
         } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-            return $CELL->status_err( 'DISPATCH_EID_DOES_NOT_EXIST', args => [ $eid ] );
+            return $CELL->status_err( 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'EID', $eid ] );
         }
         # DBI error or other badness
         return $status;
@@ -194,13 +229,13 @@ sub _put_post_delete_employee_by_eid {
 # the values from $over replace those in $emp
 sub _update_employee {
     my ($emp, $over) = @_;
-    $log->debug("Entering App::Dochazka::REST::Dispatch::Employee::_update_employee" );
+    $log->debug("Entering " . __PACKAGE__ . "::_update_employee" );
     if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_BAD_INPUT')
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
     delete $over->{'eid'} if exists $over->{'eid'};
     return $emp->update if pre_update_comparison( $emp, $over );
-    return $CELL->status_err('DOCHAZKA_BAD_INPUT');
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
 

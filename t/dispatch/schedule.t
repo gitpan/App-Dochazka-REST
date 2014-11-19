@@ -309,7 +309,16 @@ foreach my $user ( qw( demo root ) ) {
 $base = "schedule/eid";
 docu_check($test, "$base/:eid/?:ts");
 
+# set up an inactive employee and bestow a schedule upon him
+my $ts_eid = create_inactive_employee( $test );
 $ts_sid = create_testing_schedule( $test );
+$status = req( $test, 200, 'root', 'POST', "/schedule/history/eid/$ts_eid", 
+    '{ "effective":"2014-10-10", "sid":' . $ts_sid . ' }' );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+ok( exists $status->{payload} );
+ok( $status->payload->{shid} );
+my $ts_shid = $status->payload->{shid};
 
 #
 # GET
@@ -348,6 +357,97 @@ is_deeply( $status->payload, {
     schedule => {},
     eid => 1
 } );
+#
+# - get inactive's schedule as root and as inactive
+foreach my $spec ( 
+    [ 'root', "$base/$ts_eid" ], 
+    [ 'root', "/schedule/nick/inactive" ],
+    [ 'inactive', "/schedule/self" ],
+    [ 'root', "$base/$ts_eid/2015-06-01 00:00" ], 
+    [ 'root', "/schedule/nick/inactive/2015-06-01 00:00" ],
+    [ 'inactive', "/schedule/self/2015-06-01 00:00" ],
+   ) {
+    $status = req( $test, 200, $spec->[0], 'GET', $spec->[1] );
+    is( $status->level, 'OK' );
+    if ( $spec->[1] =~ m/2015-06-01/ ) {
+        is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
+    } else {
+        is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
+    }
+    ok( exists( $status->{payload} ) );
+    ok( $status->payload->{eid} > 1 );
+    is( $status->payload->{nick}, 'inactive' );
+    ok( exists( $status->payload->{schedule} ) );
+    is( ref( $status->payload->{schedule} ), 'ARRAY' );
+    is( scalar( @{ $status->payload->{schedule} } ), 6 );
+}
+#
+foreach my $spec ( [ 'root', "$base/$ts_eid/1955-06-01 00:00" ], 
+                   [ 'root', "/schedule/nick/inactive/1955-06-01 00:00" ], 
+                   [ 'inactive', "/schedule/self/1955-06-01 00:00" ] ) {
+    $status = req( $test, 200, $spec->[0], 'GET', $spec->[1] );
+    is( $status->level, 'OK' );
+    is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
+    ok( exists( $status->{payload} ) );
+    ok( $status->payload->{eid} > 1 );
+    is( $status->payload->{nick}, 'inactive' );
+    ok( exists( $status->payload->{schedule} ) );
+    is_deeply( $status->payload->{schedule}, {} );
+}
+#
+# - non-existent EID
+$status = req( $test, 200, 'root', 'GET', "$base/5343" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - negative EID
+$status = req( $test, 200, 'root', 'GET', "$base/-33" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid EID
+$status = req( $test, 200, 'root', 'GET', "$base/34343.33322.22.21" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid EID
+$status = req( $test, 200, 'root', 'GET', "$base/a thousand clarinets" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid EID
+$status = req( $test, 200, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid EID
+$status = req( $test, 200, 'root', 'GET', "$base/2/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+#
+# - valid EID, stupid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/999/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - valid EID, valid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/999/2999-01-33 00:-1" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - valid EID, valid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/1/2999-01-33 00:-1" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr#date/time field value out of range# );
+#
+# - wanger
+$status = req( $test, 200, 'root', 'GET', "$base/0/wanger" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+
 
 #
 # PUT, POST, DELETE
@@ -360,7 +460,16 @@ foreach my $user ( qw( demo root ) ) {
     }
 }
 
+# delete inactive's schedule history record
+$status = req( $test, 200, 'root', 'DELETE', "/schedule/history/shid/$ts_shid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+
+# delete the testing schedule itself
 delete_testing_schedule( $ts_sid );
+
+# delete the inactive employee itself
+delete_employee_by_nick( $test, 'inactive' );
 
 
 #=============================
@@ -480,6 +589,9 @@ my $intvls = [
 my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
 #
 
+#
+# POST
+#
 # - request as demo will fail with 403
 req( $test, 403, 'demo', 'POST', $base, $intvls_json );
 
@@ -513,6 +625,12 @@ is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # - count should now be zero
 $status = req( $test, 404, 'root', 'GET', 'schedule/all/disabled' );
+
+#
+# DELETE
+#
+req( $test, 405, 'demo', 'DELETE', $base );
+req( $test, 405, 'root', 'DELETE', $base );
 
 
 #===========================================
@@ -555,6 +673,59 @@ is_deeply( $status->payload, {
     schedule => {},
     eid => 1
 } );
+#
+# - non-existent nick
+$status = req( $test, 200, 'root', 'GET', "$base/wanger" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - negative nick
+$status = req( $test, 200, 'root', 'GET', "$base/-33" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid nick
+$status = req( $test, 200, 'root', 'GET', "$base/34343.33322.22.21" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid nick
+$status = req( $test, 200, 'root', 'GET', "$base/a thousand clarinets" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid nick
+$status = req( $test, 200, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - stupid ts
+$status = req( $test, 200, 'root', 'GET', "$base/demo/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+#
+# - valid nick, stupid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/wanger/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - valid nick, valid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/wanger/2999-01-33 00:-1" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+#
+# - valid nick, valid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/root/2999-01-33 00:-1" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr#date/time field value out of range# );
+#
+# - wanger
+$status = req( $test, 200, 'root', 'GET', "$base/0/wanger" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
 
 #
 # PUT, POST, DELETE
@@ -604,6 +775,25 @@ is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 foreach my $key ( qw( timestamp eid nick schedule ) ) {
     ok( exists( $status->payload->{$key} ) );
 }
+#
+# - wanger
+$status = req( $test, 200, 'root', 'GET', "$base/wanger" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+#
+# - stupid ts
+$status = req( $test, 200, 'root', 'GET', "$base/ 12341 12 jjj" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/invalid input syntax for type timestamp/ );
+#
+# - valid nick, valid timestamp
+$status = req( $test, 200, 'root', 'GET', "$base/2999-01-33 00:-1" );
+is( $status->level, 'ERR' );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr#date/time field value out of range# );
+
 
 #
 # PUT, POST, DELETE
@@ -684,6 +874,7 @@ is( $status->code, 'DOCHAZKA_CUD_OK' );
 $status = req( $test, 200, 'root', 'DELETE', "$base/$sid" );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
+
 
 
 done_testing;

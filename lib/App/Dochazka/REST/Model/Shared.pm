@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 
@@ -199,13 +199,27 @@ sub cud {
                #$log->debug( "cud binding parameter $counter to attribute $_ value $value" );
 
                $sth->bind_param( $counter, $ARGS{'object'}->{$_} || undef );
-            } @{ $ARGS{'attrs'} };
-        $sth->execute;
-        my $rh = $sth->fetchrow_hashref;
-        $log->info( "Statement " . $sth->{'Statement'} . " RETURNING values: " . Dumper( $rh ) );
-        # populate object with all RETURNING fields 
-        map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
-        $dbh->commit;
+            } @{ $ARGS{'attrs'} }; 
+        my $rv = $sth->execute;
+        $log->debug( "cud: DBI execute returned " . Dumper( $rv ) );
+        if ( $rv == 1 ) {
+            my $rh = $sth->fetchrow_hashref;
+            $log->info( "Statement " . $sth->{'Statement'} . " RETURNING values: " . Dumper( $rh ) );
+            # populate object with all RETURNING fields 
+            map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
+            $dbh->commit;
+        } else {
+            if ( $rv eq '0E0' ) {
+                $status = $CELL->status_notice( 'DOCHAZKA_CUD_NO_RECORDS_AFFECTED', args => [ $sth->{'Statement'} ] ); 
+            } elsif ( $rv > 1 ) {
+                $status = $CELL->status_crit( 'DOCHAZKA_CUD_MORE_THAN_ONE_RECORD_AFFECTED', args => [ $sth->{'Statement'} ] ); 
+            } elsif ( $rv == -1 ) {
+                $status = $CELL->status_err( 'DOCHAZKA_CUD_UNKNOWN_NUMBER_OF_RECORDS_AFFECTED', args => [ $sth->{'Statement'} ] ); 
+            } else {
+                $status = $CELL->status_crit( "AAAAAAAAAaaaaahhaAAAAAAAA! I\'m at a loss. I might be having a personal crisis!" );
+            }
+            $dbh->rollback;
+        }
     } catch {
         my $errmsg = $_;
         $dbh->rollback;
@@ -381,8 +395,10 @@ schedule will default to '{}' if it can't be determined from the database.
 =cut
 
 sub schedule_by_eid {
-    my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
-        { type => SCALAR|UNDEF, optional => 1 } );
+    my ( $eid, $ts ) = validate_pos( @_, 
+        { type => SCALAR },
+        { type => SCALAR|UNDEF, optional => 1 },
+    );
     return _st_by_eid( 'schedule', $eid, $ts );
 }
 
@@ -396,7 +412,7 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 sub _st_by_eid {
     my ( $st, $eid, $ts ) = @_;
     my ( $sql, $row );
-    $log->debug( "Entering _st_by_eid with \$st == $st" );
+    $log->debug( "Entering _st_by_eid with \$st == $st, \$eid == $eid, \$ts == " . ( $ts || '<NONE>' ) );
     if ( $ts ) {
         # timestamp given
         if ( $st eq 'priv' ) {
@@ -418,6 +434,7 @@ sub _st_by_eid {
     return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
         if $dbh->err;
     $row = decode_schedule_json( $row ) if $st eq 'schedule';
+    $log->debug( "_st_by_eid: returning " . Dumper( $row ) );
     return $row;
 }
 

@@ -64,11 +64,11 @@ App::Dochazka::REST::Dispatch::Priv - path dispatch
 
 =head1 VERSION
 
-Version 0.272
+Version 0.289
 
 =cut
 
-our $VERSION = '0.272';
+our $VERSION = '0.289';
 
 
 

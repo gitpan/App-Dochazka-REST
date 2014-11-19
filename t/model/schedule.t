@@ -137,6 +137,21 @@ my $new_sched_obj = App::Dochazka::REST::Model::Schedule->spawn( $status->payloa
 ok( ! $schedule->compare( $saved_sched_obj ) );
 ok( $schedule->compare_disabled( $saved_sched_obj ) );
 
+# Attempt to change the 'sid' field
+$saved_sched_obj = $schedule->clone;
+$schedule->sid( 99943 );
+is( $schedule->{sid}, 99943 );
+$status = $schedule->update;
+is( $status->level, 'NOTICE' );
+is( $status->code, 'DOCHAZKA_CUD_NO_RECORDS_AFFECTED' );
+ok( ! defined( $status->payload ) );
+#is( $status->payload->{sid}, 99943 ); # from the payload it appears that the update worked
+# but the value in the database is unchanged - the 'sid' and 'schedule' fields are never updated
+$status = App::Dochazka::REST::Model::Schedule->load_by_sid( $saved_sched_obj->sid );
+is( $status->level, 'OK' );
+is( $status->payload->{sid}, $saved_sched_obj->sid ); # no real change
+$schedule = $status->payload;
+
 # in other words, nothing changed
 
 # And now we can delete the schedintvls object and its associated database rows
@@ -189,7 +204,7 @@ my $schedhistory = App::Dochazka::REST::Model::Schedhistory->spawn(
     effective => $today,
     remark => 'TESTING',
 );
-ok( blessed( $schedhistory ), "schedhistory object is an object" );
+is( ref( $schedhistory ), 'App::Dochazka::REST::Model::Schedhistory', "schedhistory object is an object" );
 
 # test schedhistory accessors
 is( $schedhistory->eid, $emp->{eid} );
@@ -207,6 +222,20 @@ is( $schedhistory->sid, $schedule->{sid} );
 is( $schedhistory->effective, $today_ts );
 is( $schedhistory->remark, 'TESTING' );
 is( noof( 'schedhistory' ), 1 );
+
+# do a dastardly deed (insert the same schedhistory row a second time)
+my $dastardly_sh = App::Dochazka::REST::Model::Schedhistory->spawn(
+    eid => $emp->{eid},
+    sid => $schedule->{sid},
+    effective => $today,
+    remark => 'Dastardly',
+);
+is( ref( $dastardly_sh ), 'App::Dochazka::REST::Model::Schedhistory', "schedhistory object is an object" );
+$status = undef;
+$status = $dastardly_sh->insert;
+is( $status->level, 'ERR', "OK schedhistory insert OK" );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/duplicate key value violates unique constraint \"schedhistory_eid_effective_key\"/ );
 
 # and now Mr. Sched's employee object should contain the schedule
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $emp->{eid} );

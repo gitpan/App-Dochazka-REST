@@ -96,16 +96,32 @@ EOH
     { 
         target => {
             GET => '_get_current', 
+            POST => '_post_current',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'passerby', 
+        acl_profile => {
+            'GET' => 'passerby', 
+            'POST' => 'inactive',
+        },
         cli => 'employee current',
-        description => 'Display the current employee (i.e. the one we authenticated with)',
+        description => 'Retrieve (GET) and edit (POST) our own employee profile',
         documentation => <<'EOH',
 =pod
 
+=over
+
+=item * GET
+
 Displays the profile of the currently logged-in employee. The information
 is limited to just the employee object itself.
+
+=item * POST
+
+Provides a way for an employee to update certain fields of her own employee
+profile. Exactly which fields can be updated may differ from site to site
+(see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
+
+=back
 EOH
     },
     'employee/current/priv' =>
@@ -116,7 +132,7 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'passerby', 
         cli => 'employee current priv',
-        description => 'Display the privilege level of the current employee (i.e. the one we authenticated with)',
+        description => 'Retrieve our own employee profile, privlevel, and schedule', 
         documentation => <<'EOH',
 =pod
 
@@ -268,6 +284,55 @@ exact nick exists and nothing else in the database refers to the employee
 in question.
 
 =back
+EOH
+    },
+    'employee/self' =>
+    { 
+        target => {
+            GET => '_get_current', 
+            POST => '_post_current',
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => {
+            'GET' => 'passerby', 
+            'POST' => 'inactive',
+        },
+        cli => 'employee current',
+        description => 'Retrieve (GET) and edit (POST) our own employee profile',
+        documentation => <<'EOH',
+=pod
+
+=over
+
+=item * GET
+
+Displays the profile of the currently logged-in employee. The information
+is limited to just the employee object itself.
+
+=item * POST
+
+Provides a way for an employee to update certain fields of her own employee
+profile. Exactly which fields can be updated may differ from site to site
+(see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
+
+=back
+EOH
+    },
+    'employee/self/priv' =>
+    { 
+        target => {
+            GET => '_get_current_priv', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Employee',
+        acl_profile => 'passerby', 
+        cli => 'employee current priv',
+        description => 'Retrieve our own employee profile, privlevel, and schedule', 
+        documentation => <<'EOH',
+=pod
+
+Displays the "full profile" of the currently logged-in employee. The
+information includes the employee object in the 'current_emp' property and
+the employee's privlevel in the 'priv' property.
 EOH
     },
 

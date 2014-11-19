@@ -44,6 +44,7 @@ use Carp;
 # initialize but do not connect to database
 my $status = App::Dochazka::REST->init_no_db( sitedir => '/etc/dochazka-rest' );
 if ( $status->not_ok ) {
+    diag( $status->text );
     plan skip_all => "Not configured. Please run the test suite manually after initial site configuration";
 }
 

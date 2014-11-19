@@ -128,7 +128,7 @@ DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 
 # attempt to change his EID -- FAIL
-test_sql_fail(qr/violates foreign key constraint/, <<SQL);
+test_sql_fail(qr/employees\.eid field is immutable/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_bubba
 SQL
 

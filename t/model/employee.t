@@ -232,6 +232,22 @@ ok( $status->not_ok );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 
+# attempt to change Mrs. Fu's EID
+my $saved_eid = $emp->eid;
+ok( $saved_eid > 1 );
+$emp->eid( 34342 );
+is( $emp->eid, 34342 );
+ok( $saved_eid != $emp->eid );
+$status = $emp->update;
+is( $status->level, 'NOTICE' );
+is( $status->code, 'DOCHAZKA_CUD_NO_RECORDS_AFFECTED' );
+
+# reload from saved eid
+$status = App::Dochazka::REST::Model::Employee->load_by_eid( $saved_eid );
+is( $status->level, "OK" );
+$emp = $status->payload;
+is( $emp->eid, $saved_eid );
+
 # test accessors
 is( $emp->eid, $emp->{eid}, "accessor: eid" );
 is( $emp->fullname, "Mrs. Fu that's Ma'am to you", "accessor: fullname" );

@@ -195,6 +195,10 @@ is( $bogus_act->code, 'BOGOSITYVILLE' );
 is( $bogus_act->long_desc, "A bogus activity that doesn't belong here" );
 is( $bogus_act->remark, 'BOGUS ACTIVITY' );
 ok( $bogus_act->disabled );
+# update without affecting any records
+$status = $bogus_act->update;
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # load it and compare it
 $status = App::Dochazka::REST::Model::Activity->load_by_code( $bogus_act->code );
