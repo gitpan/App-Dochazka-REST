@@ -158,6 +158,7 @@ This is the resource by which employees add new attendance data to the
 database. It takes a request body containing, at the very least, C<aid> and
 C<intvl> properties. Additionally, it can contain C<long_desc>, while
 administrators can also specify C<eid> and C<remark>.
+EOH
     },
     'interval/nick/:nick/:tsrange' => 
     {

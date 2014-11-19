@@ -449,8 +449,8 @@ req( $test, 405, 'WOMBAT5', 'DELETE', $base );
 #=============================
 # "interval/nick/:nick/:tsrange" resource
 #=============================
-$base = 'interval/eid';
-docu_check($test, "$base/:eid/:tsrange");
+$base = 'interval/nick';
+docu_check($test, "$base/:nick/:tsrange");
 
 #
 # PUT, POST, DELETE

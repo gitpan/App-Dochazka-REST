@@ -50,11 +50,11 @@ App::Dochazka::REST::Util - miscellaneous utilities
 
 =head1 VERSION
 
-Version 0.289
+Version 0.290
 
 =cut
 
-our $VERSION = '0.289';
+our $VERSION = '0.290';
 
 
 

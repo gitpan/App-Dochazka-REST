@@ -1859,3 +1859,9 @@ Revision history for Dochazka-REST
   dispatch target
 - t/dispatch/interval.pm: add some missing boilerplate tests
 
+0.290  2014-11-19 11:23 CET
+- interval_Config.pm: 'interval/nick/:nick/:tsrange' resource was broken due to
+  missing EOH - fixed
+- t/dispatch/interval.t: $base for 'interval/nick/:nick/:tsrange' resource was
+  set to wrong value - fixed
+
