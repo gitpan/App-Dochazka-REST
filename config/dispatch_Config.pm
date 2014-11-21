@@ -78,12 +78,12 @@ EOH
 Resources related to attendance intervals
 
 EOH
-#    [ 'DISPATCH_RESOURCES_LOCK' => <<'EOH' ],
-#=head2 Lock
-#
-#Resources related to lock intervals
-#
-#EOH
+    [ 'DISPATCH_RESOURCES_LOCK' => <<'EOH' ],
+=head2 Lock
+
+Resources related to lock intervals
+
+EOH
 ] );
 
 1;

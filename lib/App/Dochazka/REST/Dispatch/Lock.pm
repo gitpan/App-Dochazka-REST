@@ -41,13 +41,15 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
-use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
+use App::Dochazka::REST::Dispatch::Shared qw( 
+    not_implemented 
+    pre_update_comparison 
+);
 use App::Dochazka::REST::Model::Lock;
 use App::Dochazka::REST::Model::Shared;
 use Data::Dumper;
 use Params::Validate qw( :all );
-use Try::Tiny;
 
 
 
@@ -61,11 +63,11 @@ App::Dochazka::REST::Dispatch::Lock - path dispatch
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -98,47 +100,15 @@ written to handle more than one HTTP method and/or more than one resoure.
 BEGIN {
     no strict 'refs';
     *{"_get_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'GET' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_LOCK', http_method => 'GET' );
     *{"_post_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'POST' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_LOCK', http_method => 'POST' );
     *{"_put_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'PUT' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_LOCK', http_method => 'PUT' );
     *{"_delete_default"} =
-        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_INTERVAL', http_method => 'DELETE' );
+        App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_LOCK', http_method => 'DELETE' );
 }
 
-
-# 'lock/lid' and 'lock/lid/:lid' - only RUD supported (no create)
-sub _lid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_lid" ); 
-    my $lid;
-    if ( $context->{'method'} eq 'POST' ) {
-        return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'lid'};
-        $lid = $context->{'request_body'}->{'lid'};
-        return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING') unless $lid;
-        delete $context->{'request_body'}->{'lid'};
-    } else {
-        $lid = $context->{'mapping'}->{'lid'};
-    }
-
-    # does the IID exist?
-    my $status = App::Dochazka::REST::Model::Lock->load_by_lid( $lid );
-    return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
-    return $CELL->status_notice( 'DISPATCH_IID_DOES_NOT_EXIST', args => [ $lid ] )
-        if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
-
-    # it exists, so go ahead and do what we need to do
-    if ( $context->{'method'} eq 'GET' ) {
-        return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
-    } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _update_lock( $status->payload, $context->{'request_body'} );
-    } elsif ( $context->{'method'} eq 'DELETE' ) {
-        $log->notice( "Attempting to delete lock " . $status->payload->lid );
-        return $status->payload->delete;
-    }
-    return $CELL->status_crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
-}
 
 # 'lock/new'
 sub _new {
@@ -147,44 +117,18 @@ sub _new {
 
     # make sure request body with all required fields is present
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless $context->{'request_body'};
-    foreach my $missing_prop ( qw( aid intvl ) ) {
+    foreach my $missing_prop ( qw( intvl ) ) {
         if ( not exists $context->{'request_body'}->{$missing_prop} ) {
             return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ $missing_prop ] );
         }
     }
 
     # this resource requires special ACL handling
-    my $current_eid = $context->{'current'}->{'eid'};
-    my $current_priv = $context->{'current_priv'};
-    if ( $current_priv eq 'passerby' or $current_priv eq 'inactive' ) {
-        return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
-    }
-    if ( $context->{'request_body'}->{'eid'} ) {
-        my $desired_eid = $context->{'request_body'}->{'eid'};
-        if ( $desired_eid != $current_eid ) {
-            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' ) if $current_priv eq 'active';
-        }
-    } else {
-        $context->{'request_body'}->{'eid'} = $current_eid;
-    }
+    my $retval = check_acl_context( $context );
+    return $retval if ref( $retval ) eq 'App::CELL::Status';
 
     # attempt to insert
-    return _insert_lock( $context->{'request_body'} );
-}
-
-# takes two arguments:
-# - "$lock" is an lock object (blessed hashref)
-# - "$over" is a hashref with zero or more lock properties and new values
-# the values from $over replace those in $int
-sub _update_lock {
-    my ($lock, $over) = @_;
-    $log->debug("Entering " . __PACKAGE__ . "::_update_lock" );
-    if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
-    }
-    delete $over->{'lid'} if exists $over->{'lid'};
-    return $lock->update if pre_update_comparison( $lock, $over );
-    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
+    return _insert_lock( %{ $context->{'request_body'} } );
 }
 
 # takes PROPLIST
@@ -201,7 +145,7 @@ sub _insert_lock {
     $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
         
     # make sure we got something resembling a code
-    foreach my $missing_prop ( qw( eid aid intvl ) ) {
+    foreach my $missing_prop ( qw( eid intvl ) ) {
         if ( not exists $proplist_before{$missing_prop} ) {
             return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ $missing_prop ] );
         }

@@ -258,14 +258,14 @@ Deletes a schedule history record by its SHID.
 "priv/history/nick/:nick")
 EOH
     },
-    'schedule/intervals' => 
+    'schedule/new' => 
     { 
         target => {
             POST => '_intervals_post',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
-        cli => 'schedule intervals',
+        cli => 'schedule new $JSON',
         description => 'Insert schedules',
         documentation => <<'EOH',
 =pod
@@ -277,7 +277,7 @@ schedule already exists.
 
 Sample JSON:
 
-    [ 
+    { "schedule" : [
         "[2014-09-22 08:00, 2014-09-22 12:00)",
         "[2014-09-22 12:30, 2014-09-22 16:30)",
         "[2014-09-23 08:00, 2014-09-23 12:00)",
@@ -286,7 +286,7 @@ Sample JSON:
         "[2014-09-24 12:30, 2014-09-24 16:30)",
         "[2014-09-25 08:00, 2014-09-25 12:00)",
         "[2014-09-25 12:30, 2014-09-25 16:30)"
-    ]
+    ] }
 
 Read on for details:
 

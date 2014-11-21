@@ -41,13 +41,15 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
-use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
+use App::Dochazka::REST::Dispatch::Shared qw( 
+    not_implemented 
+    pre_update_comparison 
+);
 use App::Dochazka::REST::Model::Interval;
 use App::Dochazka::REST::Model::Shared;
 use Data::Dumper;
 use Params::Validate qw( :all );
-use Try::Tiny;
 
 
 
@@ -61,11 +63,11 @@ App::Dochazka::REST::Dispatch::Interval - path dispatch
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -108,103 +110,6 @@ BEGIN {
 }
 
 
-# 'interval/eid/:eid/:tsrange'
-sub _fetch_by_eid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_eid" ); 
-    my ( $eid, $tsrange ) = ( $context->{'mapping'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
-    $log->debug("About to fetch intervals for EID $eid in tsrange $tsrange" );
-    
-    my $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
-    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
-    }
-    return $status;
-}
-
-# 'interval/nick/:nick/:tsrange'
-sub _fetch_by_nick {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
-    my ( $nick, $tsrange ) = ( $context->{'mapping'}->{'nick'}, $context->{'mapping'}->{'tsrange'} );
-    $log->debug("About to fetch intervals for nick $nick in tsrange $tsrange" );
-
-    # get EID
-    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
-    } elsif ( $status->not_ok ) {
-        return $status;
-    }
-    my $eid = $status->payload->{'eid'};
-    
-    $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
-    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
-    }
-    return $status;
-}
-
-
-# 'interval/self/:tsrange'
-sub _fetch_own {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
-    my ( $eid, $tsrange ) = ( $context->{'current'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
-    $log->debug("About to fetch intervals for EID $eid (current employee) in tsrange $tsrange" );
-
-    my $status = App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange( $eid, $tsrange );
-    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
-    }
-    return $status;
-}
-
-
-# 'interval/iid' and 'interval/iid/:iid' - only RUD supported (no create)
-sub _iid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_iid" ); 
-    my $iid;
-    if ( $context->{'method'} eq 'POST' ) {
-        return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'iid'};
-        $iid = $context->{'request_body'}->{'iid'};
-        return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING') unless $iid;
-        delete $context->{'request_body'}->{'iid'};
-    } else {
-        $iid = $context->{'mapping'}->{'iid'};
-    }
-
-    # does the IID exist? if so, to whom does it belong?
-    my $status = App::Dochazka::REST::Model::Interval->load_by_iid( $iid );
-    return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
-    return $CELL->status_notice( 'DISPATCH_IID_DOES_NOT_EXIST', args => [ $iid ] )
-        if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
-    my $belongs_eid = $status->payload->{'eid'};
-
-    # this target requires special ACL handling
-    my $current_eid = $context->{'current'}->{'eid'};
-    my $current_priv = $context->{'current_priv'};
-    if (   ( $current_priv eq 'passerby' ) or 
-           ( $current_priv eq 'inactive' ) or
-           ( $current_priv eq 'active' and $current_eid != $belongs_eid )
-    ) {
-        return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
-    }
-
-    # it exists and we passed the ACL check, so go ahead and do what we need to do
-    if ( $context->{'method'} eq 'GET' ) {
-        return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
-    } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _update_interval( $status->payload, $context->{'request_body'} );
-    } elsif ( $context->{'method'} eq 'DELETE' ) {
-        $log->notice( "Attempting to delete interval " . $status->payload->iid );
-        return $status->payload->delete;
-    }
-    return $CELL->status_crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
-}
-
-# 'interval/new'
 sub _new {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__. "::_iid" ); 
@@ -218,37 +123,17 @@ sub _new {
     }
 
     # this resource requires special ACL handling
-    my $current_eid = $context->{'current'}->{'eid'};
-    my $current_priv = $context->{'current_priv'};
-    if ( $current_priv eq 'passerby' or $current_priv eq 'inactive' ) {
-        return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
-    }
-    if ( $context->{'request_body'}->{'eid'} ) {
-        my $desired_eid = $context->{'request_body'}->{'eid'};
-        if ( $desired_eid != $current_eid ) {
-            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' ) if $current_priv eq 'active';
-        }
-    } else {
-        $context->{'request_body'}->{'eid'} = $current_eid;
-    }
+    my $retval = check_acl_context( $context );
+    return $retval if ref( $retval ) eq 'App::CELL::Status';
+
+    # if eid not given in request body, set it to that of current user
+    #if ( ! $context->{'request_body'}->{'eid'} ) {
+    #    $context->{'request_body'}->{'eid'} = $context->{'current'}->{'eid'};
+    #}
+    #$log->debug( "EID set to " . $context->{'request_body'}->{'eid'} );
 
     # attempt to insert
     return _insert_interval( %{ $context->{'request_body'} } );
-}
-
-# takes two arguments:
-# - "$int" is an interval object (blessed hashref)
-# - "$over" is a hashref with zero or more interval properties and new values
-# the values from $over replace those in $int
-sub _update_interval {
-    my ($int, $over) = @_;
-    $log->debug("Entering " . __PACKAGE__ . "::_update_interval" );
-    if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
-    }
-    delete $over->{'iid'} if exists $over->{'iid'};
-    return $int->update if pre_update_comparison( $int, $over );
-    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
 # takes PROPLIST

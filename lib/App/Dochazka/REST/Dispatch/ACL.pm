@@ -54,11 +54,11 @@ App::Dochazka::REST::Dispatch::ACL - ACL module
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -78,7 +78,7 @@ This module provides helper code for ACL checks.
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( check_acl );
+our @EXPORT_OK = qw( check_acl check_acl_context );
 
 
 
@@ -125,5 +125,34 @@ sub check_acl {
     return $fail;
 }
 
+
+=head2 check_acl_context
+
+Check ACL and compare with eid in request body. This routine is designed
+for resources that have an ACL profile of 'active'. If the request body
+contains an 'eid' property, it is checked against the current user's EID.  If
+they are different and the current user's priv is 'active',
+DOCHAZKA_FORBIDDEN_403 is returned; otherwise, undef is returned to signify
+that the check passed.
+
+=cut
+
+sub check_acl_context {
+    my $context = shift;
+    my $current_eid = $context->{'current'}->{'eid'};
+    my $current_priv = $context->{'current_priv'};
+    if ( $current_priv eq 'passerby' or $current_priv eq 'inactive' ) {
+        return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+    }
+    if ( $context->{'request_body'}->{'eid'} ) {
+        my $desired_eid = $context->{'request_body'}->{'eid'};
+        if ( $desired_eid != $current_eid ) {
+            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' ) if $current_priv eq 'active';
+        }
+    } else {
+        $context->{'request_body'}->{'eid'} = $current_eid;
+    }
+    return;
+}
 
 1;

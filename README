@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.292
+    Version 0.298
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do

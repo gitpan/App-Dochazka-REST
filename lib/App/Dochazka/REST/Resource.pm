@@ -75,11 +75,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -757,6 +757,9 @@ sub malformed_request {
 
     $log->debug( "Request body: " . Dumper $self->context->{'request_body'} ) unless $result;
 
+    # we only accept hashes
+    return 1 unless ref( $self->context->{'request_body'} ) eq 'HASH';
+
     return $result;
 }
 
@@ -771,6 +774,7 @@ sub delete_resource {
     $self->response->header('Content-Type' => 'application/json' );
     my $json = $self->_make_json;
     if ( ref( $json ) eq 'SCALAR' ) { # statuses listed in %status_http_map
+        $log->debug( "delete_resource: returning " . $$json );
         return $json;
     }
     $self->response->body( $json );

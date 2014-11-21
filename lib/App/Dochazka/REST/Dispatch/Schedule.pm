@@ -41,7 +41,6 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedhistory qw( get_schedhistory );
@@ -67,11 +66,11 @@ App::Dochazka::REST::Dispatch::Schedule - path dispatch
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -176,8 +175,7 @@ sub _current_schedule {
 }
 
 
-# '/schedule/intervals'
-# '/schedule/intervals/:sid'
+# '/schedule/new'
 sub _intervals_post {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . ":_intervals_post" ); 
@@ -193,58 +191,60 @@ sub _intervals_post {
 
     # the request body should contain an array of time intervals:
     # put these into the object
-    if ( ref( $context->{'request_body'} ) eq 'ARRAY' ) {
-        #
-        # assume that these are the intervals
-        $intvls->{'intvls'} = $context->{'request_body'};
-        #
-        # insert the intervals
-        $status = $intvls->insert;
-        return $status unless $status->ok;
-        $log->info( "schedule/intervals: Scratch intervals inserted" );
-        #
-        # convert the intervals to get the 'schedule' property
-        $status = $intvls->load;
-        if ( $status->not_ok ) {
-            $intvls->delete;
-            return $status;
-        }
-        $log->info( "schedule/intervals: Scratch intervals converted" );
-        #
-        # spawn Schedule object
-        my $sched = App::Dochazka::REST::Model::Schedule->spawn(
-            'schedule' => $intvls->json,
-        );
-        #
-        # insert schedule object to get SID
-        $status = $sched->insert;
-        if ( $status->ok ) {
-            if ( $status->code eq 'DOCHAZKA_SCHEDULE_EXISTS' ) {
-                $code = 'DISPATCH_SCHEDULE_OK';
-                $log->info( "schedule/intervals: Found existing schedule" );
-            } elsif ( $status->code eq 'DOCHAZKA_CUD_OK' ) {
-                $code = 'DISPATCH_SCHEDULE_INSERT_OK';
-                $log->info( "schedule/intervals: New schedule inserted" );
-            } else {
-                $log->crit( "schedule/intervals: Unknown status code returned by Model/Schedule.pm->insert" );
-                die( 'AAAAAAAAHHHHH! Swallowed by the abyss' );
-            }
-        } else {
-            $log->crit( "schedule/intervals: Model/Schedule.pm->insert failed - bailing out" );
-            $intvls->delete;
-            return $status;
-        }
-        #
-        # delete the schedintvls object
-        $status = $intvls->delete;
-        return $status unless $status->ok;
-        $log->info( "schedule/intervals: scratch intervals deleted" );
-        #
-        # report success
-        return $CELL->status_ok( $code, payload => $sched->TO_JSON );
-    } else {
-        return $CELL->status_err( 'DISPATCH_SCHEDINTVLS_MISSING' );
+    if (   ref( $context->{'request_body'} ) ne 'HASH' or
+           ! exists( $context->{'request_body'}->{'schedule'} ) or
+           ref( $context->{'request_body'}->{'schedule'} ) ne "ARRAY"
+    ) {
+        return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
     }
+    #
+    # assume that these are the intervals
+    $intvls->{'intvls'} = $context->{'request_body'}->{'schedule'};
+    #
+    # insert the intervals
+    $status = $intvls->insert;
+    return $status unless $status->ok;
+    $log->info( "schedule/intervals: Scratch intervals inserted" );
+    #
+    # convert the intervals to get the 'schedule' property
+    $status = $intvls->load;
+    if ( $status->not_ok ) {
+        $intvls->delete;
+        return $status;
+    }
+    $log->info( "schedule/intervals: Scratch intervals converted" );
+    #
+    # spawn Schedule object
+    my $sched = App::Dochazka::REST::Model::Schedule->spawn(
+        'schedule' => $intvls->json,
+    );
+    #
+    # insert schedule object to get SID
+    $status = $sched->insert;
+    if ( $status->ok ) {
+        if ( $status->code eq 'DOCHAZKA_SCHEDULE_EXISTS' ) {
+            $code = 'DISPATCH_SCHEDULE_OK';
+            $log->info( "schedule/intervals: Found existing schedule" );
+        } elsif ( $status->code eq 'DOCHAZKA_CUD_OK' ) {
+            $code = 'DISPATCH_SCHEDULE_INSERT_OK';
+            $log->info( "schedule/intervals: New schedule inserted" );
+        } else {
+            $log->crit( "schedule/intervals: Unknown status code returned by Model/Schedule.pm->insert" );
+            die( 'AAAAAAAAHHHHH! Swallowed by the abyss' );
+        }
+    } else {
+        $log->crit( "schedule/intervals: Model/Schedule.pm->insert failed - bailing out" );
+        $intvls->delete;
+        return $status;
+    }
+    #
+    # delete the schedintvls object
+    $status = $intvls->delete;
+    return $status unless $status->ok;
+    $log->info( "schedule/intervals: scratch intervals deleted" );
+    #
+    # report success
+    return $CELL->status_ok( $code, payload => $sched->TO_JSON );
 
 }
 

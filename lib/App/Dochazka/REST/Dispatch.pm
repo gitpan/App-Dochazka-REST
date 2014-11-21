@@ -41,7 +41,6 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site $meta );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Priv;
 use App::Dochazka::REST::Dispatch::Shared qw( not_implemented );
@@ -68,11 +67,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -131,7 +130,7 @@ sub _echo {
 
 sub _docu {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my $resource = $context->{'request_body'} || "";
+    my $resource = $context->{'request_body'}->{'resource'} || "";
     my $acl_profile = $meta->META_DOCHAZKA_RESOURCE_ACLS->{$resource} || '!?NONE?!';
     my $docs = $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} || 'NONE WRITTEN YET';
     #chomp($docs);
@@ -155,7 +154,7 @@ sub _docu {
 
 sub _docu_html {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my $resource = $context->{'request_body'} || "";
+    my $resource = $context->{'request_body'}->{'resource'} || "";
     my $acl_profile = $meta->META_DOCHAZKA_RESOURCE_ACLS->{$resource} || '!?NONE?!';
     my $docs = $meta->META_DOCHAZKA_RESOURCE_DOCS->{$resource} || 'NONE WRITTEN YET';
     #chomp($docs);
@@ -187,8 +186,9 @@ EOH
 
 
 
-sub _get_param {
+sub _param_get {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_param_get" );
 
     # generate content
     my ( $param, $path, $value, $status, $type );
@@ -201,60 +201,70 @@ sub _get_param {
         $type = 'meta';
         $value = $meta->get_param_metadata( $param );
     }
-    $status = defined( $value )
-        ? $CELL->status_ok( 
-              'DISPATCH_PARAM_FOUND', 
-              args => [ $type, $param ], 
-              payload => { 
-                  type => $type,
-                  name => $param,
-                  value => $value->{'Value'},
-                  where_defined => {
-                      file => $value->{'File'},
-                      line => $value->{'Line'},
-                  }
-              } 
-          )
-        : $CELL->status_err( 
-              'DISPATCH_PARAM_NOT_DEFINED', 
-              args => [ $type, $param ] 
-          );
-    return $status;
+    $log->debug( "Value of $type param $param is " . Dumper( $value->{'Value'} ) );
+    if ( defined( $value->{'Value'} ) ) {
+        return $CELL->status_ok( 
+            'DISPATCH_PARAM_FOUND', 
+            args => [ $type, $param ], 
+            payload => { 
+                type => $type,
+                name => $param,
+                value => $value->{'Value'},
+                where_defined => {
+                    file => $value->{'File'},
+                    line => $value->{'Line'},
+                }
+            } 
+        );
+    }
+    return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
 }
 
-# PUT is only for meta parameters
-sub _put_param {
+sub _param_post {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    my ( $param, $path, $status, $type );
-    $param = $context->{'mapping'}->{'param'};
+    $log->debug( "Entering " . __PACKAGE__ . "::_param_post" );
+
+    my ( $param, $new_value, $path, $status, $type );
+
+    # param name and value are taken from the request body
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless 
+        exists $context->{'request_body'}->{'value'} and
+        defined $context->{'request_body'}->{'name'};
+
     $path = $context->{'path'};
-    my ( $method, $body ) = ( $context->{'method'}, $context->{'request_body'} );
-    $log->debug( __PACKAGE__ . "::_put_param: request body is " . Dumper( $body ) );
-    $log->debug( __PACKAGE__ . "::_put_param: about to set metaparam $param to " . Dumper( $body ) );
-    if ( $path =~ m/metaparam/ ) {
-        $type = 'meta';
-        $meta->set( $param, $body );
+    $param = $context->{'request_body'}->{'name'};
+    $new_value = $context->{'request_body'}->{'value'};
+    $log->debug( "new value is " . Dumper( $new_value ) . " -- about to set metaparam $param to this" );
+
+    # save the original value so we can roll back if needed
+    my $saved_value = $meta->get_param( $param );
+
+    # POST is only for meta parameters
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $path =~ m/metaparam/;
+    $type = 'meta';
+
+    $meta->set( $param, $new_value );
+
+    if ( eq_deeply( $meta->get_param( $param ), $new_value ) ) {
+        return $CELL->status_ok( 
+            'DISPATCH_PARAM_SET', 
+            args => [ $type, $param ], 
+            payload => { 
+                type => $type,
+                name => $param,
+                value => $new_value,
+            } 
+        );
     }
-    $status = ( eq_deeply( $meta->get_param( $param ), $body ) )
-        ? $CELL->status_ok( 
-              'DISPATCH_PARAM_SET', 
-              args => [ $type, $param ], 
-              payload => { 
-                  type => $type,
-                  name => $param,
-                  value => $body,
-              } 
-          )
-        : $CELL->status_err( 
-              'DISPATCH_PARAM_NOT_SET', 
-              args => [ $type, $param ],
-              payload => {
-                  type => $type,
-                  name => $param,
-                  value => $meta->get_param( $param ),
-              }
-          );
-    return $status;
+
+    # there was some problem - attempt to roll back to saved value
+    $meta->set( $param, $saved_value );
+
+    if ( eq_deeply( $meta->get_param( $param ), $saved_value ) ) {
+        return $CELL->status_err( 'DISPATCH_PARAM_VALUE_UNCHANGED' ); 
+    }
+
+    return $CELL->status_crit( "Parameter $param has been munged!" );
 }
 
 

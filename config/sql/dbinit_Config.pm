@@ -137,8 +137,8 @@ set( 'DBINIT_CREATE', [
     q/CREATE TRIGGER valid_intvl BEFORE INSERT OR UPDATE ON schedintvls
         FOR EACH ROW EXECUTE PROCEDURE valid_intvl()/,
 
-    q#-- Given a SID in schedintvls, returns all the intervals for that
-      -- SID. Each interval is expressed as a list ('row', 'composite
+    q#-- Given a SSID in schedintvls, returns all the intervals for that
+      -- SSID. Each interval is expressed as a list ('row', 'composite
       -- value') consisting of 4 strings (two pairs). The first pair of
       -- strings (e.g., "WED" "08:00") denotes the lower bound of the
       -- range, while the second pair denotes the upper bound

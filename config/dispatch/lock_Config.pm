@@ -33,37 +33,37 @@
 # -----------------------------------
 # App::Dochazka::REST
 # -----------------------------------
-# config/dispatch/interval_Config.pm
+# config/dispatch/lock_Config.pm
 #
-# Path dispatch configuration file for interval resources
+# Path dispatch configuration file for lock resources
 # -----------------------------------
 
 
-# DISPATCH_RESOURCES_INTERVAL
+# DISPATCH_RESOURCES_LOCK
 #    - value is a hash, the keys of which are resource paths
 #    - the values of those keys are hashes containing resource metadata
-set( 'DISPATCH_RESOURCES_INTERVAL', {
+set( 'DISPATCH_RESOURCES_LOCK', {
 
-    'interval/eid/:eid/:tsrange' => 
+    'lock/eid/:eid/:tsrange' => 
     {
         target => {
             GET => 'fetch_by_eid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
-        cli => 'interval eid $EID $TSRANGE',
-        description => 'Retrieve an arbitrary employee\'s intervals over the given tsrange',
+        cli => 'lock eid $EID $TSRANGE',
+        description => 'Retrieve an arbitrary employee\'s locks over the given tsrange',
         documentation => <<'EOH',
 =pod
 
-With this resource, administrators can retrieve any employee's intervals 
+With this resource, administrators can retrieve any employee's locks 
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
 be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
-    'interval/help' =>
+    'lock/help' =>
     { 
         target => {
             GET => '_get_default',
@@ -71,36 +71,36 @@ EOH
             PUT => '_put_default', 
             DELETE => '_delete_default', 
         },
-        target_module => 'App::Dochazka::REST::Dispatch::Interval',
+        target_module => 'App::Dochazka::REST::Dispatch::Lock',
         acl_profile => 'passerby', 
-        cli => 'interval help',
-        description => 'Display available interval resources for given HTTP method',
+        cli => 'lock help',
+        description => 'Display available lock resources for given HTTP method',
         documentation => <<'EOH',
 =pod
 
-Displays information on all interval resources available to the logged-in
+Displays information on all lock resources available to the logged-in
 employee, according to her privlevel.
 EOH
     },
-    'interval/iid' => 
+    'lock/lid' => 
     {
         target => {
             POST => 'iid_lid',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
-        acl_profile => 'active', 
-        cli => 'interval iid $JSON',
-        description => 'Update an existing interval object via POST request (iid must be included in request body)',
+        acl_profile => 'admin', 
+        cli => 'lock lid $JSON',
+        description => 'Update an existing lock object via POST request (lid must be included in request body)',
         documentation => <<'EOH',
 =pod
 
-Enables existing interval objects to be updated by sending a POST request to
+Enables existing lock objects to be updated by sending a POST request to
 the REST server. Along with the properties to be modified, the request body
-must include an 'iid' property, the value of which specifies the iid to be
+must include an 'lid' property, the value of which specifies the lid to be
 updated.
 EOH
     },
-    'interval/iid/:iid' => 
+    'lock/lid/:lid' => 
     {
         target => {
             GET => 'iid_lid',
@@ -110,87 +110,87 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => {
             GET => 'active',
-            PUT => 'active',
-            DELETE => 'active',
+            PUT => 'admin',
+            DELETE => 'admin',
         },
-        cli => 'interval iid $iid [$JSON]',
-        description => 'GET, PUT, or DELETE an interval object by its iid',
+        cli => 'lock lid $lid [$JSON]',
+        description => 'GET, PUT, or DELETE an lock object by its lid',
         documentation => <<'EOH',
 =over
 
 =item * GET
 
-Retrieves an interval object by its iid.
+Retrieves an lock object by its lid.
 
 =item * PUT
 
-Updates the interval object whose iid is specified by the ':iid' URI parameter.
+Updates the lock object whose lid is specified by the ':lid' URI parameter.
 The fields to be updated and their new values should be sent in the request
 body, e.g., like this:
 
-    { "eid" : 34, "aid" : 1, "intvl" : '[ 2014-11-18 08:00, 2014-11-18 12:00 )' }
+    { "eid" : 34, "intvl" : '[ 2014-11-18 00:00, 2014-11-18 24:00 )' }
 
 =item * DELETE
 
-Deletes the interval object whose iid is specified by the ':iid' URI parameter.
-As long as the interval does not overlap with a lock interval, the delete operation
-will probably work as expected.
+Deletes the lock object whose lid is specified by the ':lid' URI parameter.
 
 =back
 
-ACL note: 'active' employees can update/delete only their own unlocked intervals.
+ACL note: 'active' employees can view only their own locks, and of course
+admin privilege is required to modify or remove a lock.
 EOH
     },
-    'interval/new' => 
+    'lock/new' => 
     {
         target => {
             POST => '_new',
         },
-        target_module => 'App::Dochazka::REST::Dispatch::Interval',
+        target_module => 'App::Dochazka::REST::Dispatch::Lock',
         acl_profile => 'active', 
-        cli => 'interval new $JSON',
-        description => 'Add a new attendance data interval',
+        cli => 'lock new $JSON',
+        description => 'Add a new attendance data lock',
         documentation => <<'EOH',
 =pod
 
-This is the resource by which employees add new attendance data to the
-database. It takes a request body containing, at the very least, C<aid> and
-C<intvl> properties. Additionally, it can contain C<long_desc>, while
-administrators can also specify C<eid> and C<remark>.
+This is the resource by which the attendance data entered by an employee 
+for a given time period can be "locked" to prevent any subsequent
+modifications.  It takes a request body containing, at the very least, an
+C<intvl> property specifying the tsrange to lock. Additionally, administrators
+can specify C<remark> and C<eid> properties.
 EOH
     },
-    'interval/nick/:nick/:tsrange' => 
+    'lock/nick/:nick/:tsrange' => 
     {
         target => {
             GET => 'fetch_by_nick',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
-        cli => 'interval nick $NICK $TSRANGE',
-        description => 'Retrieve an arbitrary employee\'s intervals over the given tsrange',
+        cli => 'lock nick $NICK $TSRANGE',
+        description => 'Retrieve an arbitrary employee\'s locks over the given tsrange',
         documentation => <<'EOH',
 =pod
 
-With this resource, administrators can retrieve any employee's intervals 
+With this resource, administrators can retrieve any employee's locks 
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would
 be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
-    'interval/self/:tsrange' => 
+    'lock/self/:tsrange' => 
     {
         target => {
             GET => 'fetch_own',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'inactive', 
-        cli => 'interval self $TSRANGE',
-        description => 'Retrieve one\'s own intervals over the given tsrange',
+        cli => 'lock self $TSRANGE',
+        description => 'Retrieve one\'s own locks over the given tsrange',
         documentation => <<'EOH',
 =pod
 
-With this resource, employees can retrieve their own attendance intervals 
+With this resource, employees can retrieve their own attendance locks 
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would

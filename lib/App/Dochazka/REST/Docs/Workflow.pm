@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.292;
+our $VERSION = 0.298;
 
 1;
 __END__
@@ -112,12 +112,19 @@ she can also retrieve her privlevel and schedule as of any arbitrary date/time.
 =head2 inactive
 
 The inactive privlevel is intended for employees who are not currently
-attending work, but are expected to resume doing so at some point in the
-future: employees on maternity leave, sabbatical, etc.
+attending work, but are expected to resume their attendance at some point in
+the future: for example, employees on maternity leave, sabbatical, etc.
 
-Though such employees might not be expected to even log in to Dochazka, 
-if they happen to do so they can engage in the following workflows (in addition
-to the passerby workflows described in the previous section).
+Short-term leave situations like medical leave can of course be handled by
+having the employee enter attendance intervals according to their schedule, but
+using a special activity like, for example, 'SICK_LEAVE'. The 'inactive'
+privlevel is appropriate if an employee will be inactive for a longer period,
+during which she is not expected to fill out attendance.
+
+Though such employees might not be expected to even log in to Dochazka during
+their period of inactivity, if they happen to do so they can engage in the
+following workflows (in addition to the passerby workflows described in the
+previous section).
 
 =head3 Retrieve one's own schedule/privilege history
 
@@ -126,9 +133,10 @@ attendance data is always associated with the schedule and privlevel in effect
 at the time the attendance took place, all changes to employee schedules and
 privlevels are recorded in a "history table". 
 
-Employees with privlevel 'inactive' or higher are authorized to view (retrieve)
-their privilege/schedule histories using the C<schedule/history/self/?:tsrange>
-and C<priv/history/self/?:tsrange> resources.
+Since inactive employees are still employees (or members of the organization),
+they are authorized to view (retrieve) their privilege/schedule histories using
+the C<schedule/history/self/?:tsrange> and C<priv/history/self/?:tsrange>
+resources. 
 
 =head3 Edit one's own employee profile (certain fields)
 
@@ -137,15 +145,31 @@ profile (e.g., to change their password or correct the spelling of their full
 name, etc.). These fields are configurable via the DOCHAZKA_PROFILE_EDITABLE_FIELDS site
 parameter.
 
+=head3 Retrieve one's own attendance/lock intervals
+
+Although inactive employees are not authorized to enter new attendance/lock
+intervals, they can retrieve their own past intervals, for example by browsing
+in the web client, etc.
+
 
 =head2 active
 
 =head3 Add new attendance intervals
 
 Active employees can add new attendance data ("intervals") subject to the
-following limitations: (a), the date must not be locked, (b), the date must
-be no later than the end of the current month and, (c), the interval must
-not overlap with an existing interval.
+following limitations: 
+
+=over
+
+=item (a) only their own attendance - not that of other employees,
+
+=item (b) attendance interval must not conflict with an existing lock interval,
+
+=item (c) attendance interval must not extend past the end of the current month and, 
+
+=item (d) attendance interval must not overlap with an existing interval.
+
+=back
 
     Example 1: Employee 'pepik' tries to insert an attendance interval
                [1985-04-27 08:00, 1985-04-27 12:00) but there is a 
@@ -158,22 +182,37 @@ not overlap with an existing interval.
 
 New attendance data is added via POST requests on C<interval/new>.
 
+=head3 Add new lock intervals
+
+Active employees are authorized to lock attendance data by adding new lock
+intervals subject to the following restrictions:
+
+=over
+
+=item (a) only on their own attendance,
+
+=item (b) only on past attendance and up to the end of the current month,
+
+=item (c) lock interval must not overlap with any other lock intervals.
+
+=back
+
+=head3 Modify one's own unlocked past attendance data
+
+Active employees can modify/delete any existing attendance data, provided the
+attendance intervals in question do not conflict with any lock.
+
 =head3 Retrieve list of non-disabled activities
 
 Since attendance data must be associated with a valid activity, active employees
 are authorized to retrieve the entire list of non-disabled activities using
 a GET request on the C<activity/all> resource.
 
-=head3 Retrieve one's own past attendance data
+=head3 Retrieve details of a particular activity
 
-Active employees can retrieve (view) their own past attendance data.
-
-=head3 Look up disabled activities
-
-Since past attendance data can refer to activities that have since been disabled,
-active employees are authorized to look up activities (including disabled
-ones) by code or AID using GET requests on C<activity/aid/:aid> and
-C<activity/code/:code>.
+Active employees can look up the details of any activity (including 
+disabled activities) by the activity's code or AID using GET requests on
+C<activity/aid/:aid> and C<activity/code/:code>.
 
 =head3 Edit one's own employee profile (certain fields)
 

@@ -1887,3 +1887,57 @@ Revision history for Dochazka-REST
   '/interval/eid/:eid/:tsrange', 'interval/nick/:nick/:tsrange' and
   '/interval/self/:tsrange'
 
+0.293  2014-11-19 18:05 CET
+- Dispatch/Interval.pm: let _new set EID to that of current user
+  if no EID specified in request body
+- t/dispatch/interval.t: add tests under 'interval/new' resource
+
+0.294  2014-11-19 22:59 CET
+- Dispatch.pm: adapt _docu* dispatch targets so they expect to receive argument
+  in 'resource' property
+- Dispatch/Interval.pm: pass argument with DISPATCH_PARAMETER_BAD_OR_MISSING to
+  report which property is missing
+- Resource.pm: only that JSON is not malformed that converts into a hashref
+- Test.pm: adapt to current state
+- t/dispatch/intervals.t: add two tests under 'interval/new'
+
+0.295  2014-11-20 11:50 CET
+- rename resource 'schedule/interval' to 'schedule/new'
+- Resource.pm: no longer accept content bodies that do not convert cleanly into
+  a hashref - this required some minor retooling of the following resources that
+  had been accepting bare scalars or JSON arrays:
+  - 'docu' and 'docu/html'
+  - 'metaparam' and 'siteparam'
+  - 'schedule/new'
+- Dispatch.pm->_param_post now saves the pre-change value and attempts to
+  restore it if the new value is not set properly
+- t/: adapt to current state
+
+0.296  2014-11-20 14:01 CET
+- split 'metaparam' / 'metaparam/:param'
+
+0.297  2014-11-20 18:21 CET
+- config/dispatch/lock_Config.pm: add lock resource definitions
+  (very similar to interval_Config.pm)
+- dispatch/interval_Config.pm: adapt to generalized dispatch targets
+- dispatch_Config.pm: enable lock resources
+- sql/lock_Config.pm: add missing SQL statements
+- Dispatch/: remove bogus "use App::Dochazka::REST::Dispatch::ACL qw( check_acl);" 
+  line from all dispatch modules
+- Dispatch/ACL.pm: add 'check_acl_context' routine (shared between interval
+  and lock dispatch targets)
+- Dispatch/{Interval,Shared}.pm: generalize most of the dispatch targets
+- Dispatch/Lock.pm: get it ready for business
+- Model/Lock.pm: add missing fetch_by_eid_and_tsrange routine
+- t/dispatch/: rename 'interval.t' to 'interval_lock.t' and start running
+  each resource's tests in a foreach loop so the same tests are run for 
+  'interval/..' and 'lock/..' counterparts
+
+0.298  2014-11-20 21:51 CET
+- sql/lock_Config.pm: fix typos in SQL_LOCK_UPDATE
+- Dispatch/Lock.pm: in '_new', make eid not required in request body 
+- Dispatch/Shared.pm: fix bugs in interval+lock shared routines
+- add several debug log messages; comment out one debug log message
+- t/dispatch/interval_lock.t: test both 'interval/..' and 'lock/..'
+  for all resources
+

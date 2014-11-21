@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
 #use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( cud load );
+use App::Dochazka::REST::Model::Shared qw( cud load load_multiple );
 use Carp;
 use Data::Dumper;
 use DBI;
@@ -58,11 +58,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -189,6 +189,7 @@ object. Returns a status object.
 
 sub delete { 
     my ( $self ) = @_;
+    $log->debug( "Entering " . __PACKAGE__ . "::delete" );
 
     my $status = cud( 
         object => $self, 
@@ -197,6 +198,7 @@ sub delete {
     );
     $self->reset( lid => $self->{lid} ) if $status->ok;
 
+    $log->debug( "Returning from " . __PACKAGE__ . "::delete with status code " . $status->code ); 
     return $status; 
 }
 
@@ -216,6 +218,16 @@ BEGIN {
     *{'lid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'lid' );
 }
 
+
+sub fetch_by_eid_and_tsrange {
+    my ( $eid, $tsrange ) = @_;
+
+    return load_multiple(
+        class => __PACKAGE__,
+        sql => $site->SQL_LOCK_SELECT_BY_EID_AND_TSRANGE,
+        keys => [ $eid, $tsrange ],
+    );
+}
 
 
 

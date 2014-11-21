@@ -6,6 +6,7 @@ config/dispatch/activity_Config.pm
 config/dispatch/employee_Config.pm
 config/dispatch/HTTP_Message_en.conf
 config/dispatch/interval_Config.pm
+config/dispatch/lock_Config.pm
 config/dispatch/priv_Config.pm
 config/dispatch/schedule_Config.pm
 config/dispatch/top_Config.pm
@@ -67,7 +68,7 @@ t/301-resource.t
 t/dispatch/activity.t
 t/dispatch/employee.t
 t/dispatch/history.t
-t/dispatch/interval.t
+t/dispatch/interval_lock.t
 t/dispatch/priv.t
 t/dispatch/schedule.t
 t/dispatch/top.t

@@ -61,11 +61,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -200,7 +200,9 @@ sub docu_check {
     my ( $docustr, $docustr_len );
     #
     # - straight 'docu' resource
-    my $status = req( $test, 200, 'demo', 'POST', '/docu', '"'.  $resource . '"' );
+    my $status = req( $test, 200, 'demo', 'POST', '/docu', <<"EOH" );
+{ "resource" : "$resource" }
+EOH
     is( $status->level, 'OK', $tn . ++$t );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION', $tn . ++$t );
     if ( exists $status->{'payload'} ) {
@@ -214,7 +216,9 @@ sub docu_check {
     }
     #
     # - not a very thorough examination of the 'docu/html' version
-    $status = req( $test, 200, 'demo', 'POST', '/docu/html', '"'.  $resource . '"' );
+    $status = req( $test, 200, 'demo', 'POST', '/docu/html', <<"EOH" );
+{ "resource" : "$resource" }
+EOH
     is( $status->level, 'OK', $tn . ++$t );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION', $tn . ++$t );
     if ( exists $status->{'payload'} ) {
@@ -402,18 +406,18 @@ object as its only argument.
 sub create_testing_schedule {
     my ( $test ) = @_;
 
-    my $intvls = [
+    my $intvls = { "schedule" => [
         "[2000-01-02 12:30, 2000-01-02 16:30)",
         "[2000-01-02 08:00, 2000-01-02 12:00)",
         "[2000-01-01 12:30, 2000-01-01 16:30)",
         "[2000-01-01 08:00, 2000-01-01 12:00)",
         "[1999-12-31 12:30, 1999-12-31 16:30)",
         "[1999-12-31 08:00, 1999-12-31 12:00)",
-    ];
+    ] };
     my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
     #
     # - request as root 
-    my $status = req( $test, 200, 'root', 'POST', "schedule/intervals", $intvls_json );
+    my $status = req( $test, 200, 'root', 'POST', "schedule/new", $intvls_json );
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_SCHEDULE_INSERT_OK' );
     ok( exists $status->{'payload'} );

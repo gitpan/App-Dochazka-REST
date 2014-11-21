@@ -115,8 +115,6 @@ $status = req( $test, 200, 'root', 'PUT', '/' );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 ok( exists $status->payload->{'resources'}->{'help'} );
-# additional admin-only resources
-ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST "" 
 # - as demo
@@ -129,7 +127,7 @@ ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
-ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( not exists $status->payload->{'resources'}->{'metaparam'} );
 #
 # POST "" 
 # - as root
@@ -142,7 +140,7 @@ ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
-ok( ! exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( exists $status->payload->{'resources'}->{'metaparam'} );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'echo'} );
 #
@@ -213,7 +211,7 @@ foreach my $base ( 'docu', 'docu/html' ) {
     # POST docu
     #
     # - be nice
-    $status = req( $test, 200, 'demo', 'POST', $base, '"echo"' );
+    $status = req( $test, 200, 'demo', 'POST', $base, '{ "resource" : "echo" }' );
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
     ok( exists $status->payload->{'resource'} );
@@ -225,7 +223,7 @@ foreach my $base ( 'docu', 'docu/html' ) {
     like( $docustr, qr/echoes/ );
     #
     # - ask nicely for documentation of a slightly more complicated resource
-    $status = req( $test, 200, 'demo', 'POST', $base, '"metaparam/:param"' );
+    $status = req( $test, 200, 'demo', 'POST', $base, '{ "resource" : "metaparam/:param" }' );
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
     ok( exists $status->payload->{'resource'} );
@@ -236,7 +234,7 @@ foreach my $base ( 'docu', 'docu/html' ) {
     isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
     #
     # - ask nicely for documentation of the "/" resource
-    $status = req( $test, 200, 'demo', 'POST', $base, '"/"' );
+    $status = req( $test, 200, 'demo', 'POST', $base, '{ "resource" : "/" }' );
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_ONLINE_DOCUMENTATION' );
     ok( exists $status->payload->{'resource'} );
@@ -247,9 +245,8 @@ foreach my $base ( 'docu', 'docu/html' ) {
     isnt( $docustr_len, length( $status->payload->{'documentation'} ), "We are not getting the same string over and over again" );
     #
     # - be nice but not careful (non-existent resource)
-    $status = req( $test, 200, 'demo', 'POST', $base, '"echop"' );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DISPATCH_BAD_RESOURCE' );
+    $status = req( $test, 200, 'demo', 'POST', $base, '{ "resource" : "echop" }' );
+    is( $status->level, 'ERR' ); is( $status->code, 'DISPATCH_BAD_RESOURCE' );
     #
     # - be pathological (invalid JSON)
     req( $test, 400, 'demo', 'POST', $base, 'bare, unquoted string will never pass for JSON' );
@@ -460,7 +457,7 @@ $status = req( $test, 200, 'root', 'PUT', 'help' );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_DEFAULT' );
 # additional admin-only resources
-ok( exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
 #
 # POST help
 # - as demo
@@ -473,7 +470,7 @@ ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
-ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( not exists $status->payload->{'resources'}->{'metaparam'} );
 #
 # - as root
 $status = req( $test, 200, 'root', 'POST', 'help' );
@@ -485,7 +482,7 @@ ok( exists $status->payload->{'resources'}->{'/'} );
 ok( exists $status->payload->{'resources'}->{'help'} );
 ok( exists $status->payload->{'resources'}->{'employee'} );
 ok( exists $status->payload->{'resources'}->{'priv'} );
-ok( not exists $status->payload->{'resources'}->{'metaparam/:param'} );
+ok( exists $status->payload->{'resources'}->{'metaparam'} );
 # additional admin-only resources
 ok( exists $status->payload->{'resources'}->{'echo'} );
 #
@@ -506,11 +503,68 @@ is( $status->code, 'DISPATCH_DEFAULT' );
 
 
 #=============================
-# "metaparam/:param" resource
+# "metaparam" resource
 #=============================
-docu_check($test, "metaparam/:param");
+docu_check($test, "metaparam");
 #
-# GET metaparam/:param
+
+#
+# POST
+# 
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
+
+$status = req( $test, 200, 'root', 'POST', 'metaparam', <<"EOH");
+{ "name" : "META_DOCHAZKA_UNIT_TESTING", "value" : "foobar" }
+EOH
+
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_PARAM_SET' );
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 'foobar' );
+
+$status = req( $test, 200, 'root', 'POST', 'metaparam', <<"EOH");
+{ "name" : "META_DOCHAZKA_UNIT_TESTING", "value" : 1 }
+EOH
+
+is( $status->level, 'OK' );
+is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
+
+
+#=============================
+# "metaparam/:param" resource
+# "siteparam/:param" resource
+#=============================
+
+#
+# GET
+#
+
+# non-existent and otherwise bogus parameters
+foreach my $base ( qw( metaparam siteparam ) ) {
+    docu_check($test, "$base/:param");
+    foreach my $user ( qw( demo root ) ) {
+        # these are bogus in that the resource does not exist
+        req( $test, 404, $user, 'GET', "$base/META_DOCHAZKA_UNIT_TESTING/foobar" );
+        req( $test, 404, $user, 'GET', "$base//////1/1/234/20" );
+    }
+    my $mapping = { "demo" => 403, "root" => 404 };
+    foreach my $user ( qw( demo root ) ) {
+        # these are bogus in that the parameter does not exist
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/DOCHEEEHAWHAZKA_appname" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/{}" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/-1" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/0" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/" . '\b\b\o\o\g\\' );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/" . '\b\b\o\o\\' );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/**0" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/}lieutenant" );
+        req( $test, $mapping->{$user}, $user, 'GET', "$base/<HEAD><tail><body>&nbsp;" );
+    }
+}
+
+# metaparam-specific tests
+#
+# - try to use metaparam to access a site parameter
+req( $test, 404, 'root', 'GET', "metaparam/DOCHAZKA_APPNAME" );
 # - as root, existent parameter
 $status = req( $test, 200, 'root', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/' );
 is( $status->level, 'OK' );
@@ -529,57 +583,16 @@ is( $status->payload->{name}, 'META_DOCHAZKA_UNIT_TESTING' );
 is( $status->payload->{type}, 'meta' );
 is( $status->payload->{value}, 1 );
 #
-# - as demo, bogus parameter
-req( $test, 403, 'demo', 'GET', 'metaparam/DOCHEEEHAWHAZKA_appname' );
 #
-# - as root, bogus parameter
-$status = req( $test, 200, 'root', 'GET', 'metaparam/DOCHEEEHAWHAZKA_appname' );
-ok( $status->not_ok );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
+# PUT, POST, DELETE
 #
-# - as root, try to use metaparam to access a site parameter
-$status = req( $test, 200, 'root', 'GET', 'metaparam/DOCHAZKA_APPNAME' );
-ok( $status->not_ok );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
-#
-# - as demo, existent parameter with trailing '/foobar' => invalid resource
-req( $test, 404, 'demo', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
-#
-# - as root, existent parameter with trailing '/foobar' => invalid resource
-req( $test, 404, 'root', 'GET', 'metaparam/META_DOCHAZKA_UNIT_TESTING/foobar' );
-
-#
-# PUT metaparam/:param
-#
-req( $test, 403, 'demo', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
-# 
-is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
-$status = req( $test, 200, 'root', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING', '"foobar"' );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_PARAM_SET' );
-is( $meta->META_DOCHAZKA_UNIT_TESTING, 'foobar' );
-$status = req( $test, 200, 'root', 'PUT', 'metaparam/META_DOCHAZKA_UNIT_TESTING', '1' );
-is( $status->level, 'OK' );
-is( $meta->META_DOCHAZKA_UNIT_TESTING, 1 );
-
-#
-# POST metaparam/:param
-#
-req( $test, 405, 'demo', 'POST', 'metaparam/foobar' );
-req( $test, 405, 'root', 'POST', 'metaparam/foobar' );
-
-#
-# DELETE metaparam/:param
-#
-# (not implemented yet)
-$status = req( $test, 200, 'root', 'DELETE', 'metaparam/foobar' );
-is( $status->level, 'NOTICE' );
-is( $status->code, 'DISPATCH_RESOURCE_NOT_IMPLEMENTED' );
-my $hr = $status->payload;
-ok( exists $hr->{'resource'} );
-is( $hr->{'resource'}, '/metaparam/foobar' );
+foreach my $base ( qw( metaparam siteparam ) ) {
+    foreach my $user ( qw( demo root ) ) {
+        foreach my $method ( qw( PUT POST DELETE ) ) {
+            req( $test, 405, $user, $method, 'metaparam/META_DOCHAZKA_UNIT_TESTING' );
+        }
+    }
+}
 
 
 #=============================
@@ -710,9 +723,10 @@ foreach my $user ( qw( demo root ) ) {
 #=============================
 # "siteparam/:param" resource
 #=============================
-docu_check($test, "siteparam/:param");
+# - (only tests not covered under metaparam, above)
+
 #
-# GET siteparam/:param
+# GET
 # - as demo (existing parameter)
 req( $test, 403, 'demo', 'GET', 'siteparam/DOCHAZKA_APPNAME/' );
 #
@@ -731,34 +745,8 @@ is( $status->payload->{value}, $site->DOCHAZKA_APPNAME );
 $status = req( $test, 200, 'root', 'GET', 'siteparam/DOCHAZKA_APPNAME' );
 is( $status->level, 'OK' );
 #
-# - as demo (non-existent parameter)
-req( $test, 403, 'demo', 'GET', 'siteparam/DOCHEEEHAWHAZKA_appname' );
-#
-# - as root (non-existent parameter)
-$status = req( $test, 200, 'root', 'GET', 'siteparam/DOCHEEEHAWHAZKA_appname' );
-ok( $status->not_ok );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
-#
 # - as root (try to use siteparam to access a meta parameter)
-$status = req( $test, 200, 'root', 'GET', 'siteparam/META_DOCHAZKA_UNIT_TESTING' );
-ok( $status->not_ok );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAM_NOT_DEFINED' );
-#
-# - as demo (existent parameter with trailing '/foobar' => invalid resource)
-req( $test, 404, 'demo', 'GET', 'siteparam/DOCHAZKA_APPNAME/foobar' );
-#
-# - as root (existent parameter with trailing '/foobar' => invalid resource)
-req( $test, 404, 'root', 'GET', 'siteparam/DOCHAZKA_APPNAME/foobar' );
-#
-# PUT, POST, DELETE
-#
-foreach my $user ( qw( demo root ) ) {
-    foreach my $method ( qw( PUT POST DELETE ) ) {
-        $status = req( $test, 405, $user, $method, 'siteparam/foobar' );
-    }
-}
+req( $test, 404, 'root', 'GET', 'siteparam/META_DOCHAZKA_UNIT_TESTING' );
 
 
 #=============================

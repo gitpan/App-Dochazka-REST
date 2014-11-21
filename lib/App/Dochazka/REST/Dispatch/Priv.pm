@@ -41,7 +41,6 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Dispatch::Shared;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
@@ -64,11 +63,11 @@ App::Dochazka::REST::Dispatch::Priv - path dispatch
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 

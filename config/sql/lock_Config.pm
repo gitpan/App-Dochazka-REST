@@ -45,10 +45,23 @@ set( 'SQL_LOCK_SELECT_BY_LID', q/
       / );
 
 #
+set( 'SQL_LOCK_SELECT_BY_EID_AND_TSRANGE', q/
+      SELECT lid, eid, intvl, remark
+      FROM locks WHERE eid = ? AND intvl && ?
+      / );
+
+#
 set( 'SQL_LOCK_INSERT', q/
       INSERT INTO locks
                 (eid, intvl, remark)
       VALUES    (?,   ?,     ?     ) 
+      RETURNING  lid, eid, intvl, remark
+      / );
+
+#
+set( 'SQL_LOCK_UPDATE', q/
+      UPDATE locks SET eid = ?, intvl = ?, remark = ?
+      WHERE lid = ?
       RETURNING  lid, eid, intvl, remark
       / );
 

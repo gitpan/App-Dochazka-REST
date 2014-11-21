@@ -228,12 +228,31 @@ description, as well as a link to the App::Dochazka::REST on-line
 documentation.
 EOH
     },
+    'metaparam' =>
+    {
+        target => {
+            POST => '_param_post', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch',
+        acl_profile => 'admin', 
+        cli => 'metaparam $JSON',
+        description => 'Set value of meta configuration parameter',
+        documentation => <<'EOH',
+=pod
+
+Takes a content body like this:
+
+    { "name" : "$MY_PARAM", "value" : $MY_VALUE }
+
+Regardless of whether $MY_PARAM is an existing metaparam or not, set 
+that parameter's value to $MY_VALUE, which can be a scalar, an array,
+or a hash.
+EOH
+    },
     'metaparam/:param' =>
     { 
         target => {
-            GET => '_get_param', 
-            PUT => '_put_param',
-            DELETE => 'not_implemented',
+            GET => '_param_get', 
         },
         target_module => 'App::Dochazka::REST::Dispatch',
         acl_profile => 'admin', 
@@ -242,27 +261,10 @@ EOH
         documentation => <<'EOH',
 =pod
 
-=over 
-
-=item * GET
-
 Assuming that the argument C<:param> is the name of an existing meta
 parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined). This resource is available only to users
 with C<admin> privileges.
-
-=item * PUT
-
-Regardless of whether C<:param> is an existing metaparam or not, set 
-that parameter's value to the (entire) request body. If the request body
-is "123", then the parameter will be set to that value. If it is { "value" :
-123 }, then it will be set to that structure.
-
-=item * DELETE
-
-If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED)
-
-=back
 EOH
     },
     'not_implemented' =>
@@ -338,7 +340,7 @@ EOH
     'siteparam/:param' =>
     { 
         target => {
-            GET => '_get_param', 
+            GET => '_param_get', 
         },
         target_module => 'App::Dochazka::REST::Dispatch',
         acl_profile => 'admin', 

@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.292;
+our $VERSION = 0.298;
 
 1;
 __END__
@@ -71,7 +71,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD > *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD > *** ACL: passerby ***
 
 This is the toppest of the top-level targets or, if you wish, the 
 "root target". If the base UID of your App::Dochazka::REST instance 
@@ -93,7 +93,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists activity resources available to the logged-in employee.
 
@@ -167,7 +167,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD employee> *** ACL: passerby ***
 
 Lists employee resources available to the logged-in employee.
 
@@ -180,7 +180,7 @@ A resource that is forbidden to all
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD forbidden> *** ACL: forbidden to all ***
 
 This resource returns 403 Forbidden for all allowed methods, regardless of user.
 
@@ -193,7 +193,7 @@ Display available top-level resources for given HTTP method
 
 =over
 
-*** HTTP: C<POST> C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD help> *** ACL: passerby ***
 
 The purpose of the "help" resource is to give the user an overview of
 all the top-level resources available to her, with regard to her privlevel
@@ -218,35 +218,37 @@ documentation.
 
 =back
 
+=head3 metaparam
+
+Set value of meta configuration parameter
+
+=over
+
+*** HTTP: C<POST> *** CLI: C<$METHOD metaparam $JSON> *** ACL: admin ***
+
+Takes a content body like this:
+
+    { "name" : "$MY_PARAM", "value" : $MY_VALUE }
+
+Regardless of whether $MY_PARAM is an existing metaparam or not, set 
+that parameter's value to $MY_VALUE, which can be a scalar, an array,
+or a hash.
+
+
+=back
+
 =head3 metaparam/:param
 
 Display (GET) or set (PUT) meta configuration parameter
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
-
-=over 
-
-=item * GET
+*** HTTP: C<GET> *** CLI: C<$METHOD metaparam $PARAM [$JSON]> *** ACL: admin ***
 
 Assuming that the argument C<:param> is the name of an existing meta
 parameter, displays the parameter's value and metadata (type, name, file and
 line number where it was defined). This resource is available only to users
 with C<admin> privileges.
-
-=item * PUT
-
-Regardless of whether C<:param> is an existing metaparam or not, set 
-that parameter's value to the (entire) request body. If the request body
-is "123", then the parameter will be set to that value. If it is { "value" :
-123 }, then it will be set to that structure.
-
-=item * DELETE
-
-If the argument is an existing metaparam, delete that parameter (NOT IMPLEMENTED)
-
-=back
 
 
 =back
@@ -257,7 +259,7 @@ A resource that will never be implemented
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD not_implemented> *** ACL: passerby ***
 
 Regardless of anything, returns a NOTICE status with status code
 DISPATCH_RESOURCE_NOT_IMPLEMENTED
@@ -271,7 +273,7 @@ Display available priv resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD priv> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD priv> *** ACL: passerby ***
 
 Lists priv resources available to the logged-in employee.
 
@@ -284,7 +286,7 @@ Display available schedule resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD schedule> *** ACL: passerby ***
 
 Lists schedule resources available to the logged-in employee.
 
@@ -375,7 +377,7 @@ GET, PUT, or DELETE an activity object by its AID
 
 =over
 
-*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD activity aid $AID> *** ACL: PUT admin, DELETE admin, GET active ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD activity aid $AID> *** ACL: DELETE admin, PUT admin, GET active ***
 
 =over
 
@@ -450,7 +452,7 @@ GET, PUT, or DELETE an activity object by its code
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD activity code $CODE> *** ACL: GET active, DELETE admin, PUT admin ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD activity code $CODE> *** ACL: DELETE admin, PUT admin, GET active ***
 
 =over
 
@@ -483,7 +485,7 @@ Display available activity resources for given HTTP method
 
 =over
 
-*** HTTP: C<GET> C<POST> C<DELETE> C<PUT> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD activity help> *** ACL: passerby ***
 
 Displays information on all activity resources available to the logged-in
 employee, according to her privlevel.
@@ -607,7 +609,7 @@ GET: look up employee (exact match); PUT: update existing employee; DELETE: dele
 
 =over
 
-*** HTTP: C<GET> C<PUT> C<DELETE> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD employee eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -642,7 +644,7 @@ Display available employee resources for given HTTP method
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<GET> C<POST> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD employee help> *** ACL: passerby ***
 
 Displays information on all employee resources available to the logged-in
 employee, according to her privlevel.
@@ -679,7 +681,7 @@ Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee spe
 
 =over
 
-*** HTTP: C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD employee nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -719,7 +721,7 @@ Retrieve (GET) and edit (POST) our own employee profile
 
 =over
 
-*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD employee current> *** ACL: GET passerby, POST inactive ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD employee current> *** ACL: POST inactive, GET passerby ***
 
 =over
 
@@ -783,7 +785,7 @@ Display priv resources
 
 =over
 
-*** HTTP: C<DELETE> C<PUT> C<POST> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD priv help> *** ACL: passerby ***
 
 This resource retrieves a listing of all resources available to the
 caller (currently logged-in employee).
@@ -797,7 +799,7 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history eid $EID [$JSON]> *** ACL: admin ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD priv history eid $EID [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -845,7 +847,7 @@ Retrieves entire history of privilege level changes for employee with the given 
 
 =over
 
-*** HTTP: C<GET> C<POST> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
+*** HTTP: C<POST> C<GET> *** CLI: C<$METHOD priv history nick $NICK [$JSON]> *** ACL: admin ***
 
 =over
 
@@ -893,7 +895,7 @@ Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHI
 
 =over
 
-*** HTTP: C<GET> C<DELETE> *** CLI: C<$METHOD priv history phid $PHID> *** ACL: admin ***
+*** HTTP: C<DELETE> C<GET> *** CLI: C<$METHOD priv history phid $PHID> *** ACL: admin ***
 
 =over
 
@@ -1017,7 +1019,7 @@ Display schedule resources
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<GET> C<POST> *** CLI: C<$METHOD schedule help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD schedule help> *** ACL: passerby ***
 
 This resource retrieves a listing of all schedule resources available to the
 caller (currently logged-in employee).
@@ -1154,13 +1156,13 @@ Deletes a schedule history record by its SHID.
 
 =back
 
-=head3 schedule/intervals
+=head3 schedule/new
 
 Insert schedules
 
 =over
 
-*** HTTP: C<POST> *** CLI: C<$METHOD schedule intervals> *** ACL: admin ***
+*** HTTP: C<POST> *** CLI: C<$METHOD schedule new $JSON> *** ACL: admin ***
 
 Given a set of intervals, all of which must fall within a single contiguous
 168-hour (7-day) period, this resource performs all actions necessary to either
@@ -1169,7 +1171,7 @@ schedule already exists.
 
 Sample JSON:
 
-    [ 
+    { "schedule" : [
         "[2014-09-22 08:00, 2014-09-22 12:00)",
         "[2014-09-22 12:30, 2014-09-22 16:30)",
         "[2014-09-23 08:00, 2014-09-23 12:00)",
@@ -1178,7 +1180,7 @@ Sample JSON:
         "[2014-09-24 12:30, 2014-09-24 16:30)",
         "[2014-09-25 08:00, 2014-09-25 12:00)",
         "[2014-09-25 12:30, 2014-09-25 16:30)"
-    ]
+    ] }
 
 Read on for details:
 
@@ -1247,7 +1249,7 @@ Retrieves, updates, or deletes a schedule by its SID
 
 =over
 
-*** HTTP: C<GET> C<POST> C<DELETE> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
+*** HTTP: C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD schedule sid $SID> *** ACL: admin ***
 
 =over
 
@@ -1305,7 +1307,7 @@ Display available interval resources for given HTTP method
 
 =over
 
-*** HTTP: C<PUT> C<DELETE> C<POST> C<GET> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD interval help> *** ACL: passerby ***
 
 Displays information on all interval resources available to the logged-in
 employee, according to her privlevel.
@@ -1335,7 +1337,7 @@ GET, PUT, or DELETE an interval object by its iid
 
 =over
 
-*** HTTP: C<GET> C<DELETE> C<PUT> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: DELETE active, PUT active, GET active ***
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD interval iid $iid [$JSON]> *** ACL: DELETE active, PUT active, GET active ***
 
 =over
 
@@ -1406,6 +1408,145 @@ Retrieve one's own intervals over the given tsrange
 *** HTTP: C<GET> *** CLI: C<$METHOD interval self $TSRANGE> *** ACL: inactive ***
 
 With this resource, employees can retrieve their own attendance intervals 
+over a given tsrange. 
+
+There are no syntactical limitations on the tsrange, but if too many records would
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
+
+
+=back
+
+=head2 Lock
+
+Resources related to lock intervals
+
+
+
+
+=head3 lock/eid/:eid/:tsrange
+
+Retrieve an arbitrary employee's locks over the given tsrange
+
+=over
+
+*** HTTP: C<GET> *** CLI: C<$METHOD lock eid $EID $TSRANGE> *** ACL: admin ***
+
+With this resource, administrators can retrieve any employee's locks 
+over a given tsrange. 
+
+There are no syntactical limitations on the tsrange, but if too many records would
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
+
+
+=back
+
+=head3 lock/help
+
+Display available lock resources for given HTTP method
+
+=over
+
+*** HTTP: C<DELETE> C<POST> C<PUT> C<GET> *** CLI: C<$METHOD lock help> *** ACL: passerby ***
+
+Displays information on all lock resources available to the logged-in
+employee, according to her privlevel.
+
+
+=back
+
+=head3 lock/lid
+
+Update an existing lock object via POST request (lid must be included in request body)
+
+=over
+
+*** HTTP: C<POST> *** CLI: C<$METHOD lock lid $JSON> *** ACL: admin ***
+
+Enables existing lock objects to be updated by sending a POST request to
+the REST server. Along with the properties to be modified, the request body
+must include an 'lid' property, the value of which specifies the lid to be
+updated.
+
+
+=back
+
+=head3 lock/lid/:lid
+
+GET, PUT, or DELETE an lock object by its lid
+
+=over
+
+*** HTTP: C<DELETE> C<PUT> C<GET> *** CLI: C<$METHOD lock lid $lid [$JSON]> *** ACL: DELETE admin, PUT admin, GET active ***
+
+=over
+
+=item * GET
+
+Retrieves an lock object by its lid.
+
+=item * PUT
+
+Updates the lock object whose lid is specified by the ':lid' URI parameter.
+The fields to be updated and their new values should be sent in the request
+body, e.g., like this:
+
+    { "eid" : 34, "intvl" : '[ 2014-11-18 00:00, 2014-11-18 24:00 )' }
+
+=item * DELETE
+
+Deletes the lock object whose lid is specified by the ':lid' URI parameter.
+
+=back
+
+ACL note: 'active' employees can view only their own locks, and of course
+admin privilege is required to modify or remove a lock.
+
+
+=back
+
+=head3 lock/new
+
+Add a new attendance data lock
+
+=over
+
+*** HTTP: C<POST> *** CLI: C<$METHOD lock new $JSON> *** ACL: active ***
+
+This is the resource by which the attendance data entered by an employee 
+for a given time period can be "locked" to prevent any subsequent
+modifications.  It takes a request body containing, at the very least, an
+C<intvl> property specifying the tsrange to lock. Additionally, administrators
+can specify C<remark> and C<eid> properties.
+
+
+=back
+
+=head3 lock/nick/:nick/:tsrange
+
+Retrieve an arbitrary employee's locks over the given tsrange
+
+=over
+
+*** HTTP: C<GET> *** CLI: C<$METHOD lock nick $NICK $TSRANGE> *** ACL: admin ***
+
+With this resource, administrators can retrieve any employee's locks 
+over a given tsrange. 
+
+There are no syntactical limitations on the tsrange, but if too many records would
+be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
+
+
+=back
+
+=head3 lock/self/:tsrange
+
+Retrieve one's own locks over the given tsrange
+
+=over
+
+*** HTTP: C<GET> *** CLI: C<$METHOD lock self $TSRANGE> *** ACL: inactive ***
+
+With this resource, employees can retrieve their own attendance locks 
 over a given tsrange. 
 
 There are no syntactical limitations on the tsrange, but if too many records would

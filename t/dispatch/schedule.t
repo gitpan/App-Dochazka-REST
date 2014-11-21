@@ -179,18 +179,18 @@ is( $ts_sid, $status->payload->[0]->{'sid'} );
 #
 my @sid_range;
 foreach my $day ( 3..10 ) {
-    my $intvls = [ 
+    my $intvls = { "schedule" => [ 
         "[2000-01-" . ( $day + 1 ) . " 12:30, 2000-01-" . ( $day + 1 ) . " 16:30)",
         "[2000-01-" . ( $day + 1 ) . " 08:00, 2000-01-" . ( $day + 1 ) . " 12:00)",
         "[2000-01-" . ( $day ) . " 12:30, 2000-01-" . ( $day ) . " 16:30)",
         "[2000-01-" . ( $day ) . " 08:00, 2000-01-" . ( $day ) . " 12:00)",
         "[2000-01-" . ( $day - 1 ) . " 12:30, 2000-01-" . ( $day - 1 ) . " 16:30)",
         "[2000-01-" . ( $day - 1 ) . " 08:00, 2000-01-" . ( $day - 1 ) . " 12:00)",
-    ];  
+    ] };  
     my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
     #   
     # - request as root 
-    my $status = req( $test, 200, 'root', 'POST', "schedule/intervals", $intvls_json );
+    my $status = req( $test, 200, 'root', 'POST', "schedule/new", $intvls_json );
     is( $status->level, 'OK' );
     ok( $status->code eq 'DISPATCH_SCHEDULE_INSERT_OK' or $status->code eq 'DISPATCH_SCHEDULE_OK' );
     ok( exists $status->{'payload'} );
@@ -562,9 +562,9 @@ ok( exists $status->payload->{'resources'}->{'schedule/help'} );
 
 
 #===========================================
-# "schedule/intervals" resource
+# "schedule/new" resource
 #===========================================
-$base = "schedule/intervals";
+$base = "schedule/new";
 docu_check( $test, $base );
 
 #
@@ -578,14 +578,14 @@ req( $test, 405, 'root', 'PUT', $base );
 # test typical workflow for this resource
 #
 # - set up an array of schedule intervals for testing
-my $intvls = [
+my $intvls = { "schedule" => [
     "[$tomorrow 12:30, $tomorrow 16:30)",
     "[$tomorrow 08:00, $tomorrow 12:00)",
     "[$today 12:30, $today 16:30)",
     "[$today 08:00, $today 12:00)",
     "[$yesterday 12:30, $yesterday 16:30)",
     "[$yesterday 08:00, $yesterday 12:00)",
-];
+] };
 my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
 #
 
@@ -595,10 +595,8 @@ my $intvls_json = JSON->new->utf8->canonical(1)->encode( $intvls );
 # - request as demo will fail with 403
 req( $test, 403, 'demo', 'POST', $base, $intvls_json );
 
-# - request as root with no request body will return DISPATCH_SCHEDINTVLS_MISSING
-$status = req( $test, 200, 'root', 'POST', $base );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_SCHEDINTVLS_MISSING' );
+# - request as root with no request body will return 400
+req( $test, 400, 'root', 'POST', $base );
 
 # - request as root 
 $status = req( $test, 200, 'root', 'POST', $base, $intvls_json );

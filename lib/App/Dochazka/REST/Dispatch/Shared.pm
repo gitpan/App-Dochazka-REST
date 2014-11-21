@@ -57,11 +57,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.292
+Version 0.298
 
 =cut
 
-our $VERSION = '0.292';
+our $VERSION = '0.298';
 
 
 
@@ -81,9 +81,28 @@ This module provides code that is shared within the various dispatch modules.
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( not_implemented pre_update_comparison );
+our @EXPORT_OK = qw( 
+    not_implemented 
+    pre_update_comparison 
+);
 
 
+
+=head1 PACKAGE VARIABLES
+
+The package variable C<%f_dispatch> is used in C<fetch_by_eid>, C<fetch_by_nick>,
+and C<fetch_own>.
+
+=cut
+
+my %f_dispatch = (
+    "attendance" => \&App::Dochazka::REST::Model::Interval::fetch_by_eid_and_tsrange,
+    "lock" => \&App::Dochazka::REST::Model::Lock::fetch_by_eid_and_tsrange,
+);
+my %id_dispatch = (
+    "attendance" => "App::Dochazka::REST::Model::Interval",
+    "lock" => "App::Dochazka::REST::Model::Lock",
+);
 
 
 =head1 FUNCTIONS
@@ -419,6 +438,152 @@ sub history_by_id {
         return $status->payload->delete if $PH{method} eq 'DELETE';
     }
     return $status;
+}
+
+
+# fetch_by_eid, fetch_by_nick, and fetch_own are shared between attendance intervals
+# (Interval.pm) and lock intervals (Lock.pm) - this little routine figures out which
+# one we are processing by peeking into the path
+sub _determine_interval_or_lock {
+    my $path = shift;
+    my $type = ( $path =~ m/^\/*interval/ )
+        ? "attendance"
+        : "lock";
+    return $type;
+}
+
+# generalized dispatch target for
+#    'interval/eid/:eid/:tsrange'
+#    'lock/eid/:eid/:tsrange'
+sub fetch_by_eid {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_eid" ); 
+    my ( $eid, $tsrange ) = ( $context->{'mapping'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
+
+    my $type = _determine_interval_or_lock( $context->{'path'} );
+    $log->debug("About to fetch $type intervals for EID $eid in tsrange $tsrange" );
+
+    my $status = $f_dispatch{$type}->( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
+}
+
+# generalized dispatch target for
+#    'interval/nick/:nick/:tsrange'
+#    'lock/nick/:nick/:tsrange'
+sub fetch_by_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
+    my ( $nick, $tsrange ) = ( $context->{'mapping'}->{'nick'}, $context->{'mapping'}->{'tsrange'} );
+    $log->debug("About to fetch intervals for nick $nick in tsrange $tsrange" );
+
+    my $type = _determine_interval_or_lock( $context->{'path'} );
+    $log->debug("About to fetch $type intervals for nick $nick in tsrange $tsrange" );
+
+    # get EID
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    } elsif ( $status->not_ok ) {
+        return $status;
+    }
+    my $eid = $status->payload->{'eid'};
+    
+    $status = $f_dispatch{$type}->( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
+}
+
+# generalized dispatch target for
+#    'interval/self/:tsrange'
+#    'lock/self/:tsrange'
+sub fetch_own {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_fetch_own" ); 
+    my ( $eid, $tsrange ) = ( $context->{'current'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
+
+    my $type = _determine_interval_or_lock( $context->{'path'} );
+    $log->debug("About to fetch $type intervals for EID $eid (current employee) in tsrange $tsrange" );
+
+    my $status = $f_dispatch{$type}->( $eid, $tsrange );
+    if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    return $status;
+}
+
+# generalized dispatch target for
+#    'interval/iid' and 'interval/iid/:iid'
+#    'lock/lid' and 'lock/lid/:lid'
+sub iid_lid {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::iid_lid" ); 
+
+    my $type = _determine_interval_or_lock( $context->{'path'} );
+    my %idmap = (
+        "attendance" => 'iid',
+        "lock" => 'lid',
+    );
+
+    my $id;
+    if ( $context->{'method'} eq 'POST' ) {
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400') 
+            unless exists $context->{'request_body'}->{ $idmap{$type} };
+        $id = $context->{'request_body'}->{ $idmap{$type} };
+        return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', 
+            args => [ $idmap{$type} ] ) unless $id;
+        delete $context->{'request_body'}->{ $idmap{$type} };
+    } else {
+        $id = $context->{'mapping'}->{ $idmap{$type} };
+    }
+
+    # does the ID exist? if so, to whom does it belong?
+    my $fn = "load_by_" . $idmap{$type};
+    my $status = $id_dispatch{$type}->$fn( $id );
+    return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
+    return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' ) if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
+    my $belongs_eid = $status->payload->{'eid'};
+
+    # this target requires special ACL handling
+    my $current_eid = $context->{'current'}->{'eid'};
+    my $current_priv = $context->{'current_priv'};
+    if (   ( $current_priv eq 'passerby' ) or 
+           ( $current_priv eq 'inactive' ) or
+           ( $current_priv eq 'active' and $current_eid != $belongs_eid )
+    ) {
+        return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+    }
+
+    # it exists and we passed the ACL check, so go ahead and do what we need to do
+    if ( $context->{'method'} eq 'GET' ) {
+        return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
+    } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
+        return _update_interval( $idmap{$type}, $status->payload, $context->{'request_body'} );
+    } elsif ( $context->{'method'} eq 'DELETE' ) {
+        $log->notice( "Attempting to delete $type interval " . $status->payload->{ $idmap{$type} } );
+        return $status->payload->delete;
+    }
+    return $CELL->status_crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
+}
+
+# takes two arguments:
+# - "$idv" is a string that can be either 'iid' or 'lid'
+# - "$int" is an interval object (blessed hashref)
+# - "$over" is a hashref with zero or more interval properties and new values
+# the values from $over replace those in $int
+sub _update_interval {
+    my ($idv, $int, $over) = @_;
+    $log->debug("Entering " . __PACKAGE__ . "::_update_interval" );
+    if ( ref($over) ne 'HASH' ) {
+        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
+    }
+    delete $over->{$idv} if exists $over->{$idv};
+    return $int->update if pre_update_comparison( $int, $over );
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
 1;
