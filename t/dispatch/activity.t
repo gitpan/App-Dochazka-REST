@@ -119,10 +119,7 @@ is( $status->payload->{'long_desc'}, 'wop wop ng', "POST $base 7" );
 #
 # - non-existent AID and also out of range
 $activity_obj = '{ "aid" : 3434342342342, "long_desc" : 3434341, "remark" : 34334342 }';
-$status = req( $test, 200, 'root', 'POST', $base, $activity_obj );
-is( $status->level, "ERR", "POST $base 7.3" );
-is( $status->code, "DOCHAZKA_DBI_ERR", "POST $base 7.4" );
-like( $status->text, qr/out of range for type integer/, "POST $base 7.5" );
+dbi_err( $test, 200, 'root', 'POST', $base, $activity_obj, qr/out of range for type integer/ );
 #
 # - non-existent AID
 $activity_obj = '{ "aid" : 342342342, "long_desc" : 3434341, "remark" : 34334342 }';
@@ -138,10 +135,7 @@ my $no_closing_bracket = '{ "copious_turds" : 555, "long_desc" : "wang wang wazo
 req( $test, 400, 'root', 'POST', $base, $no_closing_bracket );
 #
 $weirded_object = '{ "aid" : "!!!!!", "long_desc" : "down it goes" }';
-$status = req( $test, 200, 'root', 'POST', $base, $weirded_object );
-is( $status->level, 'ERR', "POST $base 13" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "POST $base 14" );
-like( $status->text, qr/invalid input syntax for integer/, "POST $base 15" );
+dbi_err( $test, 200, 'root', 'POST', $base, $weirded_object, qr/invalid input syntax for integer/ );
 
 delete_testing_activity( $aid_of_foowop );
 
@@ -186,10 +180,7 @@ is_deeply( $status->payload, {
 }, "GET $base/:aid 4" );
 #
 # fail invalid AID
-$status = req( $test, 200, 'active', 'GET', "$base/jj" );
-is( $status->level, 'ERR', "GET $base/:aid 6" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "GET $base/:aid 7" );
-like( $status->text, qr/invalid input syntax for integer/, "GET $base/:aid 8" );
+dbi_err( $test, 200, 'active', 'GET', "$base/jj", undef, qr/invalid input syntax for integer/ );
 #
 # fail non-existent AID
 $status = req( $test, 200, 'active', 'GET', "$base/444" );
@@ -234,16 +225,10 @@ req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar" );
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
 #
 # - test with root fail invalid AID
-$status = req( $test, 200, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }' );
-is( $status->level, 'ERR', "PUT $base/:aid 15" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:aid 16" );
-like( $status->text, qr/invalid input syntax for integer/, "PUT $base/:aid 17" );
+dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }', qr/invalid input syntax for integer/ );
 #
 # - with valid JSON that is not what we are expecting (invalid AID)
-$status = req( $test, 200, 'root', 'PUT', "$base/asdf", '0' );
-is( $status->level, 'ERR', "PUT $base/:aid 19" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:aid 16" );
-like( $status->text, qr/invalid input syntax for integer/, "PUT $base/:aid 17" );
+dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '0', qr/invalid input syntax for integer/ );
 #
 # - with valid JSON that is not what we are expecting (valid AID)
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '0' );
@@ -279,10 +264,7 @@ is( $status->level, 'NOTICE', "DELETE $base/:aid 6" );
 is( $status->code, 'DISPATCH_AID_DOES_NOT_EXIST', "DELETE $base/:aid 7" );
 #
 # - test with root fail invalid AID
-$status = req( $test, 200, 'root', 'DELETE', "$base/asd" );
-is( $status->level, 'ERR', "DELETE $base/:aid 8" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "DELETE $base/:aid 9" );
-like( $status->text, qr/invalid input syntax for integer/, "DELETE $base/:aid 10" );
+dbi_err( $test, 200, 'root', 'DELETE', "$base/asd", undef, qr/invalid input syntax for integer/ );
 
 #=============================
 # "activity/all" resource
@@ -426,10 +408,7 @@ $no_closing_bracket = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo",
 req( $test, 400, 'root', 'POST', $base, $no_closing_bracket );
 #
 $weirded_object = '{ "code" : "!!!!!", "long_desc" : "down it goes" }';
-$status = req( $test, 200, 'root', 'POST', $base, $weirded_object );
-is( $status->level, 'ERR', "POST $base 13" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "POST $base 14" );
-like( $status->text, qr/check constraint "kosher_code"/, "POST $base 15" );
+dbi_err( $test, 200, 'root', 'POST', $base, $weirded_object, qr/check constraint "kosher_code"/ );
 
 delete_testing_activity( $aid_of_foowang );
 
@@ -518,9 +497,8 @@ req( $test, 400, 'root', 'PUT', "$base/FOOBAR" );
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
 #
 # - test as root fail invalid code
-$status = req( $test, 200, 'root', 'PUT', "$base/!!!!", '{ "legal":"json" }' );
-is( $status->level, 'ERR', "PUT $base/:aid 14" );
-is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:aid 15" );
+dbi_err( $test, 200, 'root', 'PUT', "$base/!!!!", '{ "legal":"json" }', 
+    qr/new row for relation "activities" violates check constraint "kosher_code"/ );
 #
 # - with valid JSON that is not what we are expecting
 req( $test, 400, 'root', 'PUT', "$base/FOOBAR", '0' );

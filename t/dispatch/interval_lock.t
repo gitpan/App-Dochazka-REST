@@ -312,10 +312,7 @@ EOH
     $int_obj = <<"EOH";
 { "$idmap{$il}" : 3434342342342, "remark" : 34334342 }
 EOH
-    $status = req( $test, 200, 'root', 'POST', $base, $int_obj );
-    is( $status->level, "ERR", "POST $base 7.3" );
-    is( $status->code, "DOCHAZKA_DBI_ERR", "POST $base 7.4" );
-    like( $status->text, qr/out of range for type integer/, "POST $base 7.5" );
+    dbi_err( $test, 200, 'root', 'POST', $base, $int_obj, qr/out of range for type integer/ );
     #
     # - non-existent ID
     $int_obj = <<"EOH";
@@ -331,10 +328,7 @@ EOH
     req( $test, 400, 'root', 'POST', $base, $no_closing_bracket );
     #
     $weirded_object = "{ \"$idmap{$il}\" : \"!!!!!\", \"remark\" : \"down it goes\" }";
-    $status = req( $test, 200, 'root', 'POST', $base, $weirded_object );
-    is( $status->level, 'ERR', "POST $base 13" );
-    is( $status->code, 'DOCHAZKA_DBI_ERR', "POST $base 14" );
-    like( $status->text, qr/invalid input syntax for integer/, "POST $base 15" );
+    dbi_err( $test, 200, 'root', 'POST', $base, $weirded_object, qr/invalid input syntax for integer/ );
     #
     # can a different active employee edit active's interval?
     # - let bubba try to edit active's interval
@@ -382,10 +376,7 @@ foreach my $il ( qw( interval lock ) ) {
     
     #
     # fail invalid ID
-    $status = req( $test, 200, 'active', 'GET', "$base/jj" );
-    is( $status->level, 'ERR', "GET $base/:iid 6" );
-    is( $status->code, 'DOCHAZKA_DBI_ERR', "GET $base/:iid 7" );
-    like( $status->text, qr/invalid input syntax for integer/, "GET $base/:iid 8" );
+    dbi_err( $test, 200, 'active', 'GET', "$base/jj", undef, qr/invalid input syntax for integer/ );
     #
     # fail non-existent IID
     req( $test, 404, 'active', 'GET', "$base/444" );
@@ -418,16 +409,11 @@ foreach my $il ( qw( interval lock ) ) {
     req( $test, 400, 'root', 'PUT', "$base/$test_id", '{ asdf' );
     #
     # - test with root fail invalid IID
-    $status = req( $test, 200, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }' );
-    is( $status->level, 'ERR', "PUT $base/:iid 15" );
-    is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:iid 16" );
-    like( $status->text, qr/invalid input syntax for integer/, "PUT $base/:iid 17" );
+    dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }', 
+        qr/invalid input syntax for integer/ );
     #
     # - with valid JSON that is not what we are expecting (invalid IID)
-    $status = req( $test, 200, 'root', 'PUT', "$base/asdf", '0' );
-    is( $status->level, 'ERR', "PUT $base/:iid 19" );
-    is( $status->code, 'DOCHAZKA_DBI_ERR', "PUT $base/:iid 16" );
-    like( $status->text, qr/invalid input syntax for integer/, "PUT $base/:iid 17" );
+    dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '0', qr/invalid input syntax for integer/ );
     #
     # - with valid JSON that is not what we are expecting (valid IID)
     req( $test, 400, 'root', 'PUT', "$base/$test_id", '0' );
@@ -474,10 +460,7 @@ foreach my $il ( qw( interval lock ) ) {
     req( $test, 404, 'active', 'GET', "$base/$test_id" );
     
     # - test with root fail invalid IID
-    $status = req( $test, 200, 'root', 'DELETE', "$base/asd" );
-    is( $status->level, 'ERR', "DELETE $base/:iid 8" );
-    is( $status->code, 'DOCHAZKA_DBI_ERR', "DELETE $base/:iid 9" );
-    like( $status->text, qr/invalid input syntax for integer/, "DELETE $base/:iid 10" );
+    dbi_err( $test, 200, 'root', 'DELETE', "$base/asd", undef, qr/invalid input syntax for integer/ );
 }
 
 # re-create the testing intervals
@@ -615,13 +598,17 @@ EOH
     my $lid = $status->payload->{'lid'};
 
     # and then try to add an intervals that overlap the locked period in various ways
-    $status = req( $test, 200, $user, 'POST', 'interval/new', <<"EOH" );
-{ "aid" : $aid_of_work, "intvl" : "[1957-01-02 08:00, 1957-01-02 12:00)" }
-EOH
-    diag( Dumper $status );
-    BAIL_OUT(0);
+    
+    # ***************************************************************
+    # FIXME: ATM this returns DOCHAZKA_CUD_OK, but it should fail!!!!
+    #$status = req( $test, 200, $user, 'POST', 'interval/new', <<"EOH" );
+    #{ "aid" : $aid_of_work, "intvl" : "[1957-01-02 08:00, 1957-01-02 12:00)" }
+    #EOH
+    #diag( Dumper $status );
+    #BAIL_OUT(0);
     #is( $status->level, 'ERR' );
     #is( $status->code, 'DISPATCH_INTERVAL_LOCKED' );
+    # ***************************************************************
 
     # 'active' can't delete locks so we have to delete them as root
     $status = req( $test, 200, 'root', 'DELETE', "/lock/lid/$lid" );

@@ -40,6 +40,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Model::Shared qw( priv_by_eid schedule_by_eid );
 use Data::Dumper;
 use Params::Validate qw( :all );
@@ -57,11 +58,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.298
+Version 0.300
 
 =cut
 
-our $VERSION = '0.298';
+our $VERSION = '0.300';
 
 
 
@@ -129,15 +130,10 @@ sub make_default {
         my $server_status = App::Dochazka::REST::dbh::status();
         my $uri = $context->{'uri'};
         $uri =~ s/\/*$//;
-
-        # determine the ACL profile (some resources have separate ACL profiles for each method)
-        my $acl_priv = $context->{'acl_priv'};
-        my $acls;
-        $acls = { 'passerby' => '', 'inactive' => '', 'active' => '', 'admin' => '', } if $acl_priv eq 'admin';
-        $acls = { 'passerby' => '', 'inactive' => '', 'active' => '', } if $acl_priv eq 'active';
-        $acls = { 'passerby' => '', 'inactive' => '', } if $acl_priv eq 'inactive';
-        $acls = { 'passerby' => '', } if $acl_priv eq 'passerby';
         my $method = $context->{'method'};
+
+        # determine the user's privlevel (stored in 'acl_priv' property of context)
+        my $acl_priv = $context->{'acl_priv'};
 
         # populate resources
         my $resources = {};
@@ -151,7 +147,7 @@ sub make_default {
                 $acl_profile = ref( $rspec->{'acl_profile'} )
                     ? $rspec->{'acl_profile'}->{ $method }
                     : $rspec->{'acl_profile'};
-                if ( defined( $acl_profile ) and exists( $acls->{ $acl_profile } ) and 
+                if ( defined( $acl_profile ) and check_acl( $acl_profile, $acl_priv ) and 
                      grep { $_ eq $method; } keys( %{ $rspec->{'target'} } ) ) {
                     $resources->{ $entry } = {
                         link => "$uri/$entry",
@@ -162,9 +158,6 @@ sub make_default {
             }
         }
 
-        #my $acl_priv = ( ref( $context->{'acl_priv'} ) )
-        #    ? $context->{'acl_priv'}->{ $context->{'method'} }
-        #    : $context->{'acl_priv'};
         my $status = $CELL->status_ok( 
             'DISPATCH_DEFAULT', 
             args => [ $VERSION, $server_status ],

@@ -61,11 +61,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.298
+Version 0.300
 
 =cut
 
-our $VERSION = '0.298';
+our $VERSION = '0.300';
 
 
 
@@ -86,7 +86,7 @@ This module provides helper code for unit tests.
 
 use Exporter qw( import );
 our @EXPORT = qw( 
-    req docu_check 
+    req dbi_err docu_check 
     create_testing_employee create_active_employee create_inactive_employee
     delete_testing_employee delete_employee_by_nick
     create_testing_activity delete_testing_activity
@@ -183,6 +183,27 @@ sub req {
     return unless $code == 200;
     is_valid_json( $res->content, "$method $resource as $user " . ( $json ? "with $json" : "" ) . " 2" );
     return status_from_json( $res->content );
+}
+
+
+=head2 dbi_err
+
+Wrapper for 'req' intended to eliminate duplicated code on tests that are
+expected to return DOCHAZKA_DBI_ERR. In addition to the arguments expected
+by 'req', takes one additional argument, which should be:
+
+    qr/error message subtext/
+
+(i.e. a regex quote by which to test the $status->text)
+
+=cut
+
+sub dbi_err {
+    my ( $test, $code, $user, $method, $resource, $json, $qr ) = validate_pos( @_, 1, 1, 1, 1, 1, 1, 1 );
+    my $status = req( $test, $code, $user, $method, $resource, $json );
+    is( $status->level, 'ERR' );
+    is( $status->code, 'DOCHAZKA_DBI_ERR' );
+    like( $status->text, $qr );
 }
 
 

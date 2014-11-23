@@ -64,6 +64,7 @@ t/004-shared-paramvalid.t
 t/011-tsrange_equal.t
 t/201-LDAP.t
 t/203-util-timestamp.t
+t/300-ACL.t
 t/301-resource.t
 t/dispatch/activity.t
 t/dispatch/employee.t

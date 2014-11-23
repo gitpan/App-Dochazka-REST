@@ -223,10 +223,7 @@ foreach my $base ( "employee/current", "employee/self" ) {
     is( $status->level, 'OK' );
     is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
     #
-    $status = req( $test, 200, 'root', 'POST', $base, '{ "nick": "aaaaazz" }' );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DOCHAZKA_DBI_ERR' );
-    like( $status->text, qr/root employee is immutable/ );
+    dbi_err( $test, 200, 'root', 'POST', $base, '{ "nick": "aaaaazz" }', qr/root employee is immutable/ );
     #
 
     #
@@ -356,17 +353,14 @@ is( $status->code, "DISPATCH_PARAMETER_BAD_OR_MISSING" );
 req( $test, 400, 'root', 'POST', $base, '{ "eid" : 2, "bogus" : "json" }' ); 
 #
 # - update to existing nick
-$status = req( $test, 200, 'root', 'POST', $base, 
-    '{ "eid": ' . $mrfu->eid . ', "nick" : "root" , "fullname":"Tom Wang" }' );
-is( $status->level, "ERR" );
-is( $status->code, "DOCHAZKA_DBI_ERR" );
+dbi_err( $test, 200, 'root', 'POST', $base, 
+    '{ "eid": ' . $mrfu->eid . ', "nick" : "root" , "fullname":"Tom Wang" }',
+    qr/Key \(nick\)=\(root\) already exists/ );
 #
 # - update nick to null
-$status = req( $test, 200, 'root', 'POST', $base, 
-    '{ "eid": ' . $mrfu->eid . ', "nick" : null  }' );
-is( $status->level, "ERR" );
-is( $status->code, "DOCHAZKA_DBI_ERR" );
-like( $status->text, qr/null value in column "nick" violates not-null constraint/ );
+dbi_err( $test, 200, 'root', 'POST', $base, 
+    '{ "eid": ' . $mrfu->eid . ', "nick" : null  }',
+    qr/null value in column "nick" violates not-null constraint/ );
 
 # delete the testing user
 delete_testing_employee( $eid_of_mrfu );
@@ -538,10 +532,7 @@ req( $test, 403, 'demo', 'GET',  "$base/$eid_of_cf" );
 req( $test, 404, 'root', 'GET',  "$base/$eid_of_cf" );
 
 # attempt to delete 'root the immutable' (won't work)
-$status = req( $test, 200, 'root', 'DELETE', "$base/1" );
-is( $status->level, 'ERR' );
-is( $status->code, "DOCHAZKA_DBI_ERR" );
-like( $status->text, qr/immutable/i );
+dbi_err( $test, 200, 'root', 'DELETE', "$base/1", undef, qr/immutable/i );
 
 
 #=============================
@@ -861,11 +852,8 @@ $haplessprime = App::Dochazka::REST::Model::Employee->spawn( eid => $eid_of_hapl
 is_deeply( $hapless, $haplessprime );
 
 # - pathologically attempt to change nick to null
-$status = req( $test, 200, 'root', 'PUT', "$base/hapless",
-    '{ "nick":null }' );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/violates not-null constraint/ );
+dbi_err( $test, 200, 'root', 'PUT', "$base/hapless",
+    '{ "nick":null }', qr/violates not-null constraint/ );
 
 # - feed it more bogusness
 req( $test, 400, 'root', 'PUT', "$base/hapless", '{ "legal" : "json" }' );
@@ -931,9 +919,6 @@ is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 delete_testing_employee( $eid_of_cf );
 
 # attempt to delete 'root the immutable' (won't work)
-$status = req( $test, 200, 'root', 'DELETE', "$base/root" );
-is( $status->level, 'ERR' );
-is( $status->code, "DOCHAZKA_DBI_ERR" );
-like( $status->text, qr/immutable/i );
+dbi_err( $test, 200, 'root', 'DELETE', "$base/root", undef, qr/immutable/i );
 
 done_testing;

@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log );
 use Data::Dumper;
+use Params::Validate qw( :all );
 
 
 
@@ -54,11 +55,11 @@ App::Dochazka::REST::Dispatch::ACL - ACL module
 
 =head1 VERSION
 
-Version 0.298
+Version 0.300
 
 =cut
 
-our $VERSION = '0.298';
+our $VERSION = '0.300';
 
 
 
@@ -83,46 +84,57 @@ our @EXPORT_OK = qw( check_acl check_acl_context );
 
 
 
+=head1 PACKAGE VARIABLES
+
+The 'check_acl' routine uses a hash to look up which privlevels 
+satisfy a given ACL profile.
+
+=cut
+
+my %acl_lookup = (
+    'admin' => { 'passerby' => '', 'inactive' => '', 'active' => '', 'admin' => '' },
+    'active' => { 'passerby' => '', 'inactive' => '', 'active' => '' },
+    'inactive' => { 'passerby' => '', 'inactive' => '' },
+    'passerby' => { 'passerby' => '', },
+);
+
+
+
+
 =head1 FUNCTIONS
 
 =head2 check_acl
 
-Compare priv level of resource ($acl) with the priv level of the employee
-($priv). If $priv is at least as high as the $acl, the function returns
-
-    $CELL->status_ok( 'DISPATCH_ACL_CHECK' )
-
-otherwise it returns:
-
-    $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' )
+Compare ACL profile of a resource, C<$profile>, with the privlevel of the current
+employee, C<$privlevel>. If the former is at least as high as the latter, the
+function returns true, otherwise false.
 
 =cut
 
 sub check_acl {
-    my ( $acl, $priv ) = @_;
+    my ( $profile, $privlevel ) = validate_pos( @_,
+        { type => SCALAR | UNDEF }, 
+        { type => SCALAR | UNDEF }, 
+    );
 
-    my $pass = $CELL->status_ok( 'DISPATCH_ACL_CHECK' );
-    my $fail = $CELL->status_not_ok( 'DISPATCH_ACL_CHECK' );
+    my $levels = qr/^(passerby)|(inactive)|(active)|(admin)$/;
 
-    if ( ! defined $acl or ! defined $priv ) {
-        $log->err( "Problem with arguments in check_acl" );
-        return $fail;
-    }
+    $log->debug( "Entering " . __PACKAGE__ . "::check_acl with \$profile " . Dumper( $profile )
+        . " and \$privlevel " . Dumper( $privlevel ) );
 
-    if ( $acl eq 'passerby' ) {
-        return $pass;
-    } elsif ( $acl eq 'inactive' ) {
-        return $pass if $priv eq 'inactive';
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'active' ) {
-        return $pass if $priv eq 'active';
-        return $pass if $priv eq 'admin';
-    } elsif ( $acl eq 'admin' ) {
-        return $pass if $priv eq 'admin';
-    }
+    # handle undef
+    # - the ACL profile might be undefined (e.g. "/forbidden")
+    return 0 unless defined $profile;
+    # - the privlevel should always be defined
+    die "Current employee has undefined privlevel" unless defined $privlevel;
 
-    return $fail;
+    # check for priv validity
+    die "Invalid ACL profile" unless $profile =~ $levels;
+    die "Invalid employee privlevel" unless $privlevel =~ $levels;
+
+    return 1 if exists $acl_lookup{$privlevel}->{$profile};
+
+    return 0;
 }
 
 

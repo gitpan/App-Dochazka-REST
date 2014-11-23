@@ -60,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.298
+Version 0.300
 
 =cut
 
-our $VERSION = '0.298';
+our $VERSION = '0.300';
 
 
 =head2 Development status
@@ -599,6 +599,22 @@ For details, see L<App::Dochazka::REST::Model::Lock>.
 
 
 =head1 CAVEATS
+
+
+=head2 Unbounded intervals
+
+Be careful when entering unbounded intervals: PostgreSQL is picky about how
+they are formatted. This, for example, is syntactically correct:
+
+    select * from intervals where intvl && '[,)';
+
+But this will generate a syntax error:
+
+    select * from intervals where intvl && '[, )';
+
+Even though this is OK:
+
+    select * from intervals where intvl && '[, infinity)';
 
 
 =head2 Weekly schedules only

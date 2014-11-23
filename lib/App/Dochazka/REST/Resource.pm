@@ -75,11 +75,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.298
+Version 0.300
 
 =cut
 
-our $VERSION = '0.298';
+our $VERSION = '0.300';
 
 
 
@@ -613,11 +613,11 @@ sub forbidden {
     # method
     my $acl_profile;
     if ( ! ref( $self->context->{'acl_profile'} ) ) {
-        $acl_profile = $self->context->{'acl_profile'} || "undefined";
-        $log->debug( "ACL profile is $acl_profile for all methods" );
+        $acl_profile = $self->context->{'acl_profile'};
+        $log->debug( "ACL profile for all methods is " . ( $acl_profile || "undefined" ) );
     } elsif ( ref( $self->context->{'acl_profile'} ) eq 'HASH' ) {
-        $acl_profile = $self->context->{'acl_profile'}->{$method} || "undefined";
-        $log->debug( "ACL profile for $method requests is $acl_profile" );
+        $acl_profile = $self->context->{'acl_profile'}->{$method};
+        $log->debug( "ACL profile for $method requests is " . ( $acl_profile || "undefined" ) );
     } else {
         $log->crit("Cannot determine ACL profile of resource!!! Path is " . $self->context->{'path'} );
         return 1;
@@ -625,12 +625,13 @@ sub forbidden {
 
     # and the privlevel of our user
     my $acl_priv = $self->context->{'current_priv'};
-    $log->debug( "My ACL level is $acl_priv and the ACL profile of this resource is $acl_profile" );
+    $log->debug( "My ACL level is $acl_priv and the ACL profile of this resource is "
+        . ( $acl_profile || "undefined" ) );
 
     # compare the two
-    my $acl_status = check_acl( $acl_profile, $acl_priv );
-    $log->debug( "ACL status: " . $acl_status->code );
-    return 1 unless $acl_status->ok; # fail
+    my $acl_check_passed = check_acl( $acl_profile, $acl_priv );
+    $log->debug( "ACL check " . ( $acl_check_passed ? "PASSED" : "FAILED" ) );
+    return 1 unless $acl_check_passed;
     $self->_push_onto_context( { 'acl_priv' => $acl_priv } );
     return 0; # pass
 }

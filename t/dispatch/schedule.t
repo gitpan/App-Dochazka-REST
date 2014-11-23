@@ -421,10 +421,8 @@ is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
 #
 # - stupid EID
-$status = req( $test, 200, 'root', 'GET', "$base/2/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/2/ 12341 12 jjj", undef, 
+    qr/invalid input syntax for type timestamp/ );
 #
 # - valid EID, stupid timestamp
 $status = req( $test, 200, 'root', 'GET', "$base/999/ 12341 12 jjj" );
@@ -437,16 +435,12 @@ is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
 #
 # - valid EID, valid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/1/2999-01-33 00:-1" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr#date/time field value out of range# );
+dbi_err( $test, 200, 'root', 'GET', "$base/1/2999-01-33 00:-1", undef,
+    qr#date/time field value out of range# );
 #
 # - wanger
-$status = req( $test, 200, 'root', 'GET', "$base/0/wanger" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/0/wanger", undef,
+    qr/invalid input syntax for type timestamp/ );
 
 
 #
@@ -698,10 +692,8 @@ is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
 #
 # - stupid ts
-$status = req( $test, 200, 'root', 'GET', "$base/demo/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/demo/ 12341 12 jjj", undef,
+    qr/invalid input syntax for type timestamp/ );
 #
 # - valid nick, stupid timestamp
 $status = req( $test, 200, 'root', 'GET', "$base/wanger/ 12341 12 jjj" );
@@ -714,16 +706,12 @@ is( $status->level, 'ERR' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
 #
 # - valid nick, valid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/root/2999-01-33 00:-1" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr#date/time field value out of range# );
+dbi_err( $test, 200, 'root', 'GET', "$base/root/2999-01-33 00:-1", undef,
+    qr#date/time field value out of range# );
 #
 # - wanger
-$status = req( $test, 200, 'root', 'GET', "$base/0/wanger" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/0/wanger", undef,
+    qr/invalid input syntax for type timestamp/ );
 
 #
 # PUT, POST, DELETE
@@ -775,22 +763,16 @@ foreach my $key ( qw( timestamp eid nick schedule ) ) {
 }
 #
 # - wanger
-$status = req( $test, 200, 'root', 'GET', "$base/wanger" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/wanger", undef,
+    qr/invalid input syntax for type timestamp/ );
 #
 # - stupid ts
-$status = req( $test, 200, 'root', 'GET', "$base/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type timestamp/ );
+dbi_err( $test, 200, 'root', 'GET', "$base/ 12341 12 jjj", undef, 
+    qr/invalid input syntax for type timestamp/ );
 #
 # - valid nick, valid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/2999-01-33 00:-1" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr#date/time field value out of range# );
+dbi_err( $test, 200, 'root', 'GET', "$base/2999-01-33 00:-1", undef,
+    qr#date/time field value out of range# );
 
 
 #
@@ -854,10 +836,8 @@ is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 is( $status->payload->{'remark'}, 'foobar' );
 #
 # - disable the schedule in the wrong way
-$status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":"hoogar" }' );
-is( $status->level, 'ERR' );
-is( $status->code, 'DOCHAZKA_DBI_ERR' );
-like( $status->text, qr/invalid input syntax for type boolean/ );
+dbi_err( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":"hoogar" }',
+    qr/invalid input syntax for type boolean/ );
 #
 # - disable the schedule in the right way
 $status = req( $test, 200, 'root', 'POST', "$base/$sid", '{ "pebble" : [1,2,3], "disabled":true }' );

@@ -184,6 +184,7 @@ EOH
             DELETE => '_forbidden',
         },
         target_module => 'App::Dochazka::REST::Dispatch',
+        acl_profile => undef,
         cli => 'forbidden',
         description => 'A resource that is forbidden to all',
         documentation => <<'EOH',

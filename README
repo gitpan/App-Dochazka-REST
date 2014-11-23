@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.298
+    Version 0.300
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -456,6 +456,20 @@ DATA MODEL
     For details, see App::Dochazka::REST::Model::Lock.
 
 CAVEATS
+  Unbounded intervals
+    Be careful when entering unbounded intervals: PostgreSQL is picky about
+    how they are formatted. This, for example, is syntactically correct:
+
+        select * from intervals where intvl && '[,)';
+
+    But this will generate a syntax error:
+
+        select * from intervals where intvl && '[, )';
+
+    Even though this is OK:
+
+        select * from intervals where intvl && '[, infinity)';
+
   Weekly schedules only
     Unfortunately, the weekly scheduling period is hard-coded at this time.
     Dochazka does not care what dates are used to define the intervals --

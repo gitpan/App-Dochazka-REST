@@ -81,6 +81,7 @@ sub delete_history_recs {
     }
 }
 
+
 #=============================
 # "{priv,schedule}/history/self/?:tsrange" resource
 #=============================
@@ -132,11 +133,13 @@ foreach $base ( 'priv/history/self', 'schedule/history/self' ) {
     is( $status->payload->{'history'}->[0]->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
     ok( exists $status->payload->{'history'}->[0]->{'effective'} );
     #
-    # - with invalid tsrange
-    $status = req( $test, 200, 'root', 'GET', "$base/[,sdf)" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DOCHAZKA_DBI_ERR' );
-    like( $status->text, qr/invalid input syntax for type timestamp/ );
+    # - with invalid tsranges
+    dbi_err( $test, 200, 'root', 'GET', "$base/[,sdf)", undef, qr/invalid input syntax for type timestamp/ );
+    dbi_err( $test, 200, 'root', 'GET', "$base/0)", undef, qr/malformed range literal/ );
+    dbi_err( $test, 200, 'root', 'GET', "$base/whinger)", undef, qr/malformed range literal/ );
+    dbi_err( $test, 200, 'root', 'GET', "$base/[, )", undef, qr/invalid input syntax for type timestamp: " "/ );
+    dbi_err( $test, 200, 'root', 'GET', "$base/[\"2014-01-01 00:00\",\"2013-01-01 00:00\")", undef, 
+        qr/range lower bound must be less than or equal to range upper bound/ );
     
     #
     # PUT, POST, DELETE
@@ -185,10 +188,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
         # - as demo
         req( $test, 403, 'demo', 'GET', "$base/$inv_eid" );
         # - as root
-        $status = req( $test, 200, 'root', 'GET', "$base/$inv_eid" );
-        is( $status->level, 'ERR' );
-        is( $status->code, 'DOCHAZKA_DBI_ERR' );
-        like( $status->text, qr/invalid input syntax for integer/ );
+        dbi_err( $test, 200, 'root', 'GET', "$base/$inv_eid", undef, qr/invalid input syntax for integer/ );
     }
     foreach my $inv_eid ( '0', '-1' ) {
         # - as demo
@@ -307,10 +307,7 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     #
     # - invalid EID
     req( $test, 403, 'demo', 'GET', "$base/asas/$tsr" );
-    $status = req( $test, 200, 'root', 'GET', "$base/asas/$tsr" );
-    is( $status->level, 'ERR' );
-    is( $status->code, 'DOCHAZKA_DBI_ERR' );
-    like( $status->text, qr/invalid input syntax for integer/ );
+    dbi_err( $test, 200, 'root', 'GET', "$base/asas/$tsr", undef, qr/invalid input syntax for integer/ );
     
     #
     # PUT, POST, DELETE
@@ -436,12 +433,15 @@ foreach $base ( "priv/history/phid", "schedule/history/shid" ) {
     #
     my $tphid;
     if ( $base =~ m/^priv/ ) {
-        # demo is a passerby
+        # 
+        # preparations when testing 'priv/..' resources
+        #
+        # - check that demo is a passerby to start with
         $status = req( $test, 200, 'demo', 'GET', "priv/self" );
         is( $status->level, 'OK' );
         is( $status->payload->{'priv'}, "passerby" );
         #
-        # make demo an 'inactive' user as of 1977-04-27 15:30
+        # - make demo an 'inactive' user as of 1977-04-27 15:30
         $status = req( $test, 200, 'root', 'POST', "priv/history/nick/demo", 
             '{ "effective":"1977-04-27 15:30", "priv":"inactive" }' );
         is( $status->level, 'OK' );
@@ -453,18 +453,21 @@ foreach $base ( "priv/history/phid", "schedule/history/shid" ) {
         ok( $status->payload->{'phid'} );
         $tphid = $status->payload->{'phid'};
         #
-        # demo is an inactive
+        # - check that demo is really inactive now
         $status = req( $test, 200, 'demo', 'GET', "priv/self" );
         is( $status->level, 'OK' );
         is( $status->payload->{'priv'}, "inactive" );
     } else {
+        # 
+        # preparations when testing 'schedule/..' resources
+        #
+        # - give root a schedule
         $status = req( $test, 200, 'root', 'POST', 'schedule/history/nick/demo', 
             '{ "effective":"1977-04-27 15:30", "sid":' . $ts_sid . ' }' );
         is( $status->level, 'OK' );
         is( $status->code, 'DOCHAZKA_CUD_OK' );
         $tphid = $status->payload->{'shid'};
     }
-        
     
     #
     # GET
