@@ -58,11 +58,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -170,6 +170,7 @@ object. Returns a status object.
 sub update { 
     my ( $self ) = @_;
 
+    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'lid'};
     my $status = cud( 
         object => $self, 
         sql => $site->SQL_LOCK_UPDATE, 
@@ -228,7 +229,6 @@ sub fetch_by_eid_and_tsrange {
         keys => [ $eid, $tsrange ],
     );
 }
-
 
 
 =head1 AUTHOR

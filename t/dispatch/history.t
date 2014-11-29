@@ -134,10 +134,17 @@ foreach $base ( 'priv/history/self', 'schedule/history/self' ) {
     ok( exists $status->payload->{'history'}->[0]->{'effective'} );
     #
     # - with invalid tsranges
+    foreach my $inv_tsr (
+        '0',
+        'whinger',
+        '[,',
+    ) {
+        req( $test, 404, 'root', 'GET', "$base/$inv_tsr" );
+    }
     dbi_err( $test, 200, 'root', 'GET', "$base/[,sdf)", undef, qr/invalid input syntax for type timestamp/ );
-    dbi_err( $test, 200, 'root', 'GET', "$base/0)", undef, qr/malformed range literal/ );
-    dbi_err( $test, 200, 'root', 'GET', "$base/whinger)", undef, qr/malformed range literal/ );
-    dbi_err( $test, 200, 'root', 'GET', "$base/[, )", undef, qr/invalid input syntax for type timestamp: " "/ );
+    #dbi_err( $test, 200, 'root', 'GET', "$base/0)", undef, qr/malformed range literal/ );
+    #dbi_err( $test, 200, 'root', 'GET', "$base/whinger)", undef, qr/malformed range literal/ );
+    #dbi_err( $test, 200, 'root', 'GET', "$base/[, )", undef, qr/invalid input syntax for type timestamp/ );
     dbi_err( $test, 200, 'root', 'GET', "$base/[\"2014-01-01 00:00\",\"2013-01-01 00:00\")", undef, 
         qr/range lower bound must be less than or equal to range upper bound/ );
     
@@ -185,10 +192,9 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     #
     # get history of various invalid EIDs
     foreach my $inv_eid ( 'asas', '!*!*', 'A long list of useless words followed by lots of spaces                                           \\,', '3.1415926', '; drop database dochazka-test;' ) {
-        # - as demo
-        req( $test, 403, 'demo', 'GET', "$base/$inv_eid" );
-        # - as root
-        dbi_err( $test, 200, 'root', 'GET', "$base/$inv_eid", undef, qr/invalid input syntax for integer/ );
+        foreach my $user ( qw( demo root ) ) {
+            req( $test, 404, 'demo', 'GET', "$base/$inv_eid" );
+        }
     }
     foreach my $inv_eid ( '0', '-1' ) {
         # - as demo
@@ -306,8 +312,9 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     req( $test, 404, 'root', 'GET', "$base/4534/$tsr" );
     #
     # - invalid EID
-    req( $test, 403, 'demo', 'GET', "$base/asas/$tsr" );
-    dbi_err( $test, 200, 'root', 'GET', "$base/asas/$tsr", undef, qr/invalid input syntax for integer/ );
+    foreach my $user ( qw( demo root ) ) {
+        req( $test, 404, $user, 'GET', "$base/asas/$tsr" );
+    }
     
     #
     # PUT, POST, DELETE
@@ -446,7 +453,7 @@ foreach $base ( "priv/history/phid", "schedule/history/shid" ) {
             '{ "effective":"1977-04-27 15:30", "priv":"inactive" }' );
         is( $status->level, 'OK' );
         is( $status->code, 'DOCHAZKA_CUD_OK' );
-        is( $status->payload->{'effective'}, '1977-04-27 15:30:00' );
+        is( $status->payload->{'effective'}, '1977-04-27 15:30:00+01' );
         is( $status->payload->{'priv'}, 'inactive' );
         is( $status->payload->{'remark'}, undef );
         is( $status->payload->{'eid'}, 2 );
@@ -480,7 +487,7 @@ foreach $base ( "priv/history/phid", "schedule/history/shid" ) {
         ( ( $base =~ m/^priv/ ) ? 'priv' : 'sid' ) => ( ( $base =~ m/^priv/ ) ? 'inactive' : $ts_sid ),
         'eid' => 2,
         $prop => $tphid,
-        'effective' => '1977-04-27 15:30:00'
+        'effective' => '1977-04-27 15:30:00+01'
     } );
     
     #

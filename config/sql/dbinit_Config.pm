@@ -55,8 +55,8 @@ set( 'DBINIT_CREATE', [
     q/SET client_min_messages=WARNING/,
 
     q#-- rounds a timestamp value to the nearest 5 minutes
-      CREATE OR REPLACE FUNCTION round_time (TIMESTAMP)
-      RETURNS TIMESTAMP AS $$
+      CREATE OR REPLACE FUNCTION round_time (TIMESTAMPTZ)
+      RETURNS TIMESTAMPTZ AS $$
           SELECT date_trunc('hour', $1) + INTERVAL '5 min' * ROUND(date_part('minute', $1) / 5.0)
       $$ LANGUAGE sql IMMUTABLE#,
 
@@ -72,7 +72,7 @@ set( 'DBINIT_CREATE', [
         salt      text,
         remark    text,
         stamp     json,
-        CONSTRAINT kosher_nick CHECK (nick ~* '^[A-Za-z0-9][A-Za-z0-9]+$')
+        CONSTRAINT kosher_nick CHECK (nick ~* '^[[:alnum:]_][[:alnum:]_-]+$')
       )/,
 
     q/-- trigger function to make 'eid' field immutable
@@ -101,7 +101,7 @@ set( 'DBINIT_CREATE', [
       CREATE TABLE IF NOT EXISTS schedintvls (
         int_id  serial PRIMARY KEY,
         ssid    integer NOT NULL,
-        intvl   tsrange NOT NULL,
+        intvl   tstzrange NOT NULL,
         EXCLUDE USING gist (ssid WITH =, intvl WITH &&)
       )/,
 
@@ -116,7 +116,12 @@ set( 'DBINIT_CREATE', [
 
     q/CREATE OR REPLACE FUNCTION valid_intvl() RETURNS trigger AS $$
         BEGIN
-            IF ( isempty(NEW.intvl) ) OR
+            IF ( NEW.intvl IS NULL ) OR
+               ( isempty(NEW.intvl) ) OR
+               ( lower(NEW.intvl) = '-infinity' ) OR
+               ( lower(NEW.intvl) = 'infinity' ) OR
+               ( upper(NEW.intvl) = '-infinity' ) OR
+               ( upper(NEW.intvl) = 'infinity' ) OR
                ( NOT lower_inc(NEW.intvl) ) OR
                ( upper_inc(NEW.intvl) ) OR
                ( lower_inf(NEW.intvl) ) OR
@@ -134,7 +139,7 @@ set( 'DBINIT_CREATE', [
     q/CREATE TRIGGER valid_schedintvl BEFORE INSERT OR UPDATE ON schedintvls
         FOR EACH ROW EXECUTE PROCEDURE valid_schedintvl()/,
 
-    q/CREATE TRIGGER valid_intvl BEFORE INSERT OR UPDATE ON schedintvls
+    q/CREATE TRIGGER schedintvls_valid_intvl BEFORE INSERT OR UPDATE ON schedintvls
         FOR EACH ROW EXECUTE PROCEDURE valid_intvl()/,
 
     q#-- Given a SSID in schedintvls, returns all the intervals for that
@@ -150,10 +155,10 @@ set( 'DBINIT_CREATE', [
           OUT high_time text
       ) AS $$
           SELECT 
-              to_char(lower(intvl)::timestamp, 'DY'),
-              to_char(lower(intvl)::timestamp, 'HH24:MI'),
-              to_char(upper(intvl)::timestamp, 'DY'),
-              to_char(upper(intvl)::timestamp, 'HH24:MI')
+              to_char(lower(intvl)::timestamptz, 'DY'),
+              to_char(lower(intvl)::timestamptz, 'HH24:MI'),
+              to_char(upper(intvl)::timestamptz, 'DY'),
+              to_char(upper(intvl)::timestamptz, 'HH24:MI')
           FROM schedintvls
           WHERE int_id = $1
       $$ LANGUAGE sql IMMUTABLE#,
@@ -188,7 +193,7 @@ set( 'DBINIT_CREATE', [
         shid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         sid        integer REFERENCES schedules (sid) NOT NULL,
-        effective  timestamp NOT NULL,
+        effective  timestamptz NOT NULL,
         remark     text,
         stamp      json,
         UNIQUE (eid, effective)
@@ -214,7 +219,7 @@ set( 'DBINIT_CREATE', [
         phid       serial PRIMARY KEY,
         eid        integer REFERENCES employees (eid) NOT NULL,
         priv       privilege NOT NULL,
-        effective  timestamp NOT NULL,
+        effective  timestamptz NOT NULL,
         remark     text,
         stamp      json,
         UNIQUE (eid, effective)
@@ -253,7 +258,7 @@ set( 'DBINIT_CREATE', [
       -- always returns a valid privilege level -- if the EID given doesn't
       -- have a privilege level for the timestamp given, the function
       -- returns 'passerby' (for more information, see t/003-current-priv.t)
-      CREATE OR REPLACE FUNCTION priv_at_timestamp (INTEGER, TIMESTAMP WITHOUT TIME ZONE)
+      CREATE OR REPLACE FUNCTION priv_at_timestamp (INTEGER, TIMESTAMP WITH TIME ZONE)
       RETURNS privilege AS $$
           SELECT priv FROM (
               SELECT 'passerby' AS priv, '4713-01-01 BC' AS effective 
@@ -266,10 +271,10 @@ set( 'DBINIT_CREATE', [
       $$ LANGUAGE sql IMMUTABLE#,
 
     q#-- this function will return 'jsonb' after PostgreSQL 9.4 comes out!!!
-      CREATE OR REPLACE FUNCTION schedule_at_timestamp (INTEGER, TIMESTAMP WITHOUT TIME ZONE)
+      CREATE OR REPLACE FUNCTION schedule_at_timestamp (INTEGER, TIMESTAMP WITH TIME ZONE)
       RETURNS text AS $$
           SELECT schedule FROM (
-              SELECT '{}' AS schedule, '4713-01-01 BC' AS effective
+              SELECT NULL AS schedule, '4713-01-01 BC' AS effective
               UNION
               SELECT schedules.schedule, schedhistory.effective
                   FROM schedules, schedhistory
@@ -284,14 +289,14 @@ set( 'DBINIT_CREATE', [
     q#-- wrapper function to get priv as of current timestamp
       CREATE OR REPLACE FUNCTION current_priv (INTEGER)
       RETURNS privilege AS $$
-          SELECT priv_at_timestamp($1, CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE ) )
+          SELECT priv_at_timestamp($1, current_timestamp)
       $$ LANGUAGE sql IMMUTABLE#,
 
     q#-- wrapper function to get schedule as of current timestamp
       -- this function will return 'jsonb' after PostgreSQL 9.4 comes out!!!
       CREATE OR REPLACE FUNCTION current_schedule (INTEGER)
       RETURNS text AS $$
-          SELECT schedule_at_timestamp($1, CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE ) )
+          SELECT schedule_at_timestamp($1, current_timestamp)
       $$ LANGUAGE sql IMMUTABLE#,
 
     q/-- activities
@@ -301,7 +306,7 @@ set( 'DBINIT_CREATE', [
           long_desc  text,
           remark     text,
           disabled   boolean,
-          CONSTRAINT kosher_code CHECK (code ~* '^[A-Za-z][A-Za-z0-9_]+$')
+          CONSTRAINT kosher_code CHECK (code ~* '^[[:alnum:]_][[:alnum:]_-]+$')
       )/,
   
     q/-- trigger function to make 'aid' field immutable
@@ -333,11 +338,100 @@ set( 'DBINIT_CREATE', [
           iid        serial PRIMARY KEY,
           eid        integer REFERENCES employees (eid) NOT NULL,
           aid        integer REFERENCES activities (aid) NOT NULL,
-          intvl      tsrange NOT NULL,
+          intvl      tstzrange NOT NULL,
           long_desc  text,
           remark     text,
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
+
+    q#-- trigger function to ensure that a privhistory/schedhistory record
+      -- does not fall within an existing attendance interval
+    CREATE OR REPLACE FUNCTION history_policy() RETURNS trigger AS $$
+        DECLARE
+            intvl_count integer;
+        BEGIN
+            -- the EID is NEW.eid, effective timestamptz is NEW.effective
+            SELECT count(*) FROM intervals INTO intvl_count
+            WHERE eid=NEW.eid AND intvl @> NEW.effective;
+            IF intvl_count > 0 THEN
+                RAISE EXCEPTION 'effective timestamp conflicts with existing attendance interval';
+            END IF;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql IMMUTABLE#,
+
+    q/-- trigger the trigger
+    CREATE TRIGGER no_intvl_conflict BEFORE INSERT OR UPDATE ON privhistory
+      FOR EACH ROW EXECUTE PROCEDURE history_policy()/,
+    
+    q/-- trigger the trigger
+    CREATE TRIGGER no_intvl_conflict BEFORE INSERT OR UPDATE ON schedhistory
+      FOR EACH ROW EXECUTE PROCEDURE history_policy()/,
+    
+    q/-- trigger function to enforce policy that an interval cannot come into
+      -- existence unless the employee has only a single privlevel throughout 
+      -- the entire interval and that privlevel is either 'active' or 'admin'
+    CREATE OR REPLACE FUNCTION priv_policy() RETURNS trigger AS $$
+        DECLARE
+            priv text;
+            pr_count integer;
+        BEGIN
+            -- the EID is NEW.eid, interval is NEW.intvl
+            -- 1. is there a non-passerbu privilege at the beginning of the interval?
+            SELECT priv_at_timestamp(NEW.eid, lower(NEW.intvl)) INTO priv;
+            IF priv = 'passerby' OR priv = 'inactive' THEN
+                RAISE EXCEPTION 'insufficient privileges: check employee privhistory';
+            END IF;
+            -- 2. are there any privhistory records during the interval?
+            SELECT count(*) FROM privhistory INTO pr_count
+            WHERE eid=NEW.eid AND effective >= lower(NEW.intvl) AND effective <= upper(NEW.intvl);
+            IF pr_count > 0 THEN
+                RAISE EXCEPTION 'ambiguous privilege status: check employee privhistory';
+            END IF;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql IMMUTABLE/,
+
+    q/-- trigger function to enforce policy that an interval cannot come into
+      -- existence unless the employee has only a single schedule throughout 
+      -- the entire interval
+    CREATE OR REPLACE FUNCTION schedule_policy() RETURNS trigger AS $$
+        DECLARE
+            sched text;
+            sh_count integer;
+        BEGIN
+            -- the EID is NEW.eid, interval is NEW.intvl
+            -- 1. is there a schedule at the beginning of the interval?
+            SELECT schedule_at_timestamp(NEW.eid, lower(NEW.intvl)) INTO sched;
+            IF sched IS NULL THEN
+                RAISE EXCEPTION 'employee schedule for this interval cannot be determined';
+            END IF;
+            -- 2. are there any schedhistory records during the interval?
+            SELECT count(*) FROM schedhistory INTO sh_count
+            WHERE eid=NEW.eid AND effective >= lower(NEW.intvl) AND effective <= upper(NEW.intvl);
+            IF sh_count > 0 THEN
+                RAISE EXCEPTION 'employee schedule for this interval cannot be determined';
+            END IF;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql IMMUTABLE/,
+
+    q/-- trigger function for use in sanity checks on attendance and lock intervals
+      -- vets an interval to ensure it does not extend too far into the future
+    CREATE OR REPLACE FUNCTION not_too_future() RETURNS trigger AS $$
+        DECLARE
+            limit_ts timestamptz;
+        BEGIN
+            --
+            -- does the interval extend too far into the future?
+            --
+            SELECT date_trunc('MONTH', (now() + interval '2 month'))::TIMESTAMPTZ INTO limit_ts;
+            IF upper(NEW.intvl) >= limit_ts THEN 
+                RAISE EXCEPTION 'interval extends too far into the future';
+            END IF;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql IMMUTABLE/,
 
     q/-- trigger function to make 'iid' field immutable
     CREATE OR REPLACE FUNCTION iid_immutable() RETURNS trigger AS $IMM$
@@ -349,15 +443,26 @@ set( 'DBINIT_CREATE', [
       END;
     $IMM$ LANGUAGE plpgsql/,
     
-    q/-- trigger the trigger
-    CREATE TRIGGER no_iid_update BEFORE UPDATE ON intervals
+    q/CREATE TRIGGER one_and_only_one_schedule BEFORE INSERT OR UPDATE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE schedule_policy()/,
+
+    q/CREATE TRIGGER enforce_priv_policy BEFORE INSERT OR UPDATE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE priv_policy()/,
+
+    q/CREATE TRIGGER a1_interval_valid_intvl BEFORE INSERT OR UPDATE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE valid_intvl()/,
+
+    q/CREATE TRIGGER a2_interval_not_too_future BEFORE INSERT OR UPDATE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE not_too_future()/,
+
+    q/CREATE TRIGGER a3_no_iid_update BEFORE UPDATE ON intervals
       FOR EACH ROW EXECUTE PROCEDURE iid_immutable()/,
     
     q/-- locks
       CREATE TABLE locks (
           lid     serial PRIMARY KEY,
           eid     integer REFERENCES Employees (EID),
-          intvl   tsrange NOT NULL,
+          intvl   tstzrange NOT NULL,
           remark  text,
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
@@ -372,10 +477,51 @@ set( 'DBINIT_CREATE', [
       END;
     $IMM$ LANGUAGE plpgsql/,
     
+    q/CREATE TRIGGER a1_lock_valid_intvl BEFORE INSERT OR UPDATE ON locks
+      FOR EACH ROW EXECUTE PROCEDURE valid_intvl()/,
+
+    q/CREATE TRIGGER a2_lock_not_too_future BEFORE INSERT OR UPDATE ON locks
+      FOR EACH ROW EXECUTE PROCEDURE not_too_future()/,
+
     q/-- trigger the trigger
-    CREATE TRIGGER no_lid_update BEFORE UPDATE ON locks
+    CREATE TRIGGER a3_no_lid_update BEFORE UPDATE ON locks
       FOR EACH ROW EXECUTE PROCEDURE lid_immutable()/,
-    
+
+    q/-- lock lookup trigger for intervals table
+      CREATE OR REPLACE FUNCTION no_lock_conflict() RETURNS trigger AS $IMM$
+      DECLARE
+          this_eid integer;
+          this_intvl tstzrange;
+          lock_count integer;
+      BEGIN
+
+          IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+              -- EID and tsrange are NEW.eid and NEW.intvl, respectively
+              this_eid := NEW.eid;
+              this_intvl := NEW.intvl;
+          ELSE
+              -- TG_OP = 'DELETE'
+              this_eid := OLD.eid;
+              this_intvl := OLD.intvl;
+          END IF;
+
+          SELECT count(*) INTO lock_count FROM locks WHERE eid=this_eid AND intvl && this_intvl;
+          IF lock_count > 0 THEN
+              RAISE EXCEPTION 'interval is locked';
+          END IF;
+
+          IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+              RETURN NEW;
+          ELSE
+              RETURN OLD;
+          END IF;
+
+      END;
+      $IMM$ LANGUAGE plpgsql/,
+          
+    q/CREATE TRIGGER intvl_not_locked BEFORE INSERT OR UPDATE OR DELETE ON intervals
+      FOR EACH ROW EXECUTE PROCEDURE no_lock_conflict()/,
+
     q/-- insert root employee into employees table and grant admin
       -- privilege to the resulting EID
       WITH cte AS (

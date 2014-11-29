@@ -60,11 +60,11 @@ App::Dochazka::REST::Dispatch::Activity - path dispatch
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -143,7 +143,7 @@ sub _aid {
     # does the AID exist?
     my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $aid );
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
-    return $CELL->status_notice( 'DISPATCH_AID_DOES_NOT_EXIST', args => [ $aid ] )
+    return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' )
         if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
 
     # it exists, so go ahead and do what we need to do
@@ -176,7 +176,7 @@ sub _code {
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
 
     if ( $context->{'method'} eq 'GET' ) {
-        return $CELL->status_notice( 'DISPATCH_CODE_DOES_NOT_EXIST', args => [ $code ] )
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' )
             if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
         return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } 
@@ -187,7 +187,7 @@ sub _code {
             if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } 
     elsif ( $context->{'method'} eq 'DELETE' ) {
-        return $CELL->status_notice( 'DISPATCH_CODE_DOES_NOT_EXIST', args => [ $code ] )
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' )
             if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
         $log->notice( "Attempting to delete activity " . $status->payload->code );
         return $status->payload->delete;

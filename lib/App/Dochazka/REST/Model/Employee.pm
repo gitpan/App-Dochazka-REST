@@ -59,11 +59,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -291,8 +291,7 @@ sub update {
     my ( $self ) = @_;
 
     # eid _MUST_ be defined
-    return $CELL->status_err( "No EID in object, yet EID needed for UPDATE operation" )
-        unless $self->{'eid'};
+    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'eid'};
     my $status = cud(
         object => $self,
         sql => $site->SQL_EMPLOYEE_UPDATE_BY_EID,
@@ -301,7 +300,7 @@ sub update {
     return $status unless $status->ok;
     return $CELL->status_err( "UPDATE failed (no payload) for unknown reason" ) unless $status->payload;
     $CELL->status_ok( 'DISPATCH_EMPLOYEE_UPDATE_OK', args => [ $self->nick, $self->eid ],
-        payload => $status->payload )
+        payload => $status->payload );
 }
 
 
@@ -477,14 +476,12 @@ sub noof_employees_by_priv {
             payload => { count => $count } );
     }
 
-    # if $priv is not one of the "kosher" privlevels, return 'OK' status
-    # with code DISPATCH_NO_RECORDS_FOUND to Resource.pm, which triggers a
-    # 404
-    return $CELL->status_ok( 'DISPATCH_NO_RECORDS_FOUND' ) unless 
-        grep { $priv eq $_; } qw( admin active inactive passerby );
+    return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' ) unless 
+        $priv =~ m/^(passerby)|(inactive)|(active)|(admin)$/i;
 
     my $sql = $site->SQL_EMPLOYEE_COUNT_BY_PRIV_LEVEL;
     my ( $count ) = $dbh->selectrow_array( $sql, undef, $priv );
+    $count += 0;
     $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], 
         payload => { 'priv' => $priv, 'count' => $count } );
 }

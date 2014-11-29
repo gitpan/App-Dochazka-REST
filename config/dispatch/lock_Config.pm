@@ -52,6 +52,10 @@ set( 'DISPATCH_RESOURCES_LOCK', {
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
         cli => 'lock eid $EID $TSRANGE',
+        validations => {
+            'eid' => 'Int',
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve an arbitrary employee\'s locks over the given tsrange',
         documentation => <<'EOH',
 =pod
@@ -114,6 +118,9 @@ EOH
             DELETE => 'admin',
         },
         cli => 'lock lid $lid [$JSON]',
+        validations => {
+            'lid' => 'Int',
+        },
         description => 'GET, PUT, or DELETE an lock object by its lid',
         documentation => <<'EOH',
 =over
@@ -167,6 +174,10 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
         cli => 'lock nick $NICK $TSRANGE',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve an arbitrary employee\'s locks over the given tsrange',
         documentation => <<'EOH',
 =pod
@@ -186,6 +197,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'inactive', 
         cli => 'lock self $TSRANGE',
+        validations => {
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve one\'s own locks over the given tsrange',
         documentation => <<'EOH',
 =pod

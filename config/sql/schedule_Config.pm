@@ -165,7 +165,7 @@ set( 'SQL_SCHEDHISTORY_SELECT_ARBITRARY', q/
 #
 set( 'SQL_SCHEDHISTORY_SELECT_CURRENT', q/
       SELECT shid, eid, sid, effective, remark FROM schedhistory
-      WHERE eid = ? and effective <= CAST( current_timestamp AS TIMESTAMP WITHOUT TIME ZONE )
+      WHERE eid = ? and effective <= current_timestamp
       ORDER BY effective DESC
       FETCH FIRST ROW ONLY
       / );
@@ -181,7 +181,7 @@ set( 'SQL_SCHEDHISTORY_SELECT_BY_SHID', q/
 #     SQL to select a range of SCHEDHISTORY records
 set( 'SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID', q/
       SELECT shid, eid, sid, effective, remark FROM SCHEDHISTORY 
-      WHERE eid = ? AND effective <@ CAST( ? AS tsrange )
+      WHERE eid = ? AND effective <@ CAST( ? AS tstzrange )
       ORDER BY effective
       / );
 
@@ -190,7 +190,7 @@ set( 'SQL_SCHEDHISTORY_SELECT_RANGE_BY_EID', q/
 set( 'SQL_SCHEDHISTORY_SELECT_RANGE_BY_NICK', q/
       SELECT sh.shid AS shid, sh.eid AS eid, sh.sid AS sid, sh.effective AS effective, sh.remark AS remark 
       FROM SCHEDHISTORY sh, employees em
-      WHERE sh.eid = em.eid AND em.nick = ? AND sh.effective <@ CAST( ? AS tsrange )
+      WHERE sh.eid = em.eid AND em.nick = ? AND sh.effective <@ CAST( ? AS tstzrange )
       ORDER BY sh.effective
       / );
 

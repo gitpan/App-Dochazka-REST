@@ -60,11 +60,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -247,6 +247,7 @@ Given JSON string representation of the schedule, return corresponding HASHREF.
 sub decode_schedule_json {
     my ( $json_str ) = @_;
 
+    return unless $json_str;
     return JSON->new->utf8->canonical(1)->decode( $json_str );
 }
 
@@ -280,7 +281,7 @@ sub load {
 
     # report the result
     return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ '1' ],
-        payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
+        payload => $ARGS{'class'}->spawn( %$hr ) ) if defined $hr;
     return $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
 }
 

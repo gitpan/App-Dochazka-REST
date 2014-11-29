@@ -44,6 +44,7 @@ use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
 use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
+use App::Dochazka::REST::Test; # for test_sql_success and test_sql_failure
 use Test::More;
 
 
@@ -56,26 +57,12 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# define helper functions
-
-sub test_sql_success {
-    my ( $expected_rv, $sql ) = @_;
-    my $rv = $REST->{dbh}->do($sql);
-    is( $rv, $expected_rv, "successfully executed $sql" );
-}
-
-sub test_sql_fail {
-    my ( $expected_err, $sql ) = @_;
-    my $rv = $REST->{dbh}->do($sql);
-    is( $rv, undef, "DBI returned undef" );
-    like( $REST->{dbh}->errstr, $expected_err, "DBI errstr is as expected" );
-}
-
 # get database handle and ping the database just to be sure
 my $dbh = $REST->{dbh};
 my $rc = $dbh->ping;
 is( $rc, 1, "PostgreSQL database is alive" );
 
+my $count;
 
 #======================
 # employees.eid field is immutable
@@ -88,7 +75,7 @@ ok( $eid_of_demo > $REST->eid_of_root );
 # attempt to change the EID
 my $new_eid = 3400;
 ok( $eid_of_demo != $new_eid );
-test_sql_fail(qr/employees\.eid field is immutable/, <<"SQL");
+test_sql_failure($dbh, qr/employees\.eid field is immutable/, <<"SQL");
 UPDATE employees SET eid = $new_eid WHERE eid = $eid_of_demo
 SQL
 
@@ -99,7 +86,7 @@ SQL
 #======================
 
 # insert a schedule
-test_sql_success( 1, <<"SQL" );
+test_sql_success($dbh, 1, <<"SQL" );
 INSERT INTO schedules (schedule, disabled) VALUES ( 'test schedule', 'f' )
 SQL
 
@@ -110,12 +97,12 @@ ok( $sid >= 1 );
 # attempt to change the sid
 my $dast_sid = 3400;
 ok( $dast_sid != $sid );
-test_sql_fail( qr/schedules\.sid field is immutable/, <<"SQL" );
+test_sql_failure( $dbh, qr/schedules\.sid field is immutable/, <<"SQL" );
 UPDATE schedules SET sid = $dast_sid WHERE sid = $sid
 SQL
 
 # insert a schedule history row
-test_sql_success( 1, <<"SQL");
+test_sql_success( $dbh, 1, <<"SQL");
 INSERT INTO schedhistory ( eid, sid, effective ) VALUES ( $eid_of_demo, $sid, '$today_ts' )
 SQL
 
@@ -128,15 +115,15 @@ ok( $shid >= 1 );
 # dastardly update
 my $dast_shid = 3400;
 ok( $dast_shid != $shid );
-test_sql_fail( qr/schedhistory\.shid field is immutable/, <<"SQL" );
+test_sql_failure( $dbh, qr/schedhistory\.shid field is immutable/, <<"SQL" );
 UPDATE schedhistory SET shid=$dast_shid WHERE shid=$shid
 SQL
 
 # delete the testing rows
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 DELETE FROM schedhistory WHERE shid=$shid
 SQL
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 DELETE FROM schedules WHERE sid=$sid
 SQL
 
@@ -146,7 +133,7 @@ SQL
 #======================
 
 # insert a testing privhistory row
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 INSERT INTO privhistory (eid, priv, effective) VALUES ($eid_of_demo, 'admin', '$today_ts');
 SQL
 
@@ -159,12 +146,12 @@ ok( $phid >= 1 );
 # attempt dastardly update
 my $dast_phid = 3400;
 ok( $dast_phid != $phid );
-test_sql_fail( qr/privhistory\.phid field is immutable/, <<"SQL" );
+test_sql_failure( $dbh, qr/privhistory\.phid field is immutable/, <<"SQL" );
 UPDATE privhistory SET phid=$dast_phid WHERE phid=$phid
 SQL
 
 # delete testing row
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 DELETE FROM privhistory WHERE phid=$phid
 SQL
 
@@ -182,49 +169,49 @@ ok( $aid >= 1 );
 # attempt dastardly update
 my $dast_aid = 3400;
 ok( $dast_aid != $aid );
-test_sql_fail( qr/activities\.aid field is immutable/, <<"SQL" );
+test_sql_failure( $dbh, qr/activities\.aid field is immutable/, <<"SQL" );
 UPDATE activities SET aid=$dast_aid WHERE aid=$aid
 SQL
 
 
-#======================
-# intervals.iid field is immutable
-#======================
-
-# insert a testing intervals row
-test_sql_success( 1, <<"SQL" );
-INSERT INTO intervals (eid, aid, intvl) VALUES ($eid_of_demo, $aid, '[ $today 08:00, $today 12:00 )');
-SQL
-
-# get the iid
-my ( $count ) = $dbh->selectrow_array( 
-    "SELECT count(*) FROM intervals WHERE eid=$eid_of_demo AND aid=$aid AND intvl && '[ $today 00:00, $today 24:00)'"
-);
-is( $count, 1 );
-my ( $iid ) = $dbh->selectrow_array( 
-    "SELECT iid FROM intervals WHERE eid=$eid_of_demo AND aid=$aid AND intvl && '[ $today 00:00, $today 24:00)'"
-);
-ok( $iid >= 1 ); 
-
-# attempt dastardly update
-my $dast_iid = 3400;
-ok( $dast_iid != $iid );
-test_sql_fail( qr/intervals\.iid field is immutable/, <<"SQL" );
-UPDATE intervals SET iid=$dast_iid WHERE iid=$iid
-SQL
-
-# delete testing row
-test_sql_success( 1, <<"SQL" );
-DELETE FROM intervals WHERE iid=$iid
-SQL
-
+##======================
+## intervals.iid field is immutable
+##======================
+#
+## insert a testing intervals row
+#test_sql_success( $dbh, 1, <<"SQL" );
+#INSERT INTO intervals (eid, aid, intvl) VALUES ($eid_of_demo, $aid, '[ $today 08:00, $today 12:00 )');
+#SQL
+#
+## get the iid
+#my ( $count ) = $dbh->selectrow_array( 
+#    "SELECT count(*) FROM intervals WHERE eid=$eid_of_demo AND aid=$aid AND intvl && '[ $today 00:00, $today 24:00)'"
+#);
+#is( $count, 1 );
+#my ( $iid ) = $dbh->selectrow_array( 
+#    "SELECT iid FROM intervals WHERE eid=$eid_of_demo AND aid=$aid AND intvl && '[ $today 00:00, $today 24:00)'"
+#);
+#ok( $iid >= 1 ); 
+#
+## attempt dastardly update
+#my $dast_iid = 3400;
+#ok( $dast_iid != $iid );
+#test_sql_failure( $dbh, qr/intervals\.iid field is immutable/, <<"SQL" );
+#UPDATE intervals SET iid=$dast_iid WHERE iid=$iid
+#SQL
+#
+## delete testing row
+#test_sql_success( $dbh, 1, <<"SQL" );
+#DELETE FROM intervals WHERE iid=$iid
+#SQL
+#
 
 #======================
 # locks.lid field is immutable
 #======================
 
 # insert a testing locks row
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 INSERT INTO locks (eid, intvl) VALUES ($eid_of_demo, '[ $today 00:00, $today 24:00 )');
 SQL
 
@@ -241,12 +228,12 @@ ok( $lid >= 1 );
 # attempt dastardly update
 my $dast_lid = 3400;
 ok( $dast_lid != $lid );
-test_sql_fail( qr/locks\.lid field is immutable/, <<"SQL" );
+test_sql_failure( $dbh, qr/locks\.lid field is immutable/, <<"SQL" );
 UPDATE locks SET lid=$dast_lid WHERE lid=$lid
 SQL
 
 # delete testing row
-test_sql_success( 1, <<"SQL" );
+test_sql_success( $dbh, 1, <<"SQL" );
 DELETE FROM locks WHERE lid=$lid
 SQL
 

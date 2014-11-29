@@ -36,6 +36,7 @@
 use 5.012;
 use strict;
 use warnings FATAL => 'all';
+use utf8;
 
 use App::CELL qw( $log $meta $site );
 use App::Dochazka::REST;
@@ -99,17 +100,51 @@ $status = req( $test, 405, 'root', 'DELETE', $base );
 $base = "employee/count";
 docu_check($test, "$base/:priv" );
 #
-# GET employee/count/admin
+# GET
 #
-$status = req( $test, 200, 'root', 'GET', "$base/admin" );
-is( $status->level, "OK", "GET $base/:priv 2" );
-is( $status->code, 'DISPATCH_COUNT_EMPLOYEES', "GET $base/:priv 3" );
-ok( defined $status->payload, "GET $base/:priv 4" );
-ok( exists $status->payload->{'priv'}, "GET $base/:priv 5" );
-is( $status->payload->{'priv'}, 'admin', "GET $base/:priv 6" );
-is( $status->payload->{'count'}, 1, "GET $base/:priv 7" );
+# - valid priv strings
+foreach my $priv ( qw( 
+    passerby
+    PASSERBY
+    paSsERby
+    inactive
+    INACTIVE
+    inAcTive
+    active
+    ACTIVE
+    actIVe
+    admin
+    ADMIN
+    AdmiN
+) ) {
+    #diag( "$base/$priv" );
+    $status = req( $test, 200, 'root', 'GET', "$base/$priv" );
+    is( $status->level, "OK", "GET $base/:priv 2" );
+    if( $status->code ne 'DISPATCH_COUNT_EMPLOYEES' ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
+    is( $status->code, 'DISPATCH_COUNT_EMPLOYEES', "GET $base/:priv 3" );
+    ok( defined $status->payload, "GET $base/:priv 4" );
+    ok( exists $status->payload->{'priv'}, "GET $base/:priv 5" );
+    is( $status->payload->{'priv'}, lc $priv, "GET $base/:priv 6" );
+    ok( exists $status->payload->{'count'}, "GET $base/:priv 7" );
+    #
+    req( $test, 403, 'demo', 'GET', "$base/$priv" );
+}
 #
-req( $test, 403, 'demo', 'GET', '/employee/count/admin' );
+# - invalid priv strings
+foreach my $priv (
+    'nanaan',
+    '%^%#$#',
+#    'Žluťoucký kǔň',
+    '      dfdf fifty-five sixty-five',
+    'passerbies',
+    '///adfd/asdf/asdf',
+) {
+    req( $test, 404, 'root', 'GET', "$base/$priv" );
+    req( $test, 404, 'demo', 'GET', "$base/$priv" );
+}
 
 #
 # PUT, POST, DELETE
@@ -234,9 +269,6 @@ foreach my $base ( "employee/current", "employee/self" ) {
     $status = req( $test, 405, 'root', 'DELETE', $base );
 }
 
-delete_employee_by_nick( $test, 'inactive' );
-delete_employee_by_nick( $test, 'active' );
-
 
 #=============================
 # "employee/current/priv" resource
@@ -256,7 +288,7 @@ foreach my $base ( "employee/current/priv", "employee/self/priv" ) {
     ok( exists $status->payload->{'current_emp'} );
     is( $status->payload->{'current_emp'}->{'nick'}, 'demo' );
     is( $status->payload->{'priv'}, 'passerby' );
-    is_deeply( $status->payload->{'schedule'}, {} );
+    is( $status->payload->{'schedule'}, undef );
     #
     $status = req( $test, 200, 'root', 'GET', $base );
     is( $status->level, 'OK' );
@@ -267,7 +299,7 @@ foreach my $base ( "employee/current/priv", "employee/self/priv" ) {
     ok( exists $status->payload->{'current_emp'} );
     is( $status->payload->{'current_emp'}->{'nick'}, 'root' );
     is( $status->payload->{'priv'}, 'admin' );
-    is_deeply( $status->payload->{'schedule'}, {} );
+    is( $status->payload->{'schedule'}, undef );
     
     #
     # PUT, POST, DELETE
@@ -303,17 +335,31 @@ $status = req( $test, 405, 'root', 'PUT', $base );
 # POST
 #
 # - create a 'mrfu' employee
-my $mrfu = create_testing_employee( nick => 'mrfu' );
+my $mrfu = create_testing_employee( nick => 'mrfu', passhash => 'mrfu' );
 my $eid_of_mrfu = $mrfu->eid;
 #
 # - give Mr. Fu an email address
 #diag("--- POST employee/eid (update email)");
-req( $test, 403, 'demo', 'POST', $base, '{ "eid": ' . $mrfu->eid . ', "email" : "mrsfu@dragon.cn" }' );
+req( $test, 403, 'demo', 'POST', $base, '{ "eid": ' . $mrfu->eid . ', "salt" : "shake it" }' );
+# 
+is( $mrfu->nick, 'mrfu' );
+req( $test, 403, 'mrfu', 'POST', $base, '{ "eid": ' . $mrfu->eid . ', "salt" : "shake it" }' );
+# fails because mrfu is a passerby
 #
-$status = req( $test, 200, 'root', 'POST', $base, '{ "eid": ' . $mrfu->eid . ', "email" : "mrsfu@dragon.cn" }' );
+# - make him an inactive 
+$status = req( $test, 200, 'root', 'POST', "priv/history/eid/" . $mrfu->eid, <<"EOH" );
+{ "priv" : "inactive", "effective" : "2004-01-01" }
+EOH
+is( $status->level, "OK", 'POST employee/eid 3' );
+is( $status->code, "DOCHAZKA_CUD_OK", 'POST employee/eid 3' );
+ok( exists $status->payload->{'phid'} );
+my $mrfu_phid = $status->payload->{'phid'};
+#
+# - try the operation again
+$status = req( $test, 200, 'mrfu', 'POST', $base, '{ "eid": ' . $mrfu->eid . ', "salt" : "shake it" }' );
 is( $status->level, "OK", 'POST employee/eid 3' );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK', 'POST employee/eid 4' );
-is( $status->payload->{'email'}, 'mrsfu@dragon.cn', 'POST employee/eid 5' );
+is( $status->payload->{'salt'}, 'shake it', 'POST employee/eid 5' );
 #
 # - update to a different nick
 #diag("--- POST employee/eid (update with different nick)");
@@ -324,29 +370,25 @@ is( $status->level, 'OK', 'POST employee/eid 8' );
 is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK', 'POST employee/eid 9' );
 my $mrsfu = App::Dochazka::REST::Model::Employee->spawn( %{ $status->payload } );
 my $mrsfuprime = App::Dochazka::REST::Model::Employee->spawn( eid => $mrfu->eid,
-    nick => 'mrsfu', fullname => 'Dragoness', email => 'mrsfu@dragon.cn' );
+    nick => 'mrsfu', fullname => 'Dragoness', passhash => 'mrfu', salt => 'shake it' );
 is_deeply( $mrsfu, $mrsfuprime, 'POST employee/eid 10' );
 #
 # - update a non-existent EID
 #diag("--- POST employee/eid (non-existent EID)");
 req( $test, 400, 'demo', 'POST', $base, '{ "eid" : 5442' );
 req( $test, 403, 'demo', 'POST', $base, '{ "eid" : 5442 }' );
-$status = req( $test, 200, 'root', 'POST', $base, '{ "eid": 534, "nick": "mrfu", "fullname":"Lizard Scale" }' );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
-like( $status->text, qr/no employee with EID 534/ );
+req( $test, 404, 'root', 'POST', $base, '{ "eid": 534, "nick": "mrfu", "fullname":"Lizard Scale" }' );
 #
 # - missing EID
-$status = req( $test, 200, 'root', 'POST', $base, '{ "long-john": "silber" }' );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAMETER_BAD_OR_MISSING' );
+req( $test, 400, 'root', 'POST', $base, '{ "long-john": "silber" }' );
 #
 # - incorrigibly attempt to update totally bogus and invalid EIDs
 req( $test, 400, 'root', 'POST', $base, '{ "eid" : }' );
 req( $test, 400, 'root', 'POST', $base, '{ "eid" : jj }' );
 $status = req( $test, 200, 'root', 'POST', $base, '{ "eid" : "jj" }' );
 is( $status->level, "ERR" );
-is( $status->code, "DISPATCH_PARAMETER_BAD_OR_MISSING" );
+is( $status->code, "DOCHAZKA_DBI_ERR" );
+like( $status->text, qr/invalid input syntax for integer/ );
 #
 # - and give it a bogus parameter (on update, bogus parameters cause REST to
 #   vomit 400; on insert, they are ignored)
@@ -362,7 +404,47 @@ dbi_err( $test, 200, 'root', 'POST', $base,
     '{ "eid": ' . $mrfu->eid . ', "nick" : null  }',
     qr/null value in column "nick" violates not-null constraint/ );
 
+# 
+# - inactive and active users get a little piece of the action, too:
+#   they can operate on themselves (certain fields), but not on, e.g., Mr. Fu
+foreach my $user ( qw( demo inactive active ) ) {
+    req( $test, 403, $user, 'POST', $base, <<"EOH" );
+{ "eid" : $eid_of_mrfu, "passhash" : "HAHAHAHA" }
+EOH
+}
+foreach my $user ( qw( demo inactive active ) ) {
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    my $eid = $status->payload->{'eid'};
+    req( $test, 403, $user, 'POST', $base, <<"EOH" );
+{ "eid" : $eid, "nick" : "tHE gREAT fABULATOR" }
+EOH
+}
+foreach my $user ( qw( inactive active ) ) {
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    my $eid = $status->payload->{'eid'};
+    $status = req( $test, 200, $user, 'POST', $base, <<"EOH" );
+{ "eid" : $eid, "salt" : "tHE gREAT fABULATOR" }
+EOH
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    is( $status->payload->{'salt'}, "tHE gREAT fABULATOR" );
+}
+
+
 # delete the testing user
+# 1. first delete his privhistory entry
+$status = req( $test, 200, 'root', 'DELETE', "priv/history/phid/$mrfu_phid" );
+ok( $status->ok );
 delete_testing_employee( $eid_of_mrfu );
 
 #
@@ -379,39 +461,73 @@ req( $test, 405, 'root', 'DELETE', $base );
 $base = 'employee/eid';
 docu_check($test, "$base/:eid");
 
+my @invalid_eids = (
+    '342j',
+    '**12',
+    ' 1', 
+    'fenestre',
+    '1234/123/124/',
+);
+
 #
-# GET employee/eid/:eid
+# GET
 #
-# - with EID == 1
-$status = req( $test, 200, 'root', 'GET', "$base/" . $site->DOCHAZKA_EID_OF_ROOT );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
-ok( exists $status->payload->{'nick'} );
-is( $status->payload->{'nick'}, 'root' );
-ok( exists $status->payload->{'fullname'} );
-is( $status->payload->{'fullname'}, 'Root Immutable' );
 #
-# - with EID == 2 (demo)
-$status = req( $test, 200, 'root', 'GET', "$base/2" );
-is( $status->level, 'OK' );
-is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-ok( defined $status->payload );
-ok( exists $status->payload->{'eid'} );
-is( $status->payload->{'eid'}, 2 );
-ok( exists $status->payload->{'nick'} );
-is( $status->payload->{'nick'}, 'demo' );
-ok( exists $status->payload->{'fullname'} );
-is( $status->payload->{'fullname'}, 'Demo Employee' );
+# - normal usage: get employee with nick [0], eid [2], fullname [3] as employee
+#   with nick [1]
+foreach my $params (
+    [ 'root', 'root', $site->DOCHAZKA_EID_OF_ROOT, 'Root Immutable' ],
+    [ 'demo', 'root', 2, 'Demo Employee' ],
+    [ 'active', 'root', $ts_eid_active, undef ],
+    [ 'active', 'active', $ts_eid_active, undef ],
+    [ 'inactive', 'root', $ts_eid_inactive, undef ],
+) {
+    $status = req( $test, 200, $params->[1], 'GET', "$base/" . $params->[2] );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    ok( defined $status->payload );
+    ok( exists $status->payload->{'eid'} );
+    is( $status->payload->{'eid'}, $params->[2] );
+    ok( exists $status->payload->{'nick'} );
+    is( $status->payload->{'nick'}, $params->[0] );
+    ok( exists $status->payload->{'fullname'} );
+    is( $status->payload->{'fullname'}, $params->[3] );
+}
 # 
 req( $test, 403, 'demo', 'GET', "$base/2" );
 #
 req( $test, 404, 'root', 'GET', "$base/53432" );
 #
 req( $test, 403, 'demo', 'GET', "$base/53432" );
-
+#
+# - invalid EIDs caught by Path::Router validations clause
+foreach my $eid ( @invalid_eids ) {
+    foreach my $user ( qw( root demo ) ) {
+        req( $test, 404, $user, 'GET', "$base/$eid" );
+    }
+}
+#
+# as demonstrated above, an active employee can see his own profile using this
+# resource -- demonstrate it again
+$status = req( $test, 200, 'active', 'GET', "$base/$ts_eid_active" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+#
+# an 'inactive' employee can do the same
+$status = req( $test, 200, 'inactive', 'GET', "$base/$ts_eid_inactive" );
+is( $status->level, 'OK' );
+is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+#
+# but this does not work for demo, whose privlevel is 'passerby'
+req( $test, 403, 'demo', 'GET', "$base/2" );  # EID 2 is 'demo'
+#
+# or for unknown users
+req( $test, 401, 'unknown', 'GET', "$base/2" );  # EID 2 is 'demo'
+#
+# and non-administrators cannot use this resource to look at other employees
+foreach my $user ( qw( active inactive demo ) ) {
+    req( $test, 403, $user, 'GET', "$base/1" );
+}
 
 #
 # PUT employee/eid/:eid
@@ -477,15 +593,57 @@ is( $eid_of_mrfu, $eid_of_brchen );
 req( $test, 400, 'demo', 'PUT', "$base/5633", '{' );
 req( $test, 403, 'demo', 'PUT', "$base/5633",
     '{ "nick": "mrfu", "fullname":"Lizard Scale" }' );
-$status = req( $test, 200, 'root', 'PUT', "$base/5633",
+req( $test, 404, 'root', 'PUT', "$base/5633",
     '{ "eid": 534, "nick": "mrfu", "fullname":"Lizard Scale" }' );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
 #
 # - with valid JSON that is not what we are expecting
 req( $test, 400, 'root', 'PUT', "$base/2", 0 );
 # - another kind of bogus JSON
 req( $test, 400, 'root', 'PUT', "$base/2", '{ "legal" : "json" }' );
+#
+# - invalid EIDs caught by Path::Router validations clause
+foreach my $eid ( @invalid_eids ) {
+    foreach my $user ( qw( root demo ) ) {
+        req( $test, 405, $user, 'PUT', "$base/$eid" );
+    }
+}
+
+# 
+# - inactive and active users get a little piece of the action, too:
+#   they can operate on themselves (certain fields), but not on, e.g., Mr. Fu
+foreach my $user ( qw( demo inactive active ) ) {
+    req( $test, 403, $user, 'PUT', "$base/$eid_of_mrfu", <<"EOH" );
+{ "passhash" : "HAHAHAHA" }
+EOH
+}
+foreach my $user ( qw( demo inactive active ) ) {
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    my $eid = $status->payload->{'eid'};
+    req( $test, 403, $user, 'PUT', "$base/$eid", <<"EOH" );
+{ "nick" : "tHE gREAT fABULATOR" }
+EOH
+}
+foreach my $user ( qw( inactive active ) ) {
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    my $eid = $status->payload->{'eid'};
+    $status = req( $test, 200, $user, 'PUT', "$base/$eid", <<"EOH" );
+{ "salt" : "tHE gREAT fABULATOR" }
+EOH
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    is( $status->payload->{'salt'}, "tHE gREAT fABULATOR" );
+}
+
 
 #
 # delete the testing user
@@ -504,35 +662,43 @@ req( $test, 405, 'root', 'POST', "$base/2" );
 # create a "cannon fodder" employee
 my $cf = create_testing_employee( nick => 'cannonfodder' );
 my $eid_of_cf = $cf->eid;
-
+#
 # 'employee/eid/:eid' - delete cannonfodder
 req( $test, 403, 'demo', 'DELETE', "$base/$eid_of_cf" );
-req( $test, 401, 'active', 'DELETE', "$base/$eid_of_cf" ); # 401 because 'active' doesn't exist
+req( $test, 403, 'active', 'DELETE', "$base/$eid_of_cf" ); 
+req( $test, 401, 'unknown', 'DELETE', "$base/$eid_of_cf" ); # 401 because 'unknown' doesn't exist
 $status = req( $test, 200, 'root', 'DELETE', "$base/$eid_of_cf" );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK' );
-
+#
 # attempt to get cannonfodder - not there anymore
 req( $test, 403, 'demo', 'GET', "$base/$eid_of_cf" );
 req( $test, 404, 'root', 'GET', "$base/$eid_of_cf" );
-
+#
 # create another "cannon fodder" employee
 $cf = create_testing_employee( nick => 'cannonfodder' );
 ok( $cf->eid > $eid_of_cf ); # EID will have incremented
 $eid_of_cf = $cf->eid;
-
+#
 # delete the sucker
 req( $test, 403, 'demo', 'DELETE', '/employee/nick/cannonfodder' );
 $status = req( $test, 200, 'root', 'DELETE', '/employee/nick/cannonfodder' );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK' );
-
+#
 # attempt to get cannonfodder - not there anymore
 req( $test, 403, 'demo', 'GET',  "$base/$eid_of_cf" );
 req( $test, 404, 'root', 'GET',  "$base/$eid_of_cf" );
-
+#
 # attempt to delete 'root the immutable' (won't work)
 dbi_err( $test, 200, 'root', 'DELETE', "$base/1", undef, qr/immutable/i );
+#
+# - invalid EIDs caught by Path::Router validations clause
+foreach my $eid ( @invalid_eids ) {
+    foreach my $user ( qw( root demo ) ) {
+        req( $test, 404, $user, 'GET', "$base/$eid" );
+    }
+}
 
 
 #=============================
@@ -728,6 +894,29 @@ is( $status->level, "OK" );
 is( $status->code, 'DISPATCH_EMPLOYEE_INSERT_OK' );
 my $eid_of_bogus = $status->payload->{'eid'};
 
+# 
+# - inactive and active users get a little piece of the action, too:
+#   they can operate on themselves (certain fields), but not on, e.g., Mr. Fu
+foreach my $user ( qw( demo inactive active ) ) {
+    foreach my $target ( qw( mrfu wombat unknown ) ) {
+        req( $test, 403, $user, 'POST', "$base", <<"EOH" );
+{ "nick" : "$target", "passhash" : "HAHAHAHA" }
+EOH
+    }
+}
+foreach my $user ( qw( inactive active ) ) {
+    $status = req( $test, 200, $user, 'POST', "$base", <<"EOH" );
+{ "nick" : "$user", "salt" : "tHE gREAT wOMBAT" }
+EOH
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    is( $status->payload->{'salt'}, "tHE gREAT wOMBAT" );
+}
+
 map { delete_testing_employee( $_ ); } ( $eid_of_mrfu, $eid_of_bogus );
 
 #
@@ -859,8 +1048,32 @@ dbi_err( $test, 200, 'root', 'PUT', "$base/hapless",
 req( $test, 400, 'root', 'PUT', "$base/hapless", '{ "legal" : "json" }' );
 
 # 
+# - inactive and active users get a little piece of the action, too:
+#   they can operate on themselves (certain fields), but not on, e.g., Mrs. Fu or Hapless
+foreach my $user ( qw( demo inactive active ) ) {
+    foreach my $target ( qw( mrsfu hapless unknown ) ) {
+        req( $test, 403, $user, 'PUT', "$base/$target", <<"EOH" );
+{ "passhash" : "HAHAHAHA" }
+EOH
+    }
+}
+foreach my $user ( qw( inactive active ) ) {
+    $status = req( $test, 200, $user, 'PUT', "$base/$user", <<"EOH" );
+{ "salt" : "tHE gREAT wOMBAT" }
+EOH
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_EMPLOYEE_UPDATE_OK' );
+    $status = req( $test, 200, 'root', 'GET', "employee/nick/$user" );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    is( ref( $status->payload ), 'HASH' );
+    is( $status->payload->{'salt'}, "tHE gREAT wOMBAT" );
+}
+
+# 
 delete_testing_employee( $eid_of_mrsfu );
 delete_testing_employee( $eid_of_hapless );
+
 
 #
 # POST employee/nick:nick
@@ -905,11 +1118,9 @@ $status = req( $test, 200, 'root', 'GET', "$base/cannonfodder" );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 
-# - delete with a typo
+# - delete with a typo (non-existent nick)
 req( $test, 403, 'demo', 'DELETE', "$base/cannonfoddertypo" );
-$status = req( $test, 200, 'root', 'DELETE', "$base/cannonfoddertypo" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_NICK_DOES_NOT_EXIST' );
+req( $test, 204, 'root', 'DELETE', "$base/cannonfoddertypo" );
 
 # attempt to get cannonfodder - still there
 $status = req( $test, 200, 'root', 'GET', "$base/cannonfodder" );
@@ -920,5 +1131,8 @@ delete_testing_employee( $eid_of_cf );
 
 # attempt to delete 'root the immutable' (won't work)
 dbi_err( $test, 200, 'root', 'DELETE', "$base/root", undef, qr/immutable/i );
+
+delete_employee_by_nick( $test, 'inactive' );
+delete_employee_by_nick( $test, 'active' );
 
 done_testing;

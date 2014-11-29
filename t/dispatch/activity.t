@@ -123,9 +123,7 @@ dbi_err( $test, 200, 'root', 'POST', $base, $activity_obj, qr/out of range for t
 #
 # - non-existent AID
 $activity_obj = '{ "aid" : 342342342, "long_desc" : 3434341, "remark" : 34334342 }';
-$status = req( $test, 200, 'root', 'POST', $base, $activity_obj );
-is( $status->level, "NOTICE", "POST $base 7.3" );
-is( $status->code, "DISPATCH_AID_DOES_NOT_EXIST", "POST $base 7.4" );
+req( $test, 404, 'root', 'POST', $base, $activity_obj );
 #
 # - throw a couple curve balls
 my $weirded_object = '{ "copious_turds" : 555, "long_desc" : "wang wang wazoo", "disabled" : "f" }';
@@ -180,12 +178,10 @@ is_deeply( $status->payload, {
 }, "GET $base/:aid 4" );
 #
 # fail invalid AID
-dbi_err( $test, 200, 'active', 'GET', "$base/jj", undef, qr/invalid input syntax for integer/ );
+req( $test, 404, 'active', 'GET', "$base/jj" );
 #
 # fail non-existent AID
-$status = req( $test, 200, 'active', 'GET', "$base/444" );
-is( $status->level, 'NOTICE', "GET $base/:aid 10" );
-is( $status->code, 'DISPATCH_AID_DOES_NOT_EXIST', "GET $base/:aid 11" );
+req( $test, 404, 'active', 'GET', "$base/444" );
 #
 # succeed disabled AID
 $status = req( $test, 200, 'active', 'GET', "$base/$aid_of_foobar" );
@@ -225,10 +221,10 @@ req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar" );
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
 #
 # - test with root fail invalid AID
-dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }', qr/invalid input syntax for integer/ );
+req( $test, 405, 'root', 'PUT', "$base/asdf", '{ "legal":"json" }' );
 #
 # - with valid JSON that is not what we are expecting (invalid AID)
-dbi_err( $test, 200, 'root', 'PUT', "$base/asdf", '0', qr/invalid input syntax for integer/ );
+req( $test, 405, 'root', 'PUT', "$base/asdf", '0' );
 #
 # - with valid JSON that is not what we are expecting (valid AID)
 req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '0' );
@@ -259,12 +255,10 @@ is( $status->level, 'OK', "DELETE $base/:aid 3" );
 is( $status->code, 'DOCHAZKA_CUD_OK', "DELETE $base/:aid 4" );
 #
 # - really gone
-$status = req( $test, 200, 'active', 'GET', "$base/$aid_of_foobar" );
-is( $status->level, 'NOTICE', "DELETE $base/:aid 6" );
-is( $status->code, 'DISPATCH_AID_DOES_NOT_EXIST', "DELETE $base/:aid 7" );
+req( $test, 404, 'active', 'GET', "$base/$aid_of_foobar" );
 #
 # - test with root fail invalid AID
-dbi_err( $test, 200, 'root', 'DELETE', "$base/asd", undef, qr/invalid input syntax for integer/ );
+req( $test, 404, 'root', 'DELETE', "$base/asd" );
 
 #=============================
 # "activity/all" resource
@@ -462,15 +456,20 @@ is_deeply( $status->payload, {
     disabled => 0,
 }, "GET $base/:code 7" );
 #
-# - get a non-existent code
-$status = req( $test, 200, 'root', 'GET', "$base/jj" );
-is( $status->level, 'NOTICE', "GET $base/:code 9" );
-is( $status->code, 'DISPATCH_CODE_DOES_NOT_EXIST', "GET $base/:code 10" );
+# - non-existent code
+req( $test, 404, 'root', 'GET', "$base/jj" );
 #
-# - get an invalid code
-$status = req( $test, 200, 'root', 'GET', "$base/!!! !134@@" );
-is( $status->level, 'NOTICE', "GET $base/:code 12" );
-is( $status->code, 'DISPATCH_CODE_DOES_NOT_EXIST', "GET $base/:code 13" );
+# - invalid code
+foreach my $invalid_code ( 
+    '!!!! !134@@',
+    'whiner*44',
+    '@=1337',
+    '/ninety/nine/luftbalons//',
+) {
+    foreach my $user ( qw( root demo ) ) {
+        req( $test, 404, $user, 'GET', "$base/!!! !134@@" );
+    }
+}
 #
 
 #
@@ -494,11 +493,10 @@ req( $test, 403, 'active', 'PUT', "$base/FOOBAR" );
 req( $test, 400, 'root', 'PUT', "$base/FOOBAR" );
 #
 # - test as root fail invalid JSON
-req( $test, 400, 'root', 'PUT', "$base/$aid_of_foobar", '{ asdf' );
+req( $test, 400, 'root', 'PUT', "$base/FOOBAR", '{ asdf' );
 #
 # - test as root fail invalid code
-dbi_err( $test, 200, 'root', 'PUT', "$base/!!!!", '{ "legal":"json" }', 
-    qr/new row for relation "activities" violates check constraint "kosher_code"/ );
+req( $test, 405, 'root', 'PUT', "$base/!!!!", '{ "legal":"json" }' );
 #
 # - with valid JSON that is not what we are expecting
 req( $test, 400, 'root', 'PUT', "$base/FOOBAR", '0' );
@@ -506,20 +504,20 @@ req( $test, 400, 'root', 'PUT', "$base/FOOBAR", '0' );
 # - update with combination of valid and invalid properties
 $status = req( $test, 200, 'root', 'PUT', "$base/FOOBAR", 
     '{ "nick":"FOOBAR", "remark":"Nothing much", "sister":"willy\'s" }' );
-is( $status->level, 'OK', "PUT $base/:aid 21" );
-is( $status->code, 'DOCHAZKA_CUD_OK', "PUT $base/:aid 22" );
-is( $status->payload->{'remark'}, "Nothing much", "PUT $base/:aid 23" );
-ok( ! exists( $status->payload->{'nick'} ), "PUT $base/:aid 24" );
-ok( ! exists( $status->payload->{'sister'} ), "PUT $base/:aid 25" );
+is( $status->level, 'OK', "PUT $base/FOOBAR 21" );
+is( $status->code, 'DOCHAZKA_CUD_OK', "PUT $base/FOOBAR 22" );
+is( $status->payload->{'remark'}, "Nothing much", "PUT $base/FOOBAR 23" );
+ok( ! exists( $status->payload->{'nick'} ), "PUT $base/FOOBAR 24" );
+ok( ! exists( $status->payload->{'sister'} ), "PUT $base/FOOBAR 25" );
 #
 # - insert with combination of valid and invalid properties
 $status = req( $test, 200, 'root', 'PUT', "$base/FOOBARPUS", 
     '{ "nick":"FOOBAR", "remark":"Nothing much", "sister":"willy\'s" }' );
-is( $status->level, 'OK', "PUT $base/:aid 27" );
-is( $status->code, 'DOCHAZKA_CUD_OK', "PUT $base/:aid 28" );
-is( $status->payload->{'remark'}, "Nothing much", "PUT $base/:aid 29" );
-ok( ! exists( $status->payload->{'nick'} ), "PUT $base/:aid 30" );
-ok( ! exists( $status->payload->{'sister'} ), "PUT $base/:aid 31" );
+is( $status->level, 'OK', "PUT $base/FOOBAR 27" );
+is( $status->code, 'DOCHAZKA_CUD_OK', "PUT $base/FOOBAR 28" );
+is( $status->payload->{'remark'}, "Nothing much", "PUT $base/FOOBAR 29" );
+ok( ! exists( $status->payload->{'nick'} ), "PUT $base/FOOBAR 30" );
+ok( ! exists( $status->payload->{'sister'} ), "PUT $base/FOOBAR 31" );
 
 #
 # POST
@@ -531,8 +529,10 @@ req( $test, 405, 'root', 'POST', "$base/WORK" );
 #
 # DELETE
 #
+# - test with demo fail 404
+req( $test, 404, 'demo', 'DELETE', "$base/1" );
 # - test with demo fail 403
-req( $test, 403, 'demo', 'DELETE', "$base/1" );
+req( $test, 403, 'demo', 'DELETE', "$base/FOOBAR" );
 #
 # - test with root success
 #diag( "DELETE $base/FOOBAR" );
@@ -541,15 +541,10 @@ is( $status->level, 'OK', "DELETE $base/FOOBAR 3" );
 is( $status->code, 'DOCHAZKA_CUD_OK', "DELETE $base/FOOBAR 4" );
 #
 # - really gone
-$status = req( $test, 200, 'root', 'GET', "$base/FOOBAR" );
-is( $status->level, 'NOTICE', "DELETE $base/FOOBAR 6" );
-is( $status->code, 'DISPATCH_CODE_DOES_NOT_EXIST', "DELETE $base/FOOBAR 7" );
+req( $test, 404, 'root', 'GET', "$base/FOOBAR" );
 #
 # - test with root fail invalid code
-$status = req( $test, 200, 'root', 'DELETE', "$base/!!!" );
-is( $status->level, 'NOTICE', "DELETE $base/FOOBAR 8" );
-#diag( $status->code . " " . $status->text );
-is( $status->code, 'DISPATCH_CODE_DOES_NOT_EXIST', "DELETE $base/FOOBAR 9" );
+req( $test, 404, 'root', 'DELETE', "$base/!!!" );
 #
 # - go ahead and delete FOOBARPUS, too
 $status = req( $test, 200, 'root', 'DELETE', "$base/foobarpus" );

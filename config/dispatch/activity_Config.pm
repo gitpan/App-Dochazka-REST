@@ -76,6 +76,9 @@ EOH
             DELETE => 'admin',
         },
         cli => 'activity aid $AID',
+        validations => {
+            'aid' => 'Int',
+        },
         description => 'GET, PUT, or DELETE an activity object by its AID',
         documentation => <<'EOH',
 =over
@@ -163,6 +166,9 @@ EOH
             DELETE => 'admin',
         },
         cli => 'activity code $CODE',
+        validations => {
+            'code' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => 'GET, PUT, or DELETE an activity object by its code',
         documentation => <<'EOH',
 =over

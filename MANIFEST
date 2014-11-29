@@ -76,12 +76,13 @@ t/dispatch/top.t
 t/manifest.t
 t/model/activity.t
 t/model/employee.t
-t/model/interval.t
-t/model/lock.t
+t/model/general/id.t
+t/model/general/reset.t
+t/model/interval_lock.t
 t/model/privhistory.t
-t/model/reset.t
 t/model/schedintvls.t
 t/model/schedule.t
 t/sql/current_priv.t
 t/sql/immutable_id.t
 t/sql/root.t
+t/sql/schedintvl.t

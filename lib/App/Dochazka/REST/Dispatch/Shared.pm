@@ -58,11 +58,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -275,7 +275,7 @@ sub current {
         $eid = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'eid'}
             : undef;
-        return $CELL->status_err('DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'nick', $nick ]) unless $eid;
+        return $CELL->status_err('DOCHAZKA_NOT_FOUND_404') unless $eid;
     } else {
         # "$t/self/?:ts" resource
         # "$t/eid/:eid/?:ts" resource
@@ -283,7 +283,7 @@ sub current {
         $nick = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'nick'}
             : undef;
-        return $CELL->status_err('DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'EID', $eid ]) unless $nick;
+        return $CELL->status_err('DOCHAZKA_NOT_FOUND_404') unless $nick;
     }
 
     # employee exists and we have her EID and nick: get privlevel/schedule
@@ -509,6 +509,7 @@ sub fetch_own {
     return $status;
 }
 
+
 # generalized dispatch target for
 #    'interval/iid' and 'interval/iid/:iid'
 #    'lock/lid' and 'lock/lid/:lid'
@@ -534,7 +535,7 @@ sub iid_lid {
         $id = $context->{'mapping'}->{ $idmap{$type} };
     }
 
-    # does the ID exist? if so, to whom does it belong?
+    # does the ID exist? (load the whole record into $status->payload)
     my $fn = "load_by_" . $idmap{$type};
     my $status = $id_dispatch{$type}->$fn( $id );
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
@@ -552,10 +553,12 @@ sub iid_lid {
     }
 
     # it exists and we passed the ACL check, so go ahead and do what we need to do
+    die "Bad interval!" unless exists( $status->payload->{'intvl'} ) and 
+        defined( $status->payload->{'intvl'} );
     if ( $context->{'method'} eq 'GET' ) {
         return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _update_interval( $idmap{$type}, $status->payload, $context->{'request_body'} );
+        return _update_interval( $status->payload, $context->{'request_body'} );
     } elsif ( $context->{'method'} eq 'DELETE' ) {
         $log->notice( "Attempting to delete $type interval " . $status->payload->{ $idmap{$type} } );
         return $status->payload->delete;
@@ -564,19 +567,34 @@ sub iid_lid {
 }
 
 # takes two arguments:
-# - "$idv" is a string that can be either 'iid' or 'lid'
 # - "$int" is an interval object (blessed hashref)
 # - "$over" is a hashref with zero or more interval properties and new values
 # the values from $over replace those in $int
 sub _update_interval {
-    my ($idv, $int, $over) = @_;
+    my ( $int, $over) = @_;
     $log->debug("Entering " . __PACKAGE__ . "::_update_interval" );
-    if ( ref($over) ne 'HASH' ) {
-        return $CELL->status_err('DOCHAZKA_MALFORMED_400')
+
+    # determine whether we have been passed an interval or lock and set $idv accordingly
+    my $class = ref( $int );
+    my $idv;
+    if ( $class eq 'App::Dochazka::REST::Model::Interval' ) {
+        $idv = 'iid';
+    } elsif ( $class eq 'App::Dochazka::REST::Model::Lock' ) {
+        $idv = 'lid';
+    } else {
+        $log->crit( "Bad interval class! " . Dumper( $class ) );
+        die "Bad interval class";
     }
-    delete $over->{$idv} if exists $over->{$idv};
-    return $int->update if pre_update_comparison( $int, $over );
-    return $CELL->status_err('DOCHAZKA_MALFORMED_400');
+
+    # apply sanity checks to $over
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400') if ref($over) ne 'HASH';
+    delete $over->{$idv} if exists $over->{$idv}; # IID/LID cannot be changed, so get rid of it
+
+    # make sure $over does not contain any non-kosher fields, and merge
+    # $over into $int
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless pre_update_comparison( $int, $over );
+
+    return $int->update 
 }
 
 1;

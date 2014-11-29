@@ -60,11 +60,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 =head2 Development status
@@ -875,6 +875,8 @@ sub init {
     my $status;
     $status = $class->init_no_db( %ARGS );
     $status = $class->connect_db unless $status->not_ok;
+    $log->info( "Configuration parameters loaded from sitedirs: " . Dumper( $meta->CELL_META_SITEDIR_LIST ) );
+    $log->info( "Starting App::Dochazka::REST server" );
     return bless { 
         app         => Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app,
         dbh         => $class->SUPER::dbh,

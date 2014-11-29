@@ -84,6 +84,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
         cli => 'schedule eid $EID [$TIMESTAMP]',
+        validations => {
+            'eid' => 'Int',
+        },
         description => 'Get the current schedule of arbitrary employee, or with optional timestamp, that employee\'s schedule as of that timestamp',
         documentation => <<'EOH',
 =pod
@@ -122,6 +125,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history eid $EID [$JSON]',
+        validations => {
+            'eid' => 'Int',
+        },
         description => 'Retrieves (GET) entire history of schedule changes for employee with the given EID; adds (POST) a record to schedule history of employee',
         documentation => <<'EOH',
 =pod
@@ -154,6 +160,10 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history eid $EID $TSRANGE',
+        validations => {
+            'eid' => 'Int',
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieves a slice of history of schedule changes for employee with the given EID',
         documentation => <<'EOH',
 =pod
@@ -171,6 +181,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history nick $NICK [$JSON]',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => 'Retrieves (GET) entire history of schedule changes for employee with the given nick; adds (POST) a record to schedule history of employee',
         documentation => <<'EOH',
 =pod
@@ -203,6 +216,10 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history nick $NICK $TSRANGE',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Get partial history of schedule changes for employee with the given nick ' . 
                      '(i.e, limit to given tsrange)',
         documentation => <<'EOH',
@@ -220,6 +237,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'inactive',
         cli => 'schedule history self [$TSRANGE]',
+        validations => {
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Get schedule history of current employee, with option to limit to :tsrange',
         documentation => <<'EOH',
 =pod
@@ -238,6 +258,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin',
         cli => 'schedule history shid $SHID',
+        validations => {
+            'shid' => 'Int',
+        },
         description => 'GET or DELETE a schedule record by its SHID',
         documentation => <<'EOH',
 =pod
@@ -323,6 +346,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
         cli => 'schedule nick $NICK [$TIMESTAMP]',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => 'Get the current schedule of arbitrary employee, or with optional timestamp, that employee\'s schedule as of that timestamp',
         documentation => <<'EOH',
 =pod
@@ -361,6 +387,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Schedule',
         acl_profile => 'admin', 
         cli => 'schedule sid $SID',
+        validations => {
+            'sid' => 'Int',
+        },
         description => 'Retrieves, updates, or deletes a schedule by its SID',
         documentation => <<'EOH',
 =pod

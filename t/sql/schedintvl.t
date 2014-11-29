@@ -29,6 +29,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
+#
+# some tests to ensure/demonstrate that we can't enter bogus schedintvls
+#
 
 #!perl
 use 5.012;
@@ -40,53 +43,65 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
-use App::Dochazka::REST::Model::Employee;
-use App::Dochazka::REST::Model::Shared qw( noof );
-use Test::Fatal;
+use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
+use App::Dochazka::REST::Test; # for test_sql_success and test_sql_failure
 use Test::More;
 
-# plan tests
 
-#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
-
+# initialize and connect to database
 my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
 my $status = $REST->{init_status};
+
+# plan tests
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# attempt to spawn a hooligan
-like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sneaking in' ); },
-      qr/not listed in the validation options: hooligan/ );
+# get database handle and ping the database just to be sure
+my $dbh = $REST->{dbh};
+my $rc = $dbh->ping;
+is( $rc, 1, "PostgreSQL database is alive" );
 
-# insert a testing employee
-my $emp = App::Dochazka::REST::Model::Employee->spawn(
-        nick => 'missreset',
-        fullname => 'Miss Reset Machine',
-        email => 'parboiled@reset-pieces.com',
-        passhash => 'foo',
-        salt => 'bar',
-        remark => 'why me?',
-   );
-is( $emp->nick, 'missreset' );
-is( $emp->fullname, 'Miss Reset Machine');
-is( $emp->email, 'parboiled@reset-pieces.com');
-is( $emp->passhash, 'foo');
-is( $emp->salt, 'bar');
-is( $emp->remark, 'why me?');
-is( $emp->{hooligan}, undef, "No hooligans allowed" );
+# mustr 
+#
+#test_sql_success( $dbh, 1, <<"SQL" );
+#INSERT INTO schedules (schedule, disabled) VALUES ( 'test schedule', 'f' )
+##SQL
+#
+#test_sql_failure( $dbh, qr/schedules\.sid field is immutable/, <<"SQL" );
+#UPDATE schedules SET sid = $dast_sid WHERE sid = $sid
+#SQL
 
-$emp->reset;
+#---- get the next SSID
+my ( $ssid ) = $dbh->selectrow_array( "SELECT nextval('scratch_sid_seq')" );
+ok( $ssid ); # this doesn't tell us much, of course
 
-is( $emp->eid, undef );
-is( $emp->fullname, undef );
-is( $emp->nick, undef );
-is( $emp->email, undef );
-is( $emp->passhash, undef );
-is( $emp->salt, undef );
-is( $emp->remark, undef );
+#---- test NULL tsrange separately because it requires different SQL syntax
+test_sql_failure( $dbh, qr/illegal interval/, <<"SQL" );
+INSERT into schedintvls (ssid, intvl) VALUES ( $ssid, NULL::tstzrange )
+SQL
 
-# nothing to clean up, as this unit test file does not
-# actually touch the database
+#---- set up our hash where keys are intervals and values are regex quotes
+my %int_map = (
+    '[today,today)' => '',  # empty range
+    '["1967-09-20 12:25","1967-09-20 12:25")' => '', # another empty range
+    '[-infinity,today)' => '', # contains -infinity
+    '[,-infinity)' => '', # contains -infinity
+    '[today,infinity)' => '',  # contains infinity
+    '[infinity,)' => '', # contains infinity
+    '[,)' => '', # unbounded on both sides
+    '[today,)' => '', # unbounded on one side
+    '[,today)' => '', # unbounded on other side
+    '("1967-09-20 00:00",today)' => '', # lower not inclusive
+    '["1967-09-20 00:00",today]' => '', # upper inclusive
+    '("1967-09-20 00:00",today]' => '', # lower not inclusive AND upper inclusive
+);
+foreach my $intvl ( keys( %int_map ) ) {
+    $intvl = "'" . $intvl . "'" . "::tstzrange";
+    test_sql_failure( $dbh, qr/illegal interval/, <<"SQL" );
+INSERT into schedintvls (ssid, intvl) VALUES ( $ssid, $intvl )
+SQL
+
+}
 
 done_testing;

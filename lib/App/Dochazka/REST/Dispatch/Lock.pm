@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Lock - path dispatch
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -113,7 +113,7 @@ BEGIN {
 # 'lock/new'
 sub _new {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__. "::_lid" ); 
+    $log->debug( "Entering " . __PACKAGE__. "::_new" ); 
 
     # make sure request body with all required fields is present
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless $context->{'request_body'};
@@ -124,8 +124,8 @@ sub _new {
     }
 
     # this resource requires special ACL handling
-    my $retval = check_acl_context( $context );
-    return $retval if ref( $retval ) eq 'App::CELL::Status';
+    my $status = check_acl_context( $context );
+    return $status if $status->not_ok;
 
     # attempt to insert
     return _insert_lock( %{ $context->{'request_body'} } );

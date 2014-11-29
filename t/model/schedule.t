@@ -219,7 +219,7 @@ ok( defined( $schedhistory->shid), "schedhistory object has shid" );
 ok( $schedhistory->shid > 0, "schedhistory object shid is > 0" );
 is( $schedhistory->eid, $emp->{eid} );
 is( $schedhistory->sid, $schedule->{sid} );
-is( $schedhistory->effective, $today_ts );
+is( $schedhistory->effective, "$today_ts+01" );
 is( $schedhistory->remark, 'TESTING' );
 is( noof( 'schedhistory' ), 1 );
 
@@ -248,7 +248,6 @@ $status = undef;
 $status = $sh2->load_by_eid( $emp->eid ); # get the current record
 ok( $status->ok );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-is( $status->{'count'}, 1 );
 ok( ref $status->payload );
 ok( $status->payload->isa( 'App::Dochazka::REST::Model::Schedhistory' ) );
 $sh2->reset( $status->payload );

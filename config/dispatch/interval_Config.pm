@@ -52,6 +52,10 @@ set( 'DISPATCH_RESOURCES_INTERVAL', {
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
         cli => 'interval eid $EID $TSRANGE',
+        validations => {
+            'eid' => 'Int',
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve an arbitrary employee\'s intervals over the given tsrange',
         documentation => <<'EOH',
 =pod
@@ -114,6 +118,9 @@ EOH
             DELETE => 'active',
         },
         cli => 'interval iid $iid [$JSON]',
+        validations => {
+            'iid' => 'Int',
+        },
         description => 'GET, PUT, or DELETE an interval object by its iid',
         documentation => <<'EOH',
 =over
@@ -167,6 +174,10 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'admin', 
         cli => 'interval nick $NICK $TSRANGE',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve an arbitrary employee\'s intervals over the given tsrange',
         documentation => <<'EOH',
 =pod
@@ -186,6 +197,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Shared',
         acl_profile => 'inactive', 
         cli => 'interval self $TSRANGE',
+        validations => {
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieve one\'s own intervals over the given tsrange',
         documentation => <<'EOH',
 =pod

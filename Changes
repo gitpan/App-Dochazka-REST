@@ -1955,3 +1955,189 @@ Revision history for Dochazka-REST
   bogus scalar 'undefined' instead of undef"; adapt to check_acl refactor
 - t/dispatch/history.t: add more tests; improve comments
 
+0.301  2014-11-23 23:24 CET
+- Dispatch/ACL.pm: make 'check_acl_context' return OK status when the
+  request passes its check
+- Dispatch/Shared.pm: block out an 'interval_sanity' routine (WIP)
+- Dispatch/{Interval,Lock}.pm: adapt to current state
+
+0.302  2014-11-24 14:43 CET
+- dbinit_Config.pm: add 'no_intervals_after' and 'intvl_ok' stored PL/pgSQL procedures
+- Dispatch/Interval.pm: make '_insert_interval' validate its arguments using Params::Validate
+- Dispatch/Shared.pm: test attendance and lock intervals for bad string 'infinity';
+  add 'lock_sanity' routine to perform analogous role to 'interval_sanity'
+
+0.303  2014-11-24 16:47 CET
+- config/sql/: globally replace tsrange with tstzrange and TIMESTAMP
+  WITHOUT TIME ZONE to TIMESTAMP WITH TIME ZONE, etc.; add triggers to
+  'intervals' and 'locsk' so all new 'intvl' values are vetted at insert/update
+  using the 'intvl_ok' stored procedure
+- Dispatch/Shared.pm: tweak '_no_infinity'
+- t/: with the change to "WITH TIME ZONE", some return values have "+01"
+  appended, so adapt tests in those cases
+- t/dispatch/interval_lock.t: add a new section tests that examine handling
+  of bogus tstzrange values that might be provided by the user
+
+0.304  2014-11-24 17:13 CET
+- Dispatch/Shared.pm: export lock_sanity
+- Dispatch/Lock.pm: add 'lock_sanity' call to '_new'
+- t/dispatch/interval_lock.t: fix tests broken by migration to 'WITH TIME ZONE';
+  add a positive test illustrating a suspicious-looking interval that is acceptable
+- t/model/: add '+01' to some timestamp literals because they are now timestamptz
+
+0.305  2014-11-24 18:11 CET
+- dbinit_Config.pm: notice that we already have a 'valid_intvl' trigger; revamp
+  'intervals' and 'locks' triggers to use it
+- t/dispatch/interval_lock.t: add a group of tests to keep track of which
+  pathological tsranges ('intervals' in Dochazka terms) we are successfully
+  checking for
+
+0.306  2014-11-26 09:31 CET
+- dbinit_Config.pm: add 'intvl_not_locked' trigger before update or insert on
+  'intervals' table - checks to make sure the interval would not overlap with
+  any existing lock
+- Model/Shared.pm: fix bug where 'load' routine was needlessly adding 
+  'count => 1' to the payload, which is supposed to be just an object
+- t/: some tests started to fail because we were creating intervals and locks
+  with the same intervals - fixed by changing the lock interval
+- t/dispatch/interval_lock.t: now that we have a functioning trigger, add tests
+  that attempt to insert intervals that conflict with a lock
+- t/model/triggers: add new subdirectory for trigger tests
+- t/model/triggers/immutable_id.t: new unit to test triggers that make ID
+  fields immutable
+
+0.307  2014-11-26 16:40 CET
+- Model/: make 'update' methods return 'DOCHAZKA_ID_MISSING_IN_UPDATE' if id
+  property missing
+- Test.pm: add new 'gen_$class' multi-purpose routines
+- t/model/general/id.t: use 'gen_$class' routines
+- t/model/general/reset.t: expand to test 'reset' method in all classes
+
+0.308  2014-11-27 11:11 CET
+- Build.PL: require App::Dochazka 0.184 for 'attrs' and 'get' methods
+- dbinit_Config.pm: add checks for presence of 'infinity' in tsranges
+- Test.pm: bring in 'test_sql_success' and 'test_sql_failure' functions
+  so we aren't duplicating them in the units
+- t/model/employee.t: cleanup; eliminate some duplicated code (low-hanging
+  fruit)
+- t/model/general/reset.t: finishing touches
+- t/sql/: cleanup
+- t/sql/schedintvl.t: new tests for intvl triggers
+
+0.309  2014-11-27 17:09 CET
+- dbinit_Config.pm: have 'schedule_at_timestamp' return NULL instead of {} when
+  there is no schedule in effect
+- Model/Shared.pm: make decode_schedule_json handle the above NULL value
+- t/: fix all the tests that were expecting {} but now get undef instead
+
+0.310  2014-11-27 22:04 CET
+- dbinit_Config.pm: add 'schedule_policy' trigger function to prevent users
+  from introducing intervals in time periods when the employee has no or
+  ambiguous scheduling
+- t/dispatch/interval_lock.t: adapt to the above trigger (ensure testing user
+  has a schedule and the schedule is in effect)
+- t/: disable a bunch of tests broken by introduction of this trigger
+
+0.311  2014-11-27 23:04 CET
+- dbinit_Config.pm: expand no_lock_conflict to handle DELETE as well as INSERT/UPDATE
+- t/model/{interval,lock}.t: adapt to current state
+- t/model/lock.t: add test confirming that it is no longer possible to delete a
+  locked interval
+
+0.312  2014-11-28 11:27 CET
+- t/dispatch/interval_lock.t: add some tests simulating: (1) create interval,
+  (2) lock it, (3) attempt to update it - interval is locked, (4) attempt to
+  delete it - interval is locked
+- dbinit_Config.pm: add another trigger and run into problems because I didn't realize PostgreSQL
+  executes triggers in alphabetical order
+
+0.313  2014-11-28 12:20 CET
+- dbinit_Config.pm: rename triggers so "alphabetical order" is aligned with
+  "order of intended execution"
+- Dispatch/{Interval,Lock,Shared}.pm: since all sanity checks will be
+  implemented via triggers, the sanity stuff we put here before is unnecessary,
+  so delete it
+- t/dispatch/interval_lock.t: we are no longer returning 400 when intervals
+  are malformed or non-compliant
+- t/model/interval.t: now that we have enabled the 'priv_policy' trigger, make
+  sure the testing user has a proper privhistory before attempting to add
+  intervals in his name
+- t/model/: both interval.t and lock.t required the same setup/teardown code,
+  so move the lock tests to interval.t and get rid of lock.t
+
+0.314  2014-11-28 15:23 CET
+- rename t/model/interval.t -> t/model/interval_lock.t
+- dbinit_Config.pm: add 'history_policy' trigger function to ensure that
+  privhistory/schedhistory records are not entered if they conflict with an
+  existing interval
+- t/model/interval_lock.t: add minimal tests for the 'history_policy' trigger
+
+0.315  2014-11-28 16:23 CET
+- got Path::Router validations to work!!!
+- config/dispatch/activity_Config.pm: added validations clauses
+- config/dispatch/employee_Config.pm: added validations clauses
+- config/dispatch_Message_en.conf: delete DISPATCH_AID_DOES_NOT_EXIST and
+  DISPATCH_CODE_DOES_NOT_EXIST
+- dbinit_Config.pm: change 'kosher_code' constraint on 'activities' table to
+  match the validations clause
+- Dispatch/Activity.pm: noticed that we were still returning custom codes (e.g.
+  DISPATCH_AID_DOES_NOT_EXIST) instead of a simple 404 (405 on PUT) -- fixed
+- t/dispatch/activity.t: fix tests broken by the above changes
+
+0.316  2014-11-28 16:48 CET
+- dispatch/employee_Config.pm: add validations clause to the
+  'employee/count/:priv' resource definition
+- Dispatch/Employee.pm: handle upper/mixed case priv strings gracefully
+- Model/Employee.pm: noof_employees_by_priv was written long ago - update it to
+  use best practices
+- t/dispatch/employee.t: add 'employee/count/:priv' test cases
+
+0.317  2014-11-28 17:26 CET
+- dispatch/employee_Config.pm: add validations clause to 'employee/nick/:nick'
+  resource definition
+- sql/dbinit_Config.pm: change 'kosher_nick' constraint to match the above
+  validations clause
+- t/dispatch/: add some more tests demonstrating invalid codes caught
+  by the new validations clauses
+
+0.318  2014-11-28 18:12 CET
+- Build.PL: require latest version of App::CELL
+- dispatch/{interval,lock}_Config.pm: add validations clause
+- dispatch/top_Config.pm: added missing 'interval' and 'lock' top-level
+  resource definitions
+- t/dispatch/interval_lock.t: add some test cases for the above validations
+  clause
+
+0.319  2014-11-28 18:30 CET
+- dispatch/{interval,lock}_Config.pm: add validations clauses
+- t/dispatch/interval_lock.t: adapt existing tests to new validations clauses;
+  add new tests to demonstrate the new validations clauses; one resource 
+  (lock/nick/:nick/:tsrange) was completely missing - added it
+
+0.320  2014-11-28 19:33 CET
+- config/dispatch/: add remaining validations clauses
+- t/: adapt existing tests to the new validations clauses without getting hung
+  up about adding new tests, because if I were to implement tests for all cases
+  I'd never get this thing finished
+
+0.321  2014-11-28 21:59 CET
+- dispatch/employee_Config.pm: adjust ACLs so 'inactive' and 'active' employees
+  can do various operations - trusting that later logic will prevent them from
+  seeing or modifying any data but their own
+- Dispatch/Employee.pm: eliminate _post_current routine after moving ACL code
+  into _put_post_delete_employee_by_eid
+- t/dispatch/employee.t: adapt to current state
+
+0.322  2014-11-29 23:03 CET
+- config/dispatch/employee_Config.pm: change ACL profiles of all the resources
+  for which we want to let 'inactive' and 'active' employees edit certain
+  fields of their own employee profile - this opens something of a bag of worms
+  because we have to let these requests through to Dispatch/Employee.pm
+- config/dispatch_Message_en.conf: eliminate deprecated messages
+- Dispatch/Employee.pm: refactor several routines to let 'inactive' and
+  'active' users update certain fields of their own employee profiles
+- Dispatch/Shared.pm: eliminate deprecated messages
+- t/dispatch/employee.t: adapt existing tests; add some tests to probe the 
+  feature we just added
+- t/dispatch/schedule.t: adapt to current state
+

@@ -85,7 +85,8 @@ EOH
         documentation => <<'EOH',
 =pod
 
-Lists activity resources available to the logged-in employee.
+Lists activity resources available to the logged-in employee. This is the same
+as calling the C<activity/help> resource.
 EOH
     },
     'bugreport' =>
@@ -172,7 +173,8 @@ EOH
         documentation => <<'EOH',
 =pod
 
-Lists employee resources available to the logged-in employee.
+Lists employee resources available to the logged-in employee. This is the same
+as calling the C<activity/help> resource.
 EOH
     },
     'forbidden' =>
@@ -227,6 +229,44 @@ The information provided is sent as a JSON string in the HTTP response
 body, and includes the resource's name, full URI, ACL profile, and brief
 description, as well as a link to the App::Dochazka::REST on-line
 documentation.
+EOH
+    },
+    'interval' =>
+    { 
+        target => {
+            GET => '_get_default',
+            POST => '_post_default',
+            PUT => '_put_default', 
+            DELETE => '_delete_default', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Interval',
+        acl_profile => 'passerby', 
+        cli => 'employee',
+        description => 'Display available interval resources for given HTTP method',
+        documentation => <<'EOH',
+=pod
+
+Lists interval resources available to the logged-in employee. This is the same
+as calling the C<interval/help> resource.
+EOH
+    },
+    'lock' =>
+    { 
+        target => {
+            GET => '_get_default',
+            POST => '_post_default',
+            PUT => '_put_default', 
+            DELETE => '_delete_default', 
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Lock',
+        acl_profile => 'passerby', 
+        cli => 'employee',
+        description => 'Display available lock resources for given HTTP method',
+        documentation => <<'EOH',
+=pod
+
+Lists lock resources available to the logged-in employee. This is the same
+as calling the C<lock/help> resource.
 EOH
     },
     'metaparam' =>
@@ -302,7 +342,8 @@ EOH
         documentation => <<'EOH',
 =pod
 
-Lists priv resources available to the logged-in employee.
+Lists priv resources available to the logged-in employee. This is the same
+as calling the C<priv/help> resource.
 EOH
     },
     'schedule' =>
@@ -320,7 +361,8 @@ EOH
         documentation => <<'EOH',
 =pod
 
-Lists schedule resources available to the logged-in employee.
+Lists schedule resources available to the logged-in employee. This is the same
+as calling the C<schedule/help> resource.
 EOH
     },
     'session' =>

@@ -55,11 +55,11 @@ App::Dochazka::REST::Dispatch::ACL - ACL module
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -144,8 +144,10 @@ Check ACL and compare with eid in request body. This routine is designed
 for resources that have an ACL profile of 'active'. If the request body
 contains an 'eid' property, it is checked against the current user's EID.  If
 they are different and the current user's priv is 'active',
-DOCHAZKA_FORBIDDEN_403 is returned; otherwise, undef is returned to signify
-that the check passed.
+DOCHAZKA_FORBIDDEN_403 is returned; otherwise, an OK status is returned to
+signify that the check passed.
+
+If the request body does not contain an 'eid' property, it is added.
 
 =cut
 
@@ -164,7 +166,7 @@ sub check_acl_context {
     } else {
         $context->{'request_body'}->{'eid'} = $current_eid;
     }
-    return;
+    return $CELL->status_ok('DOCHAZKA_ACL_CHECK');
 }
 
 1;

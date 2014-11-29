@@ -41,6 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
 use App::Dochazka::REST::Dispatch::Shared qw( pre_update_comparison );
 use App::Dochazka::REST::Model::Employee qw( noof_employees_by_priv );
 use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid schedule_by_eid );
@@ -62,11 +63,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -100,7 +101,7 @@ sub _get_count {
 
     my $result;
     if ( my $priv = $context->{'mapping'}->{'priv'} ) {;
-        $result = noof_employees_by_priv( $priv );
+        $result = noof_employees_by_priv( lc $priv );
     } else {
         $result = noof_employees_by_priv( 'total' );
     }
@@ -136,37 +137,6 @@ sub _get_current_priv {
     );
 }
 
-# POST 'employee/current'
-# POST 'employee/self'
-sub _post_current {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid" );
-
-    # check that the request body is a hashref
-    if ( ref( $context->{'request_body'} ) ne 'HASH' ) {
-        return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
-    }
-
-    # if privlevel is inactive or active, analyze which fields the user wants to update
-    # (passerbies will be rejected earlier in Resource.pm, and admins can edit any field)
-    my $cp = $context->{'current_priv'};
-    $log->debug( "Current privilege level is $cp" );
-    if ( $cp =~ m/active/ ) {
-        foreach my $prop ( keys %{ $context->{'request_body'} } ) {
-            $log->debug( "Checking property $prop" );
-            next if grep { $_ eq $prop; } @{ $site->DOCHAZKA_PROFILE_EDITABLE_FIELDS->{$cp} };
-#            return $CELL->status_err( 'DOCHAZKA_EMPLOYEE_UPDATE_UNAUTHORIZED_FIELD',
-#                args => [ $prop ] );
-            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
-        }
-    }
-
-    # copy current's EID to request body
-    $context->{'request_body'}->{'eid'} = $context->{'current'}->{'eid'};
-
-    return _put_post_delete_employee_by_eid( $context );
-}
-
 # a little piece of shared code
 sub _assemble_employee_object {
     my %hr = @_;
@@ -179,47 +149,99 @@ sub _assemble_employee_object {
     return %r;
 }
         
-# target function for POST employee/eid, PUT employee/eid/:eid, and 
-# DELETE employee/eid/:eid
 sub _put_post_delete_employee_by_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid" );
+    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid with method " . $context->{'method'} );
 
-    # get eid
     my $eid;
-    if ( $context->{'method'} eq 'POST' ) {
-        $eid = $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    } elsif ( $context->{'method'} =~ /^(PUT)|(DELETE)/i ) {
-        $eid = $context->{'mapping'}->{'eid'} if exists $context->{'mapping'}->{'eid'};
-    } else {
-        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
-    }
+    $eid = $context->{'request_body'}->{'eid'} if $context->{'request_body'}->{'eid'};
+    $eid = $context->{'mapping'}->{'eid'} if $context->{'mapping'}->{'eid'};
+    $eid = $context->{'current'}->{'eid'} unless $eid;
 
-    if ( defined($eid) and $eid =~ m/^\d+$/ ) {
-        my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-        if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-            if ( $context->{'method'} =~ /^(PUT)|(POST)/i ) {
+    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    return _common_code( $context, $status );
+}
 
-                # check that the request body is a hashref
-                if ( ref( $context->{'request_body'} ) ne 'HASH' ) {
-                    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
-                }
+sub _put_post_delete_employee_by_nick {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my $cp = $context->{'current_priv'};
+    $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_nick with method " . $context->{'method'} );
 
-                #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
-                my $oldemp = $status->payload;
-                return _update_employee( $oldemp, $context->{'request_body'} );
-            } elsif ( $context->{'method'} =~ /^DELETE/i ) {
-                $log->notice("Attempting to delete employee with EID $eid");
-                return $status->payload->delete;  # employee object is in the payload
-            }
-        } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
-            return $CELL->status_err( 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST', args => [ 'EID', $eid ] );
+    my $nick;
+    $nick = $context->{'request_body'}->{'nick'} if $context->{'request_body'}->{'nick'};
+    $nick = $context->{'mapping'}->{'nick'} if $context->{'mapping'}->{'nick'};
+    $nick = $context->{'current'}->{'nick'} unless $nick;
+
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+    if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        if ( $cp =~ m/^(inactive)|(active)$/i ) {
+            if ( $nick ne $context->{'current'}->{'nick'} ) {
+                return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+            }            
+            delete $context->{'request_body'}->{'nick'};
         }
-        # DBI error or other badness
-        return $status;
-    } else {
-        return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'eid' ] ); 
+        return _common_code( $context, $status );
+    } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        if ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
+            # INSERT
+            if ( $cp =~ m/^(inactive)|(active)$/i ) {
+                return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+            }
+            delete $context->{'request_body'}->{'nick'} if $context->{'request_body'}->{'nick'};
+            return _insert_employee( 'nick' => $nick, %{ $context->{request_body} } );
+        }
+        return $CELL->status_err('DOCHAZKA_NOT_FOUND_404');
     }
+    return $status;
+}
+
+sub _common_code {
+    my ( $context, $status ) = @_;
+    my $cp = $context->{'current_priv'};
+    if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
+        my $this_emp = $status->payload;
+        if ( $context->{'method'} =~ /^(PUT)|(POST)/i ) {
+            #
+            # 'inactive' and 'active' can only operate on their own EID
+            if ( $cp =~ m/^(inactive)|(active)$/i and $this_emp->eid != $context->{'current'}->{'eid'} ) {
+                return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+            }
+            #
+            # if privlevel is inactive or active, analyze which fields the user wants to update
+            # (passerbies will be rejected earlier in Resource.pm, and admins can edit any field)
+            if ( $cp =~ m/^(inactive)|(active)$/i ) {
+                delete $context->{'request_body'}->{'eid'};
+                my %lut;
+                map { $lut{$_} = ''; } @{ $site->DOCHAZKA_PROFILE_EDITABLE_FIELDS->{$cp} };
+                foreach my $prop ( keys %{ $context->{'request_body'} } ) {
+                    next if exists $lut{$prop};
+                    return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+                }
+            }
+            #
+            # check that the request body is a hashref
+            if ( ref( $context->{'request_body'} ) ne 'HASH' ) {
+                return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
+            }
+            #
+            # ensure that the EID is not in the request body
+            delete $context->{'request_body'}->{'eid'};
+            #
+            # run the update
+            return _update_employee( $this_emp, $context->{'request_body'} );
+        } elsif ( $context->{'method'} =~ m/^DELETE/i ) {
+            # DELETE is only accessible to administrators (enforced by Resource.pm)
+            $log->notice( "Attempting to delete employee with EID " . $this_emp->eid );
+            return $this_emp->delete;
+        }
+    } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
+        if ( $cp =~ m/^(inactive)|(active)$/i ) {
+            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+        } 
+        return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
+    }
+    # DBI error or other badness
+    return $status;
 }
 
 # takes two arguments:
@@ -242,7 +264,20 @@ sub _get_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Employee::_get_eid" ); 
 
+    # EID the user wants
     my $eid = $context->{'mapping'}->{'eid'};
+
+    # user's EID and privlevel
+    my $current_eid = $context->{'current'}->{'eid'};
+    my $current_priv = $context->{'current_priv'};
+
+    # user might be an 'active', in which case he can only see his own EID
+    if ( $current_priv ne 'admin' ) {
+        if ( $eid != $current_eid ) {
+            return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
+        }
+    }
+    
     App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
 }
 
@@ -263,48 +298,6 @@ BEGIN {
         App::Dochazka::REST::Dispatch::Shared::make_default( resource_list => 'DISPATCH_RESOURCES_EMPLOYEE', http_method => 'DELETE' );
 }
 
-
-sub _put_post_delete_employee_by_nick {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
-
-    $log->debug( 'Entering _put_post_delete_employee_by_nick with method ' . $context->{'method'} );
-
-    # get nick
-    my $nick;
-    if ( $context->{'method'} eq 'POST' ) {
-        $nick = $context->{'request_body'}->{'nick'} if exists $context->{'request_body'}->{'nick'};
-        # they have no business sending an 'eid' property...
-        delete $context->{'request_body'}->{'eid'} if exists $context->{'request_body'}->{'eid'};
-    } elsif ( $context->{'method'} =~ /^(PUT)|(DELETE)/ ) {
-        $nick = $context->{'mapping'}->{'nick'} if exists $context->{'mapping'}->{'nick'};
-    } else {
-        return $CELL->status_err( 'DISPATCH_UNSUPPORTED_HTTP_METHOD %s', args => [ $context->{'method'} ] );
-    }
-
-    if ( $nick ) {
-        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
-        if ( $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-            if ( $context->{'method'} =~ /^(PUT)|(POST)/ ) {
-                #my $oldemp = App::Dochazka::REST::Model::Employee->spawn( $status->payload );
-                my $oldemp = $status->payload;
-                _update_employee( $oldemp, $context->{'request_body'} );
-            } elsif ( $context->{'method'} eq 'DELETE' ) {
-                $log->notice("Attempting to delete employee $nick");
-                return $status->payload->delete;  # employee object is in the payload
-            }
-        } else {
-            if ( $context->{'method'} =~ /^(PUT)|(POST)/ ) {
-                delete $context->{'request_body'}->{'nick'} if exists $context->{'request_body'}->{'nick'};
-                _insert_employee( _assemble_employee_object( nick => $nick, %{ $context->{'request_body'} } ) );
-            } elsif ( $context->{'method'} eq 'DELETE' ) {
-                $log->error("Not attempting to delete non-existent employee $nick" );
-                return $CELL->status_err('DISPATCH_NICK_DOES_NOT_EXIST', args => [ $nick ] );
-            }
-        }
-    } else {
-        return $CELL->status_err( 'DISPATCH_MISSING_PARAMETER', args => [ 'nick' ] ); 
-    }
-}
 
 # takes PROPLIST; 'nick' property is mandatory and must be first in the list
 sub _insert_employee {

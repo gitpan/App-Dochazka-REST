@@ -52,6 +52,9 @@ set( 'DISPATCH_RESOURCES_PRIV', {
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin', 
         cli => 'priv eid $EID [$TIMESTAMP]',
+        validations => {
+            'eid' => 'Int',
+        },
         description => 'Get the present privlevel of arbitrary employee, or with optional timestamp, that employee\'s privlevel as of that timestamp',
         documentation => <<'EOH',
 =pod
@@ -92,6 +95,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history eid $EID [$JSON]',
+        validations => {
+            'eid' => 'Int',
+        },
         description => 'Retrieves entire history of privilege level changes for employee with the given EID (GET); or, with an appropriate content body, adds (POST) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
@@ -129,6 +135,10 @@ EOH
         acl_profile => 'admin',
         cli => 'priv history eid $EID $TSRANGE',
         description => 'Get a slice of history of privilege level changes for employee with the given EID',
+        validations => {
+            'eid' => 'Int',
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         documentation => <<'EOH',
 =pod
 
@@ -145,6 +155,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history nick $NICK [$JSON]',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => 'Retrieves entire history of privilege level changes for employee with the given nick (GET); or, with an appropriate content body, adds (PUT) a record to employee\'s privhistory',
         documentation => <<'EOH',
 =pod
@@ -181,6 +194,10 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history nick $NICK $TSRANGE',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Get partial history of privilege level changes for employee with the given nick ' . 
                      '(i.e, limit to given tsrange)',
         documentation => <<'EOH',
@@ -199,6 +216,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin',
         cli => 'priv history phid $PHID',
+        validations => {
+            'phid' => 'Int',
+        },
         description => 'Retrieves (GET) or deletes (DELETE) a single privilege history record by its PHID',
         documentation => <<'EOH',
 =pod
@@ -227,6 +247,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'inactive',
         cli => 'priv history self [$TSRANGE]',
+        validations => {
+            'tsrange' => qr/^[[(].*,.*[])]$/,
+        },
         description => 'Retrieves privhistory of present employee, with option to limit to :tsrange',
         documentation => <<'EOH',
 =pod
@@ -244,6 +267,9 @@ EOH
         target_module => 'App::Dochazka::REST::Dispatch::Priv',
         acl_profile => 'admin', 
         cli => 'priv nick $NICK [$TIMESTAMP]',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => 'Get the present privlevel of arbitrary employee, or with optional timestamp, that employee\'s privlevel as of that timestamp',
         documentation => <<'EOH',
 =pod

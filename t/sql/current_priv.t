@@ -44,6 +44,7 @@ use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
 use App::Dochazka::REST;
+use App::Dochazka::REST::Test; # for test_sql_success and test_sql_failure
 use Test::More;
 
 
@@ -55,22 +56,6 @@ my $status = $REST->{init_status};
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-
-# define helper functions
-
-sub test_sql_success {
-    my ( $expected_rv, $sql ) = @_;
-    my $rv = $REST->{dbh}->do($sql);
-    is( $rv, $expected_rv, "successfully executed $sql" );
-}
-
-sub test_sql_fail {
-    my ( $expected_err, $sql ) = @_;
-    my $rv = $REST->{dbh}->do($sql);
-    is( $rv, undef, "DBI returned undef" );
-    like( $REST->{dbh}->errstr, $expected_err, "DBI errstr is as expected" );
-}
-
 
 # get database handle and ping the database just to be sure
 my $dbh = $REST->{dbh};
@@ -86,7 +71,7 @@ my $priv = $dbh->selectrow_array( "SELECT current_priv($eid_of_root)", undef );
 is( $priv, "admin", "root is admin" );
 
 # insert a new employee
-test_sql_success(1, <<SQL);
+test_sql_success($dbh, 1, <<SQL);
 INSERT INTO employees (nick) VALUES ('bubba')
 SQL
 
@@ -105,7 +90,7 @@ $priv = $dbh->selectrow_array( "SELECT current_priv(44)", undef );
 is( $priv, "passerby", "non-existent EID 44 is a passerby" );
 
 # make bubba an admin, but not until the year 3000
-test_sql_success(1, <<SQL);
+test_sql_success($dbh, 1, <<SQL);
 INSERT INTO privhistory (eid, priv, effective) 
 VALUES ($eid_of_bubba, 'admin', '3000-01-01')
 SQL
@@ -123,22 +108,22 @@ $priv = $dbh->selectrow_array( "SELECT priv_at_timestamp($eid_of_bubba, '3001-06
 is( $priv, "admin", "bubba finally made admin" );
 
 # attempt to delete his employee record -- FAIL
-test_sql_fail(qr/violates foreign key constraint/, <<SQL);
+test_sql_failure($dbh, qr/violates foreign key constraint/, <<SQL);
 DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 
 # attempt to change his EID -- FAIL
-test_sql_fail(qr/employees\.eid field is immutable/, <<SQL);
+test_sql_failure($dbh, qr/employees\.eid field is immutable/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_bubba
 SQL
 
 # delete bubba privhistory
-test_sql_success(1, <<SQL);
+test_sql_success($dbh, 1, <<SQL);
 DELETE FROM privhistory WHERE eid=$eid_of_bubba
 SQL
 
 # delete bubba employee
-test_sql_success(1, <<SQL);
+test_sql_success($dbh, 1, <<SQL);
 DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 

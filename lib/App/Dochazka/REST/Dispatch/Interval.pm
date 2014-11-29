@@ -63,11 +63,11 @@ App::Dochazka::REST::Dispatch::Interval - path dispatch
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -112,7 +112,7 @@ BEGIN {
 
 sub _new {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug( "Entering " . __PACKAGE__. "::_iid" ); 
+    $log->debug( "Entering " . __PACKAGE__. "::_new" ); 
 
     # make sure request body with all required fields is present
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless $context->{'request_body'};
@@ -122,31 +122,22 @@ sub _new {
         }
     }
 
-    # this resource requires special ACL handling
-    my $retval = check_acl_context( $context );
-    return $retval if ref( $retval ) eq 'App::CELL::Status';
-
-    # if eid not given in request body, set it to that of current user
-    #if ( ! $context->{'request_body'}->{'eid'} ) {
-    #    $context->{'request_body'}->{'eid'} = $context->{'current'}->{'eid'};
-    #}
-    #$log->debug( "EID set to " . $context->{'request_body'}->{'eid'} );
+    # return 403 if non-admin user attempts to add interval on behalf of another user
+    # (and add 'eid' property to request body if it isn't already present)
+    my $status = check_acl_context( $context );
+    return $status unless $status->ok;
 
     # attempt to insert
-    return _insert_interval( %{ $context->{'request_body'} } );
+    return _insert_interval( $context->{'request_body'} );
 }
 
 # takes PROPLIST
 sub _insert_interval {
-    my @ARGS = @_;
+    my ( $pl ) = validate_pos( @_, { type => HASHREF } );
     $log->debug("Reached _insert_interval from " . (caller)[1] . " line " .  (caller)[2] . 
-                " with argument list " . Dumper( \@ARGS) );
+                " with argument list " . Dumper( $pl ) );
 
-    # make sure we got an even number of arguments
-    if ( @ARGS % 2 ) {
-        return $CELL->status_crit( "Odd number of arguments passed to _insert_interval!" );
-    }
-    my %proplist_before = @ARGS;
+    my %proplist_before = %$pl;
     $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
         
     # make sure we got something resembling a code
@@ -157,7 +148,7 @@ sub _insert_interval {
     }
 
     # spawn an object, filtering the properties first
-    my @filtered_args = App::Dochazka::Model::Interval::filter( @ARGS );
+    my @filtered_args = App::Dochazka::Model::Interval::filter( %$pl );
     my %proplist_after = @filtered_args;
     $log->debug( "Properties after filter: " . join( ' ', keys %proplist_after ) );
     my $int = App::Dochazka::REST::Model::Interval->spawn( @filtered_args );

@@ -331,7 +331,7 @@ is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
-    "schedule" => {},
+    "schedule" => undef,
     "eid" => 1,
     "nick" => "root"
 });
@@ -343,7 +343,7 @@ is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
     timestamp => "999-12-31 23:59",
     nick => "root",
-    schedule => {},
+    schedule => undef,
     eid => 1
 } );
 #
@@ -354,7 +354,7 @@ is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
     timestamp => "1000-01-01 00:01",
     nick => "root",
-    schedule => {},
+    schedule => undef,
     eid => 1
 } );
 #
@@ -392,47 +392,33 @@ foreach my $spec ( [ 'root', "$base/$ts_eid/1955-06-01 00:00" ],
     ok( $status->payload->{eid} > 1 );
     is( $status->payload->{nick}, 'inactive' );
     ok( exists( $status->payload->{schedule} ) );
-    is_deeply( $status->payload->{schedule}, {} );
+    is( $status->payload->{schedule}, undef );
 }
 #
 # - non-existent EID
-$status = req( $test, 200, 'root', 'GET', "$base/5343" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/5343" );
 #
 # - negative EID
-$status = req( $test, 200, 'root', 'GET', "$base/-33" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/-33" );
 #
 # - stupid EID
-$status = req( $test, 200, 'root', 'GET', "$base/34343.33322.22.21" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/34343.33322.22.21" );
 #
 # - stupid EID
-$status = req( $test, 200, 'root', 'GET', "$base/a thousand clarinets" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/a thousand clarinets" );
 #
 # - stupid EID
-$status = req( $test, 200, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
-#
-# - stupid EID
-dbi_err( $test, 200, 'root', 'GET', "$base/2/ 12341 12 jjj", undef, 
-    qr/invalid input syntax for type timestamp/ );
+req( $test, 404, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
 #
 # - valid EID, stupid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/999/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+dbi_err( $test, 200, 'root', 'GET', "$base/2/ 12341 12 jjj", undef,
+    qr/invalid input syntax for type timestamp with time zone/ );
+#
+# - valid EID, stupid timestamp
+req( $test, 404, 'root', 'GET', "$base/999/ 12341 12 jjj" );
 #
 # - valid EID, valid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/999/2999-01-33 00:-1" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/999/2999-01-33 00:-1" );
 #
 # - valid EID, valid timestamp
 dbi_err( $test, 200, 'root', 'GET', "$base/1/2999-01-33 00:-1", undef,
@@ -639,7 +625,7 @@ is( $status->level, 'OK' );
 is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE" );
 ok( defined $status->payload );
 is_deeply( $status->payload, {
-    "schedule" => {},
+    "schedule" => undef,
     "eid" => 1,
     "nick" => "root"
 });
@@ -651,7 +637,7 @@ is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
     timestamp => "999-12-31 23:59",
     nick => "root",
-    schedule => {},
+    schedule => undef,
     eid => 1
 } );
 #
@@ -662,56 +648,43 @@ is( $status->code, "DISPATCH_EMPLOYEE_SCHEDULE_AS_AT" );
 is_deeply( $status->payload, {
     timestamp => "1000-01-01 00:01",
     nick => "root",
-    schedule => {},
+    schedule => undef,
     eid => 1
 } );
 #
 # - non-existent nick
-$status = req( $test, 200, 'root', 'GET', "$base/wanger" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/wanger" );
 #
-# - negative nick
-$status = req( $test, 200, 'root', 'GET', "$base/-33" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+# - negative nick (does not pass validations)
+req( $test, 404, 'root', 'GET', "$base/-33" );
 #
 # - stupid nick
-$status = req( $test, 200, 'root', 'GET', "$base/34343.33322.22.21" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/34343.33322.22.21" );
 #
 # - stupid nick
-$status = req( $test, 200, 'root', 'GET', "$base/a thousand clarinets" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/a thousand clarinets" );
 #
 # - stupid nick
-$status = req( $test, 200, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
 #
 # - stupid ts
 dbi_err( $test, 200, 'root', 'GET', "$base/demo/ 12341 12 jjj", undef,
     qr/invalid input syntax for type timestamp/ );
 #
 # - valid nick, stupid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/wanger/ 12341 12 jjj" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/wanger/ 12341 12 jjj" );
 #
 # - valid nick, valid timestamp
-$status = req( $test, 200, 'root', 'GET', "$base/wanger/2999-01-33 00:-1" );
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_EMPLOYEE_DOES_NOT_EXIST' );
+req( $test, 404, 'root', 'GET', "$base/wanger/2999-01-33 00:-1" );
 #
 # - valid nick, valid timestamp
 dbi_err( $test, 200, 'root', 'GET', "$base/root/2999-01-33 00:-1", undef,
     qr#date/time field value out of range# );
 #
 # - wanger
-dbi_err( $test, 200, 'root', 'GET', "$base/0/wanger", undef,
-    qr/invalid input syntax for type timestamp/ );
+req( $test, 404, 'root', 'GET', "$base/0/wanger" );
+#dbi_err( $test, 200, 'root', 'GET', "$base/0/wanger", undef,
+#    qr/invalid input syntax for type timestamp/ );
 
 #
 # PUT, POST, DELETE

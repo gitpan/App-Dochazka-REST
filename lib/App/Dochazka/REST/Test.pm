@@ -61,11 +61,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.300
+Version 0.322
 
 =cut
 
-our $VERSION = '0.300';
+our $VERSION = '0.322';
 
 
 
@@ -91,6 +91,14 @@ our @EXPORT = qw(
     delete_testing_employee delete_employee_by_nick
     create_testing_activity delete_testing_activity
     create_testing_schedule delete_testing_schedule 
+    gen_activity
+    gen_employee
+    gen_interval
+    gen_lock
+    gen_privhistory
+    gen_schedhistory
+    gen_schedule
+    test_sql_success test_sql_failure
 );
 
 
@@ -203,6 +211,11 @@ sub dbi_err {
     my $status = req( $test, $code, $user, $method, $resource, $json );
     is( $status->level, 'ERR' );
     is( $status->code, 'DOCHAZKA_DBI_ERR' );
+    if ( ! ( $status->text =~ $qr ) ) {
+        diag( "$user $method $resource\n$json" );
+        diag( $status->text . " does not match $qr" );
+        BAIL_OUT(0);
+    }
     like( $status->text, $qr );
 }
 
@@ -318,9 +331,17 @@ Tests will need to set up and tear down testing employees (takes EID)
 sub delete_testing_employee {
     my $eid = shift;
     my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    if ( $status->not_ok ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     is( $status->level, 'OK', 'delete_testing_employee 1' );
     my $emp = $status->payload;
     $status = $emp->delete;
+    if ( $status->not_ok ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     is( $status->level, 'OK', 'delete_testing_employee 2' );
     return;
 }
@@ -473,5 +494,153 @@ sub delete_testing_schedule {
     return;
 }
 
+
+#
+# functions to perform class-specific 'create' and 'retrieve' actions
+#
+
+sub gen_activity {
+    my $dis = shift;
+    my $code = 'FOOBAR';
+
+    if ( $dis eq 'create' ) {
+
+        # create 'FOOBAR' activity
+        my $act = App::Dochazka::REST::Model::Activity->spawn( code => $code );
+        my $status = $act->insert;
+        is( $status->level, 'OK' );
+        $act = $status->payload;
+        is( $act->code, $code );
+        ok( $act->aid > 5 );
+        return $act;
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
+        return $status;
+
+    } elsif ( $dis eq 'delete' ) {
+
+        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
+        is( $status->level, 'OK' );
+        my $act = $status->payload;
+        $status = $act->delete;
+        is( $status->level, 'OK' );
+        return;
+        
+    }
+    diag( "gen_activity: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_employee {
+    my $dis = shift;
+    my $nick = 'bubbaTheCat';
+
+    if ( $dis eq 'create' ) {
+
+        # create bubbaTheCat employee
+        my $emp = App::Dochazka::REST::Model::Employee->spawn( nick => $nick );
+        my $status = $emp->insert;
+        is( $status->level, 'OK' );
+        $emp = $status->payload;
+        is( $emp->nick, $nick );
+        ok( $emp->eid > 2 );  # root is 1, demo is 2
+        return $emp;
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        return $status;
+
+    } elsif ( $dis eq 'delete' ) {
+
+        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        is( $status->level, 'OK' );
+        my $emp = $status->payload;
+        $status = $emp->delete;
+        is( $status->level, 'OK' );
+        return;
+        
+    }
+    diag( "gen_employee: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_interval {
+    my $dis = shift;
+    if ( $dis eq 'create' ) {
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+    }
+    diag( "gen_interval: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_lock {
+    my $dis = shift;
+    if ( $dis eq 'create' ) {
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+    } elsif ( $dis eq 'delete' ) {
+    
+    }
+    diag( "gen_lock: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_privhistory {
+    my $dis = shift;
+    if ( $dis eq 'create' ) {
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+    } elsif ( $dis eq 'delete' ) {
+    
+    }
+    diag( "gen_privhistory: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_schedhistory {
+    my $dis = shift;
+    if ( $dis eq 'create' ) {
+
+    } elsif ( $dis eq 'retrieve' ) {
+    
+    } elsif ( $dis eq 'delete' ) {
+    
+    }
+    diag( "gen_schedhistory: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub gen_schedule {
+    my $dis = shift;
+    if ( $dis eq 'create' ) {
+
+    } elsif ( $dis eq 'retrieve' ) {
+
+    } elsif ( $dis eq 'delete' ) {
+    
+    }
+    diag( "gen_schedule: AAAAAAHHHHH@@@!! \$dis " . Dumper( $dis ) );
+    BAIL_OUT(0);
+}
+
+sub test_sql_success {
+    my ( $dbh, $expected_rv, $sql ) = @_;
+    my $rv = $dbh->do($sql);
+    is( $rv, $expected_rv, "successfully executed $sql" );
+}
+
+sub test_sql_failure {
+    my ( $dbh, $expected_err, $sql ) = @_;
+    my $rv = $dbh->do($sql);
+    is( $rv, undef, "DBI returned undef" );
+    like( $dbh->errstr, $expected_err, "DBI errstr is as expected" );
+}
 
 1;

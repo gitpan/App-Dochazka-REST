@@ -102,7 +102,7 @@ is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
 $priv->reset( $status->payload );
 is( $priv->eid, $ins_eid );
 is( $priv->priv, $ins_priv );
-is( $priv->effective, $ins_effective );
+is( $priv->effective, "$ins_effective+01" );
 is( $priv->remark, $ins_remark );
 
 # spawn a fresh object and try it again
@@ -112,7 +112,7 @@ is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
 my $priv2 = $status->payload;
 is( $priv2->eid, $ins_eid );
 is( $priv2->priv, $ins_priv );
-is( $priv2->effective, $ins_effective );
+is( $priv2->effective, "$ins_effective+01" );
 is( $priv2->remark, $ins_remark );
 
 # get Mr. Priv History's priv level as of yesterday

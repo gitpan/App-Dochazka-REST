@@ -73,6 +73,9 @@ EOH
         acl_profile => 'admin', 
         cli => 'employee count $PRIV',
         description => 'Display total count of employees with given privilege level',
+        validations => {
+            'priv' => qr/^(passerby)|(inactive)|(active)|(admin)$/i,
+        },
         documentation => <<'EOH',
 =pod
 
@@ -96,7 +99,7 @@ EOH
     { 
         target => {
             GET => '_get_current', 
-            POST => '_post_current',
+            POST => '_put_post_delete_employee_by_eid', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => {
@@ -147,7 +150,7 @@ EOH
             POST => '_put_post_delete_employee_by_eid', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
+        acl_profile => 'inactive', 
         cli => 'employee eid $JSON',
         description => 'Update existing employee (JSON request body with EID required)',
         documentation => <<'EOH',
@@ -161,6 +164,10 @@ The properties to be modified should also be included, e.g.:
 
 This would change the 'fullname' property of the employee with EID 43 to "Foo
 Bariful" (provided such an employee exists).
+
+ACL note: 'inactive' and 'active' employees can use this resource to modify
+their own employee profile. Exactly which fields can be updated may differ from
+site to site (see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
 EOH
     },
     'employee/eid/:eid' =>
@@ -171,8 +178,15 @@ EOH
             DELETE => '_put_post_delete_employee_by_eid', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
+        acl_profile => {
+            GET => 'inactive', 
+            PUT => 'inactive',
+            DELETE => 'admin',
+        },
         cli => 'employee eid $EID [$JSON]',
+        validations => {
+            eid => 'Int',
+        },
         description => 'GET: look up employee (exact match); PUT: update existing employee; DELETE: delete employee',
         documentation => <<'EOH',
 =over
@@ -188,9 +202,13 @@ the given EID. For example, if the request body was:
 
     { "fullname" : "Foo Bariful" }
 
-the reques would changesthe 'fullname' property of the employee with EID 43 to "Foo
-Bariful" (provided such an employee exists). Any 'eid' property provided in
-the content body will be ignored.
+the request would change the 'fullname' property of the employee with EID 43
+(provided such an employee exists) to "Foo Bariful". Any 'eid' property
+provided in the content body will be ignored.
+
+ACL note: 'inactive' and 'active' employees can use this resource to modify
+their own employee profile. Exactly which fields can be updated may differ from
+site to site (see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
 
 =item * DELETE
 
@@ -225,7 +243,7 @@ EOH
             POST => '_put_post_delete_employee_by_nick',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
+        acl_profile => 'inactive', 
         cli => 'employee nick $JSON',
         description => 'Insert new/update existing employee (JSON request body with nick required)',
         documentation => <<'EOH',
@@ -242,6 +260,10 @@ If an employee "foobar" exists, such a request would change the 'fullname'
 property of that employee to "Foo Bariful". On the other hand, if the employee
 doesn't exist this HTTP request would cause a new employee 'foobar' to be
 created.
+
+ACL note: 'inactive' and 'active' employees can use this resource to modify
+their own employee profile. Exactly which fields can be updated may differ from
+site to site (see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
 EOH
     },
     'employee/nick/:nick' =>
@@ -252,8 +274,15 @@ EOH
             DELETE => '_put_post_delete_employee_by_nick', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
-        acl_profile => 'admin', 
+        acl_profile => {
+            GET => 'admin',
+            PUT => 'inactive',
+            DELETE => 'admin', 
+        },
         cli => 'employee nick $NICK [$JSON]',
+        validations => {
+            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+        },
         description => "Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter",
         documentation => <<'EOH',
 =over
@@ -277,6 +306,10 @@ If a 'nick' property is provided in the content body and its value is
 different from the nick provided in the URI, the employee's nick will be
 changed to the value provided in the content body.
 
+ACL note: 'inactive' and 'active' employees can use this resource to modify
+their own employee profile. Exactly which fields can be updated may differ from
+site to site (see the DOCHAZKA_PROFILE_EDITABLE_FIELDS site parameter).
+
 =item * DELETE
 
 Deletes an employee (exact match only). This will work only if the
@@ -290,7 +323,7 @@ EOH
     { 
         target => {
             GET => '_get_current', 
-            POST => '_post_current',
+            POST => '_put_post_delete_employee_by_eid', 
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => {

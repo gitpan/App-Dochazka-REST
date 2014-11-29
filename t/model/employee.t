@@ -54,6 +54,9 @@ if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
+# get initial number of employees
+my $noof_employees = noof( 'employees' );
+
 # attempt to spawn a hooligan
 like( exception { App::Dochazka::REST::Model::Employee->spawn( 'hooligan' => 'sneaking in' ); }, 
       qr/not listed in the validation options: hooligan/ );
@@ -77,6 +80,18 @@ ok( ! exists $status->{'payload'} );
 ok( ! defined( $status->payload ) );
 
 # (root employee is created at dbinit time)
+my $eid_of_root = $site->DOCHAZKA_EID_OF_ROOT;
+
+sub test_root_accessors {
+    my $emp = shift;
+    is( $emp->remark, 'dbinit' );
+    is( $emp->nick, 'root' );
+    is( $emp->eid, $eid_of_root );
+    is( $emp->priv, 'admin' );
+    is( $emp->schedule, undef );
+    is( $emp->email, 'root@site.org' );
+    is( $emp->fullname, 'Root Immutable' );
+}
 
 # attempt to load root by nick and test accessors
 $status = App::Dochazka::REST::Model::Employee->load_by_nick( 'root' ); 
@@ -84,14 +99,7 @@ is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 $emp->reset( $status->payload );
-is( $emp->remark, 'dbinit' );
-is( $emp->nick, 'root' );
-is( $emp->eid, 1 );
-is( $emp->priv, 'admin' );
-is_deeply( $emp->schedule, {} );
-is( $emp->email, 'root@site.org' );
-is( $emp->fullname, 'Root Immutable' );
-my $eid_of_root = $emp->eid;
+test_root_accessors( $emp );
 
 # attempt to load root by EID and test accessors
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_root ); 
@@ -99,13 +107,7 @@ is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Root employee loaded into object" );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 $emp = $status->payload;
-is( $emp->remark, 'dbinit' );
-is( $emp->nick, 'root' );
-is( $emp->eid, $eid_of_root );
-is( $emp->priv, 'admin' );
-is_deeply( $emp->schedule, {} );
-is( $emp->email, 'root@site.org' );
-is( $emp->fullname, 'Root Immutable' );
+test_root_accessors( $emp );
 
 # do the same, but use class method 
 
@@ -114,26 +116,14 @@ is( $status->level, 'OK', "Root employee loaded into object" );
 ok( ref $status->payload );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 my $r = $status->payload;
-is( $r->remark, 'dbinit' );
-is( $r->nick, 'root' );
-is( $r->eid, $eid_of_root );
-is( $r->priv, 'admin' );
-is_deeply( $r->schedule, {} );
-is( $r->email, 'root@site.org' );
-is( $r->fullname, 'Root Immutable' );
+test_root_accessors( $r );
 
 $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid_of_root ); 
 is( $status->level, 'OK', "Root employee loaded into object" );
 ok( ref $status->payload );
 isa_ok( $status->payload, 'App::Dochazka::REST::Model::Employee' );
 my $q = $status->payload;
-is( $q->remark, 'dbinit' );
-is( $q->nick, 'root' );
-is( $q->eid, $eid_of_root );
-is( $q->priv, 'admin' );
-is_deeply( $q->schedule, {} );
-is( $q->email, 'root@site.org' );
-is( $q->fullname, 'Root Immutable' );
+test_root_accessors( $q );
 
 # get root's priv level and test priv accessor
 my $root_priv = $q->priv;
@@ -189,13 +179,9 @@ isnt( $eid_of_mrsfu, $eid_of_mrfu, "Mr. and Mrs. Fu are distinct entities" );
 
 # recycle the object
 $status = $emp->reset;
-is( $emp->eid, undef );
-is( $emp->nick, undef );
-is( $emp->fullname, undef );
-is( $emp->email, undef );
-is( $emp->passhash, undef );
-is( $emp->salt, undef );
-is( $emp->remark, undef );
+foreach my $prop ( App::Dochazka::REST::Model::Employee->attrs ) {
+    is( $emp->get( $prop), undef );
+}
 
 # attempt to load a non-existent EID
 $status = $emp->load_by_eid(443);
@@ -288,7 +274,7 @@ $emp = $status->payload;
 $status = $emp->delete;
 ok( $status->ok );
 
-# Employees table should now have two records (root, demo)
-is( noof( 'employees' ), 2 );
+# Employees table should now have the same number of records as at the beginning
+is( noof( 'employees' ), $noof_employees );
 
 done_testing;

@@ -50,12 +50,12 @@ set( 'SQL_EMPLOYEE_SELECT_BY_NICK', q/
 
 #
 set( 'SQL_EMPLOYEE_PRIV_AT_TIMESTAMP', q/
-      SELECT priv_at_timestamp($1, CAST( $2 AS TIMESTAMP WITHOUT TIME ZONE ) )
+      SELECT priv_at_timestamp($1, $2)
       / );
 
 #
 set( 'SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP', q/
-      SELECT schedule_at_timestamp($1, CAST( $2 AS TIMESTAMP WITHOUT TIME ZONE ) )
+      SELECT schedule_at_timestamp($1, $2)
       / );
 
 # 
