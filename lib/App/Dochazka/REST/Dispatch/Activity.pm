@@ -40,7 +40,6 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
 use App::Dochazka::REST::Model::Activity;
 use App::Dochazka::REST::Model::Shared;
@@ -60,11 +59,11 @@ App::Dochazka::REST::Dispatch::Activity - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -107,29 +106,28 @@ BEGIN {
 }
 
 
-#sub _get_all {
-#    $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_get_all" ); 
-#    my $bool = $context->{'mapping'}->{'bool'};
-#    # we don't need to examine $bool too much, because Perl will evaluate it in boolean context
-#    return App::Dochazka::REST::Model::Activity::get_all_activities( disabled => $bool );
-#}
-
 # 'activity/all'
 sub _get_all_without_disabled {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_get_all_without_disabled" ); 
-    return App::Dochazka::REST::Model::Activity::get_all_activities( disabled => 0 );
+    return App::Dochazka::REST::Model::Activity::get_all_activities( $context->{'dbix_conn'}, disabled => 0 );
 }
 
 # 'activity/all/disabled'
 sub _get_all_including_disabled {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_get_all_including_disabled" ); 
-    return App::Dochazka::REST::Model::Activity::get_all_activities( disabled => 1 );
+    return App::Dochazka::REST::Model::Activity::get_all_activities( $context->{'dbix_conn'}, disabled => 1 );
 }
 
 # 'activity/aid' and 'activity/aid/:aid' - only RUD supported (no create)
 sub _aid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_aid" ); 
+
+    my $conn = $context->{'dbix_conn'};
+    my $eid = $context->{'current'}->{'eid'};
+
     my $aid;
     if ( $context->{'method'} eq 'POST' ) {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'aid'};
@@ -141,7 +139,7 @@ sub _aid {
     }
 
     # does the AID exist?
-    my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $aid );
+    my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $conn, $aid );
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
     return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' )
         if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
@@ -150,10 +148,10 @@ sub _aid {
     if ( $context->{'method'} eq 'GET' ) {
         return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _update_activity( $status->payload, $context->{'request_body'} );
+        return _update_activity( $context, $status->payload, $context->{'request_body'} );
     } elsif ( $context->{'method'} eq 'DELETE' ) {
         $log->notice( "Attempting to delete activity " . $status->payload->aid );
-        return $status->payload->delete;
+        return $status->payload->delete( $context );
     }
     return $CELL->status_crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
 }
@@ -162,6 +160,10 @@ sub _aid {
 sub _code {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Activity::_code" ); 
+
+    my $conn = $context->{'dbix_conn'};
+    my $eid = $context->{'current'}->{'eid'};
+
     my $code;
     if ( $context->{'method'} eq 'POST' ) {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless exists $context->{'request_body'}->{'code'};
@@ -172,7 +174,7 @@ sub _code {
         $code = $context->{'mapping'}->{'code'};
     }
     # does the code exist?
-    my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
+    my $status = App::Dochazka::REST::Model::Activity->load_by_code( $conn, $code );
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
 
     if ( $context->{'method'} eq 'GET' ) {
@@ -181,62 +183,57 @@ sub _code {
         return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } 
     elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _insert_activity( code => $code, %{ $context->{'request_body'} } )
-            if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
-        return _update_activity( $status->payload, $context->{'request_body'} )
+        return _insert_activity( $context, $code ) if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
+        return _update_activity( $context, $status->payload, $context->{'request_body'} )
             if $status->code eq 'DISPATCH_RECORDS_FOUND';
     } 
     elsif ( $context->{'method'} eq 'DELETE' ) {
         return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' )
             if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
         $log->notice( "Attempting to delete activity " . $status->payload->code );
-        return $status->payload->delete;
+        return $status->payload->delete( $context );
     }
 
     return $CELL->crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
 }
 
-# takes two arguments:
-# - "$act" is an activity object (blessed hashref)
-# - "$over" is a hashref with zero or more activity properties and new values
+# takes four arguments:
+# - $conn is the DBIx::Connector object (received from Resource.pm)
+# - $eid is the current EID (taken from the request context)
+# - $act is an activity object (blessed hashref)
+# - $over is a hashref with zero or more activity properties and new values
 # the values from $over replace those in $act
 sub _update_activity {
-    my ($act, $over) = @_;
+    my ( $context, $act, $over ) = @_;
     $log->debug("Entering App::Dochazka::REST::Dispatch::Activity::_update_activity" );
     if ( ref($over) ne 'HASH' ) {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
     delete $over->{'aid'} if exists $over->{'aid'};
-    return $act->update if pre_update_comparison( $act, $over );
+    return $act->update( $context ) if pre_update_comparison( $act, $over );
     return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
-# takes PROPLIST; 'code' property is mandatory and must be first in the list
+# takes two arguments: the request context and the code to be inserted
 sub _insert_activity {
-    my @ARGS = @_;
-    $log->debug("Reached _insert_activity from " . (caller)[1] . " line " .  (caller)[2] . 
-                " with argument list " . Dumper( \@ARGS) );
+    my ( $context, $code ) = validate_pos( @_,
+        { type => HASHREF },
+        { type => SCALAR },
+    );
+    $log->debug("Reached " . __PACKAGE__ . "::_insert_activity" );
 
-    # make sure we got an even number of arguments
-    if ( @ARGS % 2 ) {
-        return $CELL->status_crit( "Odd number of arguments passed to _insert_activity!" );
-    }
-    my %proplist_before = @ARGS;
+    my %proplist_before = %{ $context->{'request_body'} };
+    $proplist_before{'code'} = $code; # overwrite whatever might have been there
     $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
         
-    # make sure we got something resembling a code
-    if ( not exists $proplist_before{'code'} ) {
-        return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'code' ] );
-    }
-
     # spawn an object, filtering the properties first
-    my @filtered_args = App::Dochazka::Model::Activity::filter( @ARGS );
+    my @filtered_args = App::Dochazka::Model::Activity::filter( %proplist_before );
     my %proplist_after = @filtered_args;
     $log->debug( "Properties after filter: " . join( ' ', keys %proplist_after ) );
     my $act = App::Dochazka::REST::Model::Activity->spawn( @filtered_args );
 
     # execute the INSERT db operation
-    return $act->insert;
+    return $act->insert( $context );
 }
 
 1;

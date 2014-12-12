@@ -14,6 +14,13 @@ my $builder = Module::Build->new(
     share_dir            => {
         dist => [ 'config' ],
     },
+    meta_merge => {
+        no_index => {
+            directory => [
+                "config"
+            ]
+        }
+    },
     script_files         => [
         'bin/dochazka-rest',
     ],
@@ -22,7 +29,8 @@ my $builder = Module::Build->new(
     },
     build_requires => {
         'App::CELL'      => 0.202,
-        'App::Dochazka'  => 0.184,
+        'App::Dochazka'  => 0.185,
+        'DBIx::Connector' => 0.47,
         'HTTP::Request'  => 0,
         'Plack::Session' => 0,
         'Plack::Test'    => 0,
@@ -33,9 +41,10 @@ my $builder = Module::Build->new(
     requires => {
         'perl'           => 5.012,
         'App::CELL'      => 0.202,
-        'App::Dochazka'  => 0.184,
+        'App::Dochazka'  => 0.185,
         'DBD::Pg'        => 0,
         'DBI'            => 0,
+        'DBIx::Connector' => 0.47,
         'File::ShareDir' => 0,
         'JSON'           => 0,
         'Params::Validate' => 1.06,

@@ -41,27 +41,29 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use App::Dochazka::REST;
 use App::Dochazka::REST::LDAP;
+use App::Dochazka::REST::Test;
 use Test::More;
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-diag( "DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
-plan skip_all => "LDAP testing disabled" unless $site->DOCHAZKA_LDAP;
+SKIP: {
+    skip "LDAP testing disabled", 2 unless $site->DOCHAZKA_LDAP;
+    diag( "DOCHAZKA_LDAP is " . $site->DOCHAZKA_LDAP );
 
-# known existent LDAP user exists in LDAP?
-ok( App::Dochazka::REST::LDAP::ldap_exists( 
-    $site->DOCHAZKA_LDAP_TEST_UID_EXISTENT
-) );
+    # known existent LDAP user exists in LDAP?
+    ok( App::Dochazka::REST::LDAP::ldap_exists( 
+        $site->DOCHAZKA_LDAP_TEST_UID_EXISTENT
+    ) );
 
-# known non-existent LDAP user does not exist in LDAP?
-ok( ! App::Dochazka::REST::LDAP::ldap_exists( 
-    $site->DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT
-) );
+    # known non-existent LDAP user does not exist in LDAP?
+    ok( ! App::Dochazka::REST::LDAP::ldap_exists( 
+        $site->DOCHAZKA_LDAP_TEST_UID_NON_EXISTENT
+    ) );
+}
 
 done_testing;

@@ -42,7 +42,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $meta $site );
-use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Privhistory;
 use App::Dochazka::REST::Test;
 use Data::Dumper;
@@ -51,20 +50,18 @@ use Plack::Test;
 use Test::JSON;
 use Test::More;
 
+
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
 
-my $res;
-
+# this has to be defined after initialization because it uses $test
 sub delete_history_recs {
     my ( $base, $set ) = @_;
     my $prop = ( $base =~ m/^priv/ ) 
@@ -75,11 +72,14 @@ sub delete_history_recs {
         : '/schedule/history/shid/';
     foreach my $rec ( @$set ) {
         #diag( "$base deleting " . Dumper $rec );
-        $status = req( $test, 200, 'root', 'DELETE', $resource . $rec->{$prop} );
+        my $status = req( $test, 200, 'root', 'DELETE', $resource . $rec->{$prop} );
         is( $status->level, 'OK' );
         is( $status->code, 'DOCHAZKA_CUD_OK' );
     }
 }
+
+
+my $res;
 
 
 #=============================
@@ -177,7 +177,15 @@ foreach $base ( "priv/history/eid", "schedule/history/eid" ) {
     is( $status->level, 'OK' );
     is( $status->code, "DISPATCH_RECORDS_FOUND" );
     ok( defined $status->payload );
+    if ( ! exists( $status->payload->{'eid'} ) ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     ok( exists $status->payload->{'eid'} );
+    if ( $status->payload->{'eid'} != $site->DOCHAZKA_EID_OF_ROOT ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     is( $status->payload->{'eid'}, $site->DOCHAZKA_EID_OF_ROOT );
     ok( exists $status->payload->{'history'} );
     is( scalar @{ $status->payload->{'history'} }, 1 );

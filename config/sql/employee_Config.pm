@@ -40,12 +40,12 @@
 
 # 
 set( 'SQL_EMPLOYEE_SELECT_BY_EID', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark
+      SELECT eid, sec_id, nick, fullname, email, passhash, salt, remark
       FROM employees WHERE eid=?/ );
 
 #
 set( 'SQL_EMPLOYEE_SELECT_BY_NICK', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark
+      SELECT eid, sec_id, nick, fullname, email, passhash, salt, remark
       FROM employees WHERE nick=?/ );
 
 #
@@ -60,7 +60,7 @@ set( 'SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP', q/
 
 # 
 set( 'SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK', q/
-      SELECT eid, fullname, nick, email, passhash, salt, remark
+      SELECT eid, sec_id, nick, fullname, email, passhash, salt, remark
       FROM employees WHERE nick LIKE ?/ );
 
 #
@@ -74,23 +74,23 @@ set( 'SQL_EMPLOYEE_CURRENT_SCHEDULE', q/
 #
 set( 'SQL_EMPLOYEE_INSERT', q/
       INSERT INTO employees 
-                (fullname, nick, email, passhash, salt, remark)
-      VALUES    (?,        ?,    ?,     ?,        ?,    ?) 
-      RETURNING  eid, fullname, nick, email, passhash, salt, remark
+                (sec_id, nick, fullname, email, passhash, salt, remark)
+      VALUES    (?,      ?,    ?,        ?,     ?,        ?,    ?) 
+      RETURNING  eid, sec_id, nick, fullname, email, passhash, salt, remark
       / );
 
 #
 set( 'SQL_EMPLOYEE_UPDATE_BY_EID', q/
-      UPDATE employees SET fullname = ?, nick = ?, email = ?,
+      UPDATE employees SET sec_id = ?, nick = ?, fullname = ?, email = ?,
          passhash = ?, salt = ?, remark = ?  
       WHERE eid = ?
-      RETURNING  eid, fullname, nick, email, passhash, salt, remark
+      RETURNING  eid, sec_id, nick, fullname, email, passhash, salt, remark
       / );
 
 #
 set( 'SQL_EMPLOYEE_DELETE', q/
       DELETE FROM employees WHERE eid = ? 
-      RETURNING  eid, fullname, nick, email, passhash, salt, remark
+      RETURNING  eid, sec_id, nick, fullname, email, passhash, salt, remark
       / );
 
 #

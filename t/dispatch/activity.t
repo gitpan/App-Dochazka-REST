@@ -39,7 +39,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $log $meta $site );
-use App::Dochazka::REST;
 use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
@@ -48,13 +47,11 @@ use Test::JSON;
 use Test::More;
 
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
@@ -114,6 +111,7 @@ req( $test, 403, 'active', 'POST', $base, $activity_obj );
 $status = req( $test, 200, 'root', 'POST', $base, $activity_obj );
 is( $status->level, 'OK', "POST $base 4" );
 is( $status->code, 'DOCHAZKA_CUD_OK', "POST $base 5" );
+ok( defined $status->payload );
 is( $status->payload->{'remark'}, 'puppy', "POST $base 6" );
 is( $status->payload->{'long_desc'}, 'wop wop ng', "POST $base 7" );
 #

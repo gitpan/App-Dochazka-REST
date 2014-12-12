@@ -40,59 +40,45 @@ use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
+use App::Dochazka::REST::Test;
 use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
 use Test::More;
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
-my $autocommit = $dbh->{AutoCommit};
-$dbh->{AutoCommit} = 1;
 
 # get EID of root employee
-my $eid_of_root = $dbh->selectrow_array( $site->DBINIT_SELECT_EID_OF_ROOT );
-my $test = $site->DOCHAZKA_EID_OF_ROOT;
-is( $test, $eid_of_root, "EID of root is correct" );
+my ( $eid_of_root ) = do_select_single( $dbix_conn, $site->DBINIT_SELECT_EID_OF, 'root' );
+is( $eid_of_root, $site->DOCHAZKA_EID_OF_ROOT, "EID of root is correct" );
 is( $eid_of_root, 1, "EID of root is 1" );
-is( $eid_of_root, $REST->eid_of_root );
-
-sub test_sql_fail {
-    my ( $expected_err, $sql ) = @_;
-    my $rv = $dbh->do($sql);
-    is( $rv, undef, "DBI returned undef" );
-    like( $dbh->errstr, $expected_err, "DBI errstr is as expected" );
-}
 
 # attempt to insert a new root employee
 #diag( 'attempt to insert a new root employee' );
-test_sql_fail(qr/duplicate key value/, <<SQL);
+test_sql_failure( $dbix_conn, qr/duplicate key value/, <<SQL );
 INSERT INTO employees (eid, nick) VALUES ($eid_of_root, 'root')
 SQL
 
 # attempt to insert a new root employee in another way
 #diag( 'attempt to insert a new root employee in another way' );
-test_sql_fail(qr/duplicate key value/, <<SQL);
+test_sql_failure( $dbix_conn, qr/duplicate key value/, <<SQL );
 INSERT INTO employees (nick) VALUES ('root')
 SQL
 
 # attempt to change EID of root employee -- FAIL
 #diag( "attempt to change EID of root employee" );
-test_sql_fail(qr/employees\.eid field is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/employees\.eid field is immutable/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_root
 SQL
 
 # attempt to change nick of root employee -- FAIL
 #diag( 'attempt to change nick of root employee' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL);
 UPDATE employees SET nick = 'Bubba' WHERE eid=$eid_of_root
 SQL
 
@@ -113,55 +99,52 @@ SQL
 
 # and we _can_, of course, change root's passhash and salt
 #diag( 'change root passhash' );
-my $rv = $dbh->do( <<SQL , undef, '$1$iT4NN7aG$EPzMy7jnV3w.rFZ/HLSu21', 'O+i0Ssyc', $eid_of_root ) or die( $dbh->errstr );
-UPDATE employees SET passhash=?, salt=? WHERE eid=?
+test_sql_success( $dbix_conn, 1, <<"SQL" );
+UPDATE employees SET passhash='\$1\$iT4NN7aG\$EPzMy7jnV3w.rFZ/HLSu21', salt='0+iOssyc' WHERE eid=$eid_of_root
 SQL
-is( $rv, 1, "root employee's passhash and salt changed" );
 
 # change it back
 #diag( 'change it back' );
-$rv = $dbh->do( <<SQL , undef, 'immutable', undef, $eid_of_root ) or die( $dbh->errstr );
-UPDATE employees SET passhash=?, salt=? WHERE eid=?
+test_sql_success( $dbix_conn, 1, <<"SQL" );
+UPDATE employees SET passhash = '82100e9bd4757883b4627b3bafc9389663e7be7f76a1273508a7a617c9dcd917428a7c44c6089477c8e1d13e924343051563d2d426617b695f3a3bff74e7c003', salt = '341755e03e1f163f829785d1d19eab9dee5135c0' WHERE eid = $eid_of_root
+
 SQL
-is( $rv, 1, "root employee's passhash and salt changed back the way they were before" );
 
 # attempt to delete the root employee
 #diag( 'attempt to delete the root employee' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 DELETE FROM employees WHERE eid=$eid_of_root
 SQL
 
 # attempt to change root's nick in another way -- FAIL
 #diag( 'attempt to update the root employee in another way' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 UPDATE employees SET nick = 'Bubba' WHERE nick='root'
 SQL
 
 # attempt to delete the root employee in another way -- FAIL
 #diag( 'attempt to delete the root employee in another way' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 DELETE FROM employees WHERE nick='root'
 SQL
 
 # attempt to insert a second privhistory row for root employee -- FAIL
 #diag( 'attempt to insert a second privhistory row for root employee' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 INSERT INTO privhistory (eid, priv, effective)
 VALUES ($eid_of_root, 'passerby', '2000-01-01')
 SQL
 
 # attempt to change root's single privhistory row -- FAIL
 #diag( 'attempt to change root\'s single privhistory row' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 UPDATE privhistory SET priv='passerby' WHERE eid=$eid_of_root
 SQL
 
 # attempt to delete root's single privhistory row -- FAIL
 #diag( 'attempt to delete root\'s single privhistory row' );
-test_sql_fail(qr/root employee is immutable/, <<SQL);
+test_sql_failure( $dbix_conn, qr/root employee is immutable/, <<SQL );
 DELETE FROM privhistory WHERE eid=$eid_of_root
 SQL
-
-$dbh->{AutoCommit} = $autocommit;
 
 done_testing;

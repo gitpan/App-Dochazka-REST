@@ -40,12 +40,8 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
-use App::Dochazka::REST::Dispatch::Shared qw( 
-    not_implemented 
-    pre_update_comparison 
-);
+#use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
 use App::Dochazka::REST::Model::Lock;
 use App::Dochazka::REST::Model::Shared;
 use Data::Dumper;
@@ -63,11 +59,11 @@ App::Dochazka::REST::Dispatch::Lock - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -115,6 +111,8 @@ sub _new {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__. "::_new" ); 
 
+    my $conn = $context->{'dbix_conn'};
+
     # make sure request body with all required fields is present
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless $context->{'request_body'};
     foreach my $missing_prop ( qw( intvl ) ) {
@@ -123,42 +121,31 @@ sub _new {
         }
     }
 
-    # this resource requires special ACL handling
+    # this resource requires special ACL handling; check_acl_context also adds
+    # the 'eid' property if it is missing
     my $status = check_acl_context( $context );
     return $status if $status->not_ok;
 
     # attempt to insert
-    return _insert_lock( %{ $context->{'request_body'} } );
+    return _insert_lock( $context );
 }
 
 # takes PROPLIST
 sub _insert_lock {
-    my @ARGS = @_;
-    $log->debug("Reached _insert_lock from " . (caller)[1] . " line " .  (caller)[2] . 
-                " with argument list " . Dumper( \@ARGS) );
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug("Reached " . __PACKAGE__ . "::_insert_lock" );
 
-    # make sure we got an even number of arguments
-    if ( @ARGS % 2 ) {
-        return $CELL->status_crit( "Odd number of arguments passed to _insert_lock!" );
-    }
-    my %proplist_before = @ARGS;
+    my %proplist_before = %{ $context->{'request_body'} };
     $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
         
-    # make sure we got something resembling a code
-    foreach my $missing_prop ( qw( eid intvl ) ) {
-        if ( not exists $proplist_before{$missing_prop} ) {
-            return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ $missing_prop ] );
-        }
-    }
-
     # spawn an object, filtering the properties first
-    my @filtered_args = App::Dochazka::Model::Lock::filter( @ARGS );
+    my @filtered_args = App::Dochazka::Model::Lock::filter( %proplist_before );
     my %proplist_after = @filtered_args;
     $log->debug( "Properties after filter: " . join( ' ', keys %proplist_after ) );
     my $int = App::Dochazka::REST::Model::Lock->spawn( @filtered_args );
 
     # execute the INSERT db operation
-    return $int->insert;
+    return $int->insert( $context );
 }
 
 1;

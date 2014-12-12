@@ -54,11 +54,11 @@ App::Dochazka::REST::LDAP - LDAP module (for authentication)
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 

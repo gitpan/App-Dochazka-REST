@@ -36,7 +36,6 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared qw( cud load load_multiple priv_by_eid );
 use DBI;
 use Params::Validate qw{:all};
@@ -57,11 +56,11 @@ App::Dochazka::REST::Model::Activity - activity data model
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -171,9 +170,12 @@ actually inserted. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_ACTIVITY_INSERT,
         attrs => [ 'code', 'long_desc', 'remark' ],
@@ -195,10 +197,14 @@ Returns status object.
 =cut
 
 sub update {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'aid'};
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $self->{'aid'};
+
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_ACTIVITY_UPDATE,
         attrs => [ 'code', 'long_desc', 'remark', 'disabled', 'aid' ],
@@ -218,9 +224,12 @@ a status object.
 =cut
 
 sub delete {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_ACTIVITY_DELETE,
         attrs => [ 'aid' ],
@@ -243,12 +252,14 @@ the AID is not found in the database, the code will be
 =cut
 
 sub load_by_aid {
-    # get and check parameters
     my $self = shift;
-    die "Not a method call" unless $self->isa( __PACKAGE__ );
-    my ( $aid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $aid ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_ACTIVITY_SELECT_BY_AID,
         keys => [ $aid ],
@@ -263,12 +274,14 @@ Analogous method to L<"load_by_aid">.
 =cut
 
 sub load_by_code {
-    # get and check parameters
     my $self = shift;
-    die "Not a method call" unless $self->isa( __PACKAGE__ );
-    my ( $code ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $code ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_ACTIVITY_SELECT_BY_CODE,
         keys => [ $code ],
@@ -309,9 +322,12 @@ Returns AID or undef on failure.
 =cut
 
 sub aid_by_code {
-    my ( $code ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $code ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
-    my $status = __PACKAGE__->load_by_code( $code );
+    my $status = __PACKAGE__->load_by_code( $conn, $code );
     return $status->payload->{'aid'} if $status->code eq 'DISPATCH_RECORDS_FOUND';
     return;
 }
@@ -329,6 +345,7 @@ otherwise only the non-disabled activities will be retrieved.
 =cut
 
 sub get_all_activities {
+    my $conn = shift;
     my %PH = validate( @_, { 
         disabled => { type => SCALAR, default => 0 }
     } );
@@ -338,6 +355,7 @@ sub get_all_activities {
         : $site->SQL_ACTIVITY_SELECT_ALL_EXCEPT_DISABLED;
 
     return load_multiple(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $sql,
         keys => [],

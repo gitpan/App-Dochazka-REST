@@ -42,14 +42,12 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use App::Dochazka::REST;
 use App::Dochazka::REST::Test;
 use Test::More;
 
-#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
@@ -109,7 +107,7 @@ foreach my $cl (
     ok( $testobj->{$id_map{$cl}} != 2397 );
     $testobj->{$id_map{$cl}} = 2397;
     is( $testobj->{$id_map{$cl}}, 2397 );
-    $status = $testobj->update;
+    my $status = $testobj->update( $faux_context );
     is( $status->level, 'NOTICE' );
     is( $status->code, 'DOCHAZKA_CUD_NO_RECORDS_AFFECTED' );
     is( $testobj->{$id_map{$cl}}, 2397 ); # object not restored, even though no records were affected
@@ -129,7 +127,7 @@ foreach my $cl (
     # of the SQL statement
     $testobj->{$id_map{$cl}} = '-153jjj*';
     is( $testobj->{$id_map{$cl}}, '-153jjj*' );
-    $status = $testobj->update;
+    $status = $testobj->update( $faux_context );
     is( $status->level, 'ERR' );
     is( $status->code, 'DOCHAZKA_DBI_ERR' );
     like( $status->text, qr/invalid input syntax for integer/ );
@@ -142,9 +140,9 @@ foreach my $cl (
     # attempt to change ID to 'undef'
     $testobj->{$id_map{$cl}} = undef;
     is( $testobj->{$id_map{$cl}}, undef );
-    $status = $testobj->update;
-    is( $status->level, 'CRIT' );
-    is( $status->code, 'DOCHAZKA_ID_MISSING_IN_UPDATE' );
+    $status = $testobj->update( $faux_context );
+    is( $status->level, 'ERR' );
+    is( $status->code, 'DOCHAZKA_MALFORMED_400' );
     
     # restore object to pristine state
     $testobj->{$id_map{$cl}} = $testclone->{$id_map{$cl}};

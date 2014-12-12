@@ -36,14 +36,18 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::LDAP;
-use App::Dochazka::REST::Model::Shared qw( load cud priv_by_eid schedule_by_eid noof );
+use App::Dochazka::REST::Model::Shared qw( cud load load_multiple noof priv_by_eid schedule_by_eid select_single );
 use Carp;
 use Data::Dumper;
 use DBI qw(:sql_types);
 use Params::Validate qw( :all );
 use Try::Tiny;
+
+# send DBI warnings to the log
+$SIG{__WARN__} = sub {
+    $log->notice( $_[0] );
+};
 
 # we get 'spawn', 'reset', and accessors from parent
 use parent 'App::Dochazka::Model::Employee';
@@ -59,11 +63,11 @@ App::Dochazka::REST::Model::Employee - Employee data model
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -93,7 +97,8 @@ The C<employees> database table is defined as follows:
 
     CREATE TABLE employees (
         eid       serial PRIMARY KEY,
-        nick      varchar(32) UNIQUE,
+        nick      varchar(32) UNIQUE NOT NULL,
+        sec_id    varchar(64) UNIQUE
         fullname  varchar(96) UNIQUE,
         email     text UNIQUE,
         passhash  text,
@@ -121,6 +126,14 @@ employees. Should the nick field have a value, however, Dochazka requires that
 it be unique.
 
 
+=head3 sec_id
+
+The secondary ID is an optional unique string identifying the employee.
+This could be useful at sites where employees already have a nick (username)
+and a numeric ID, for example, and the administrators need to have the 
+ability to look up employees by their numeric ID.
+
+
 =head3 fullname, email
 
 Dochazka does not maintain any history of changes to the C<employees> table. 
@@ -128,10 +141,10 @@ Dochazka does not maintain any history of changes to the C<employees> table.
 The C<full_name> and C<email> fields must also be unique if they have a
 value. Dochazka does not check if the email address is valid. 
 
-#
-# FIXME: NOT IMPLEMENTED depending on how C<App::Dochazka::REST> is configured,
-# these fields may be read-only for employees (changeable by admins only), or
-# the employee may be allowed to maintain their own information.
+Depending on how C<App::Dochazka::REST> is configured (see especially the
+C<DOCHAZKA_PROFILE_EDITABLE_FIELDS> site parameter), these fields may be
+read-only for employees (changeable by admins only), or the employee may be
+allowed to maintain their own information.
 
 
 =head3 passhash, salt
@@ -156,7 +169,7 @@ L<App::Dochazka::REST::Model::Employee>. The most important methods are:
 
 =item * constructor (L<spawn>)
 
-=item * basic accessors (L<eid>, L<fullname>, L<nick>, L<email>,
+=item * basic accessors (L<eid>, L<sec_id>, L<nick>, L<fullname>, L<email>,
 L<passhash>, L<salt>, L<remark>)
 
 =item * L<priv> (privilege "accessor" - but privilege info is not stored in
@@ -221,6 +234,23 @@ our @EXPORT_OK = qw( nick_exists eid_exists noof_employees_by_priv );
 
 =head1 METHODS
 
+The following functions expect to be called as methods on an employee object.
+
+The standard way to create an object containing an existing employee is to use
+'load_by_eid' or 'load_by_nick':
+
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( 'georg' );
+    return $status unless $status->ok;
+    my $georg = $status->payload;
+    $georg->remark( 'Likes to fly kites' );
+    $status = $georg->update;
+    return $status unless $status->ok;
+
+... and the like. To insert a new employee, do something like this:
+
+    my $friedrich = App::Dochazka::REST::Model::Employee->spawn( nick => 'friedrich' );
+    my $status = $friedrich->insert;
+    return $status unless $status->ok;
 
 =head2 priv
 
@@ -231,10 +261,15 @@ N.B.: for this method to work, the 'eid' attribute must be populated
 
 sub priv {
     my $self = shift;
-    my ( $timestamp ) = validate_pos( @_, { type => SCALAR, optional => 1 } );
-    $timestamp 
-        ? priv_by_eid( $self->eid, $timestamp )
-        : priv_by_eid( $self->eid );
+    my ( $conn, $timestamp ) = validate_pos( @_,
+       { isa => 'DBIx::Connector' },
+       { type => SCALAR, optional => 1 },
+    );
+    my $return_value = ( $timestamp )
+        ? priv_by_eid( $conn, $self->eid, $timestamp )
+        : priv_by_eid( $conn, $self->eid );
+    return if ref( $return_value );
+    return $return_value;
 }
 
 
@@ -247,10 +282,15 @@ N.B.: for this method to work, the 'eid' attribute must be populated
 
 sub schedule {
     my $self = shift;
-    my ( $timestamp ) = validate_pos( @_, { type => SCALAR, optional => 1 } );
-    $timestamp 
-        ? schedule_by_eid( $self->eid, $timestamp )
-        : schedule_by_eid( $self->eid );
+    my ( $conn, $timestamp ) = validate_pos( @_,
+       { isa => 'DBIx::Connector' },
+       { type => SCALAR, optional => 1 },
+    );
+    my $return_value = ( $timestamp )
+        ? schedule_by_eid( $conn, $self->eid, $timestamp )
+        : schedule_by_eid( $conn, $self->eid );
+    return if ref( $return_value );
+    return $return_value;
 }
 
 
@@ -263,16 +303,17 @@ actually inserted. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_EMPLOYEE_INSERT,
-        attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark' ],
+        attrs => [ 'sec_id', 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ],
     );
-    return $status->ok
-        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_INSERT_OK', args => [ $self->nick, $self->eid ],
-              payload => $status->payload )
-        : $status;
+    return $status;
 }
 
 
@@ -288,19 +329,19 @@ Returns status object.
 =cut
 
 sub update {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    # eid _MUST_ be defined
-    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'eid'};
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $self->{'eid'};
+
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_EMPLOYEE_UPDATE_BY_EID,
-        attrs => [ 'fullname', 'nick', 'email', 'passhash', 'salt', 'remark', 'eid' ],
+        attrs => [ 'sec_id', 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark', 'eid' ],
     );
-    return $status unless $status->ok;
-    return $CELL->status_err( "UPDATE failed (no payload) for unknown reason" ) unless $status->payload;
-    $CELL->status_ok( 'DISPATCH_EMPLOYEE_UPDATE_OK', args => [ $self->nick, $self->eid ],
-        payload => $status->payload );
+    return $status;
 }
 
 
@@ -314,17 +355,18 @@ to this EID. Returns a status object.
 =cut
 
 sub delete {
-    my ( $self ) = @_; 
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_EMPLOYEE_DELETE,
         attrs => [ 'eid' ],
     );
     #$self->reset( eid => $self->eid ) if $status->ok;
-    return $status->ok
-        ? $CELL->status_ok( 'DISPATCH_EMPLOYEE_DELETE_OK', args => [ $self->nick, $self->eid ] )
-        : $status;
+    return $status;
 }
 
 
@@ -336,13 +378,15 @@ Analogous method to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 =cut
 
 sub load_by_eid {
-    # get and check parameters
     my $self = shift;
-    die "Not a method call" unless $self->isa( __PACKAGE__ );
-    my ( $eid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $eid ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
     $log->debug( "Entering " . __PACKAGE__ . "::load_by_eid with argument $eid" );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_EMPLOYEE_SELECT_BY_EID,
         keys => [ $eid ],
@@ -357,13 +401,15 @@ Analogous method to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 =cut
 
 sub load_by_nick {
-    # get and check parameters
     my $self = shift;
-    die "Not a method call" unless $self->isa( __PACKAGE__ );
-    my ( $nick ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $nick ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
     $log->debug( "Entering " . __PACKAGE__ . "::load_by_nick with argument $nick" );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_EMPLOYEE_SELECT_BY_NICK,
         keys => [ $nick ], 
@@ -376,60 +422,6 @@ sub load_by_nick {
 =head1 FUNCTIONS
 
 The following functions are not object methods.
-
-
-=head2 select_multiple_by_nick
-
-Class method. Select multiple employees by nick. Returns a status object.
-If records are found, they will be in the payload (reference to an array of
-expurgated employee objects).
-
-=cut
-
-sub select_multiple_by_nick {
-    my $class = shift;
-    # sk means "search key"
-    my ( $sk ) = validate_pos( @_, { type => SCALAR, default => '%' } );
-
-    my $status = {};
-    my $sql = $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK;
-
-    $dbh->{RaiseError} = 1;
-    try {
-        local $SIG{__WARN__} = sub {
-                die @_;
-            };
-        my $sth = $dbh->prepare( $sql );
-        $sth->execute( $sk );
-        $log->debug( "SQL statement executed with search key ->$sk<-" );
-        my $result = []; 
-        my $counter = 0;
-        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) { 
-            $counter += 1;
-            my $emp = __PACKAGE__->spawn;
-            $emp->reset( %$tmpres );
-            push @$result, $emp;
-            #$log->info( Dumper( $result ) );
-        }   
-        $log->debug( "$counter records fetched" );
-        #$log->info( Dumper( $result ) );
-        if ( $counter > 0 ) { 
-            $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND',
-                args => [ $counter ], payload => { 'result_set' => $result , 
-                count => $counter, search_key => $sk } );
-        } else {
-            $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
-                payload => { 'result_set' => [], count => $counter, 
-                search_key => $sk } );
-        }   
-    } catch {
-        $status => $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ], payload => undef );  
-    };  
-    $dbh->{RaiseError} = 0;
-
-    $log->debug( Dumper( $status ) );
-    return $status;
-}
 
 
 
@@ -456,7 +448,7 @@ BEGIN {
 }
 
 
-=head2 noof
+=head2 noof_employees_by_priv
 
 Get number of employees. Argument can be one of the following:
 
@@ -465,11 +457,13 @@ Get number of employees. Argument can be one of the following:
 =cut
 
 sub noof_employees_by_priv {
-    my ( $priv ) = @_;
-    die "Problem with arguments" unless defined $priv;
+    my ( $conn, $priv ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     if ( $priv eq 'total' ) {
-        my $count = noof( 'employees' );
+        my $count = noof( $conn, 'employees' );
         return $CELL->status_ok( 
             'DISPATCH_COUNT_EMPLOYEES', 
             args => [ $count, $priv ], 
@@ -480,11 +474,12 @@ sub noof_employees_by_priv {
         $priv =~ m/^(passerby)|(inactive)|(active)|(admin)$/i;
 
     my $sql = $site->SQL_EMPLOYEE_COUNT_BY_PRIV_LEVEL;
-    my ( $count ) = $dbh->selectrow_array( $sql, undef, $priv );
+    my ( $count ) = select_single( conn => $conn, sql => $sql, keys => [ $priv ] );
     $count += 0;
     $CELL->status_ok( 'DISPATCH_COUNT_EMPLOYEES', args => [ $count, $priv ], 
         payload => { 'priv' => $priv, 'count' => $count } );
 }
+
 
 
 =head1 AUTHOR

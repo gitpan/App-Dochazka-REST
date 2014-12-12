@@ -37,17 +37,14 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $CELL $log $meta $core $site );
-use Carp;
-use DBI;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use Data::Dumper;
-use App::Dochazka::REST::Model::Activity;
 use File::ShareDir;
 use Log::Any::Adapter;
 use Params::Validate qw( :all );
 use Try::Tiny;
 use Web::Machine;
 
-use parent 'App::Dochazka::REST::dbh';
 
 
 
@@ -60,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 =head2 Development status
@@ -72,57 +69,65 @@ our $VERSION = '0.322';
 Dochazka is currently a Work In Progress (WIP). Do not expect it to do
 anything useful.
 
+The REST server component of Dochazka is nearing completion.
+
 
 
 
 =head1 SYNOPSIS
 
-This is the top-level module of the Dochazka REST server.
+This module, the top-level module of the Dochazka REST server, contains
+routines for (re-)initializing the database and initializing the server (mainly
+loading configuration parameters and starting the logger). 
 
-    use App::CELL qw( $CELL $log $meta $site );
-    use App::Dochazka::REST;
-    use Carp;
-
-    my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka' );
-    croak( $REST->{init_status}->text ) unless $REST->{init_status}->ok;
-
-Read on for documentation.
+The module also contains documentation of the Dochazka REST server as a whole.
 
 
 
 =head1 DESCRIPTION
 
-This is C<App::Dochazka::REST>, the Perl module that implements the REST
-interface, data model, and underlying database of Dochazka, the open-source
-Attendance/Time Tracking (ATT) system. 
+This distribution, L<App::Dochazka::REST>, including all the modules in C<lib/>,
+the scripts in C<bin/>, and the configuration files in C<config/>, constitute 
+the REST server component of Dochazka, the open-source Attendance/Time Tracking
+(ATT) system. 
 
 Dochazka as a whole aims to be a convenient, open-source ATT solution. Its
 reference implementation runs on the Linux platform. 
 
 
-=head2 Dochazka architecture
+=head2 Architecture
 
-There is more to Dochazka than C<App::Dochazka::REST>, of course. Dochazka REST
-is the "server component" of Dochazka, consisting of a Plack/PSGI web server
-(implemented using L<Web::Machine>) and a L<data model|"DATA MODEL">.
+Dochazka consists of three main components, a simplified overview of which
+could be:
 
-Once C<App::Dochazka::REST> is installed, configured, and running, a client
-will be need in order to actually use Dochazka.
+=over
 
-Though no client yet exists, two are planned: a command-line interface
-(L<App::Dochazka::CLI>) and a web front-end (L<App::Dochazka::WebGUI>).
-Stand-alone report generators and other utilities that may or may not ever
-be implemented can also be thought of as clients.
+=item * REST server (this module)
 
+The REST server listens for HTTP requests on a pre-defined port. If an incoming
+requests is determined to be authorized and provided it resolves to a
+"resource" (more on that below), it dispatches it to the resource handler (part
+of the REST server), which it into one or more SQL statements which are sent
+to the PostgreSQL database.
 
+=item * PostgreSQL database
 
-=head1 REST INTERFACE
+The PostgreSQL database is configured to listen for incoming SQL statements
+from the REST server. Based on these statements, it creates, retrieves,
+updates, and deletes (CRUD) employee attendance records and related data in the
+Dochazka database.
 
-L<App::Dochazka::REST> attempts to present a I<REST>ful interface to potential
-clients. To learn more about REST, its meaning and implications, see L<...>.
+=item * one or more Dochazka clients
 
-One of those implications is that clients communicate with the server using
-the HTTP protocol, which is described L<...|here>.
+Dochazka clients, such as L<App::Dochazka::WWW>, L<App::Dochazka::CLI>, and
+perhaps others, try to divine user intent and translate it into HTTP requests
+to the REST server.
+
+Anything that communicates with the REST server via HTTP requests --
+stand-alone report generators, specialized administration utilities, cronjobs,
+web browsers, etc. -- falls into this category.
+
+=back
 
 
 =head2 Basic parameters
@@ -135,12 +140,8 @@ all of its responses in UTF-8 as well.
 =head3 HTTP(S)
 
 In order to protect user passwords from network sniffing and other nefarious
-activities, the server may be set up to accept HTTPS requests only. Such a
-setup may use a reverse proxy or a dedicated SSL-capable server. Since
-HTTP-over-SSL is a complex topic, this document ignores it by assuming that
-all client-server communications take place in plain text. If this bothers
-you, you can read all occurrences of 'HTTP' in this document as meaning
-'HTTP and/or HTTPS'.
+activities, it is recommended that the server be set up to accept HTTPS
+requests only. 
 
 =head3 Self-documenting
 
@@ -197,7 +198,7 @@ Here are some examples of how to use B<curl> (or a web browser) to explore
 resources. These examples assume a vanilla installation of
 L<App::Dochazka::REST> with the default root password. The same commands can be
 used with a production server, but keep in mind that the resources you will see
-may be limited by your ACL privilege level.
+may be limited by your privilege level.
 
 =over 
 
@@ -322,9 +323,25 @@ dealt with in the next step ("Authorization/ACL check").
 =item * B<Authorization/ACL check>
 
 After the request is authenticated (i.e. associated with a known employee), the
-server examines the resource being requested and compares it with the employee's
-privilege level. If the privilege level is too low for the requested operation, 
-a "403 Forbidden" response is sent.
+server examines the ACL profile of the resource being requested and compares it
+with the employee's privilege level. If the privilege level is too low for the
+requested operation, a "403 Forbidden" response is sent.
+
+The ACL profile is part of the resource definition. It can be specified either
+as a single value for all HTTP methods, or as a hash, e.g.:
+
+    {
+        GET => 'passerby',
+        PUT => 'admin',
+        DELETE => 'admin',
+    }
+
+In certain operations (i.e., combinations of HTTP method and resource), the
+full range of functionality may be available only to administrators. See These
+operations are special cases. Their ACL profile is either 'inactive' or
+'active', but a non-administrator employee may still get a 403 Forbidden error
+on the operation if they are trying to do something, such as update an interval
+belonging to a different employee, that is reserved for administrators.
 
 =item * B<Test for resource existence>
 
@@ -333,10 +350,11 @@ test of resource existence. If the request is asking for a non-existent resource
 e.g. L<http://dochazka.site/employee/curent>, it cannot be fulfilled and a "404
 Not Found" response will be sent.
 
-For GET requests, this is the last cog in the state machine: if the test
-passes, a "200 OK" response is sent, along with a response body. Requests
-using other methods (POST, PUT, DELETE) are subject to further processing
-as described below.
+For GET requests, this is ordinarily the last cog in the state machine: if the
+test passes, a "200 OK" response is typically sent, along with a response body.
+(There are exceptions to this rule, however - see L<the AUTHORIZATION
+chapter|"AUTHORIZATION">.) Requests using other methods (POST, PUT, DELETE) are
+subject to further processing as described below.
 
 =back
 
@@ -369,13 +387,11 @@ sent.
 
 =over 
 
-=item * B<post_is_create>
-
-This test examines the POST request and places it into one of two
-categories: (1) generic request for processing, (2) a request that creates
-or otherwise manipulates a resource. 
-
-# FIXME: more verbiage needed
+#=item * B<post_is_create>
+#
+#This test examines the POST request and places it into one of two
+#categories: (1) generic request for processing, (2) a request that creates
+#or otherwise manipulates a resource. 
 
 =back
 
@@ -399,7 +415,7 @@ Dochazka data can be seen to exist in the following classes of objects:
 
 =item * Activities (what kinds of work are recognized)
 
-=item * Intervals ("work", "attendance", and/or "time tracked")
+=item * Intervals (the "work", or "attendance", itself)
 
 =item * Locks (determining whether a reporting period is locked or not)
 
@@ -408,24 +424,24 @@ Dochazka data can be seen to exist in the following classes of objects:
 These classes are described in the following sections.
 
 
-=head2 Policy
-
-Dochazka is configurable in a number of ways. Some configuration parameters
-are set once at installation time and, once set, can never be changed --
-these are referred to as "site policy" parameters.  Others, referred to as
-"site configuration parameters" or "site params", are set in configuration
-files such as C<Dochazka_SiteConfig.pm> (see L</SITE CONFIGURATION>) and
-can be changed more-or-less at will.
-
-The key difference between site policy and site configuration is that 
-site policy parameters cannot be changed, because changing them would
-compromise the referential integrity of the underlying database. 
-
-Site policy parameters are set at installation time and are stored, as a
-single JSON string, in the C<SitePolicy> table. This table is rendered
-effectively immutable by a trigger.
-
-For details, see L<App::Dochazka::REST::Model::Policy>.
+##=head2 Policy
+##
+##Dochazka is configurable in a number of ways. Some configuration parameters
+##are set once at installation time and, once set, can never be changed --
+##these are referred to as "site policy" parameters.  Others, referred to as
+##"site configuration parameters" or "site params", are set in configuration
+##files such as C<Dochazka_SiteConfig.pm> (see L</SITE CONFIGURATION>) and
+##can be changed more-or-less at will.
+##
+##The key difference between site policy and site configuration is that 
+##site policy parameters cannot be changed, because changing them would
+##compromise the referential integrity of the underlying database. 
+##
+##Site policy parameters are set at installation time and are stored, as a
+##single JSON string, in the C<SitePolicy> table. This table is rendered
+##effectively immutable by a trigger.
+##
+##For details, see L<App::Dochazka::REST::Model::Policy>.
 
 
 =head2 Employee
@@ -435,18 +451,32 @@ legal status -- in reality they might be independent contractors, or
 students, or even household pets, but as far as Dochazka is concerned they
 are employees. You could say that "employee" is the Dochazka term for "user". 
 
-Employees are distinguished by an internal employee ID number (EID), which is
-assigned by Dochazka itself when the employee record is created. For the 
-convenience of humans using the system, employees are also distinguished
-by a unique nickname, or 'nick'.
+The purpose of the Employee table/object is to store whatever data the site
+is accustomed to use to identify its employees.
 
-Other than the EID and the nick, which are required, Dochazka need not
-record any other employee identification data. That said, Dochazka has
-two additional employee identification fields (fullname, email), which some
-sites may wish to use, but these are optional and can be left blank.
-Dochazka does not verify the contents of these fields other than enforcing
-a UNIQUE constraint to ensure that two or more employees cannot have the
-exact same fullname or email address.
+Within Dochazka itself, employees are distinguished by an internal employee ID
+number (EID), which is assigned by Dochazka itself when the employee record is
+created. In addition, four other fields/properties are provided to identify
+the employee: 
+
+=over
+
+=item * nick
+
+=item * sec_id
+
+=item * fullname
+
+=item * email
+
+=back
+
+All four of these, plus the C<eid> field, have C<UNIQUE> constraints defined at
+the database level, meaning that duplicate entries are not permitted. However,
+of the four, only C<nick> is required.
+
+Depending on how authentication is set up, employee passwords may also be
+stored in this table, using the C<passhash> and C<salt> fields.
 
 For details, see L<App::Dochazka::REST::Model::Employee>.
 
@@ -698,6 +728,11 @@ for C<local> so it looks like this:
     # TYPE  DATABASE   USER   ADDRESS     METHOD
     local   all        all                password
 
+For the audit triggers to work (and the application will not run otherwise), we
+must to add the following line to the end of C<postgresql.conf>:
+
+    dochazka.eid = -1;
+
 Then, as root, we restart the postgresql service:
 
     bash# systemctl restart postgresql.service
@@ -728,7 +763,7 @@ and, second, a file therein:
 
     # cat << EOF > /etc/dochazka-rest/REST_SiteConfig.pm
     set( 'DOCHAZKA_REST_DEBUG_MODE', 1 );
-    set( 'DBINIT_CONNECT_AUTH', 'mypass' );
+    set( 'DBINIT_CONNECT_SUPERAUTH', 'mypass' );
     set( 'DOCHAZKA_REST_LOG_FILE', $ENV{'HOME'} . "/dochazka-rest.log" );
     set( 'DOCHAZKA_REST_LOG_FILE_RESET', 1);
     EOF
@@ -737,12 +772,11 @@ and, second, a file therein:
 Where 'mypass' is the PostgreSQL password you set in the 'ALTER
 ROLE' command, above.
 
-Strictly speaking, the C<DBINIT_CONNECT_AUTH> setting is only needed for
-database initialization (see below), when L<App::Dochazka::REST> connects
-to PostgreSQL as user 'postgres' to drop/create the database. Once the
-database is created, L<App::Dochazka::REST> connects to it using the
-PostgreSQL credentials set in the site parameters C<DOCHAZKA_DBUSER> and
-C<DOCHAZKA_DBPASS> (by default: C<dochazka> with password C<dochazka>).
+The C<DBINIT_CONNECT_SUPERAUTH> setting is only needed for database
+initialization (see below), when L<App::Dochazka::REST> connects to PostgreSQL
+as user 'postgres' to drop/create the database. Once the database is created,
+L<App::Dochazka::REST> connects to it using the PostgreSQL credentials of the
+current user.
 
 =item * B<Syslog setup>
 
@@ -785,11 +819,12 @@ Point your browser to L<http://localhost:5000/>
 =back
 
 
+
 =head1 AUTHENTICATION AND SESSION MANAGEMENT
 
-Since employees do not access the database directly, but only via the
-C<App::Dochazka::REST> web server, the web server needs to tie all incoming requests
-to an EID. 
+Employees do not access the database directly, but only via HTTP requests.
+For authorization and auditing purposes, L<App::Dochazka::REST> needs to tie
+all incoming requests to an EID. 
 
 When an incoming request comes in, the headers and cookies are examined.
 Requests that belong to an existing session have a cookie that looks like:
@@ -800,11 +835,13 @@ while requests for a new session have a header that looks like this:
 
     Authorize: 
 
+
 =head2 Existing session
 
-In the former case, the HTTP request will contain a 'psgix.session' key
-in its Plack environment. The value of this key is a hashref that contains
-the session state.
+In the former case, since the request is being intermediated by a Plack-aware
+web server, the request will be accompanied by a Plack environment (hashref)
+containing a 'psgix.session' key. The value of this key is a hashref that
+contains the session state.
 
 If the session state is valid, it will contain:
 
@@ -821,21 +858,55 @@ If the session state is valid, it will contain:
 If any of these are missing, or the difference between C<last_seen> and the
 current date/time is greater than the time interval defined in the
 C<DOCHAZKA_REST_SESSION_EXPIRATION_TIME>, the request is rejected with 401
-Unauthorized.
+Unauthorized. 
+
+This takes pace in the C<_validate_session> routine of
+L<App::Dochazka::REST::Resource>.
+
 
 =head2 New session
 
-Requests for a new session are subject to HTTP Basic Authentication. The
-credentials entered by the user can be authenticated against an external
-database (LDAP), and internal database (PostgreSQL 'employees' table), or both. 
+Requests for a new session are subject to HTTP Basic Authentication. To protect
+user credentials from network sniffing attacks, it is essential that the HTTP
+connection be encrypted using SSL.
 
-This yields the following possible combinations: internal auth only, external
-auth only, internal auth followed by external auth, and external auth followed
-by internal auth. The desired combination can be set in the site configuration.
+If the C<DOCHAZKA_LDAP> site parameter is set to a true value, the
+C<_authenticate> routine of L<App::Dochazka::REST::Resource> will attempt to 
+authenticate the request against an external resource using the LDAP protocol.
+
+LDAP authentication takes place in two phases:
+
+=over
+
+=item * lookup phase
+
+=item * authentication phase
+
+=back
+
+The purpose of the lookup phase is to determine if the user exists in the 
+LDAP resource and, if it does exist, to get its 'cn' property. In the second
+phase, the password entered by the user is compared with the password stored
+in the LDAP resource.
+
+If the LDAP lookup phase fails, or if LDAP is disabled, L<App::Dochazka::REST>
+falls back to "internal authentication", which means that the credentials are
+compared against the C<nick>, C<passhash>, and C<salt> fields of the
+C<employees> table in the database.
+
+To protect user credentials from snooping, the actual passwords are not stored
+in the database, Instead, they are run through a one-way hash function and
+the hash (along with a random "salt" string) is stored in the database instead
+of the password itself. Since some "one-way" hashing algorithms are subject to
+brute force attacks, the Blowfish algorithm was chosen to provide the best
+known protection.
 
 If the request passes Basic Authentication, a session ID is generated and 
 stored in a cookie. 
 
+
+
+=head1 AUTHORIZATION
 
 
 
@@ -864,24 +935,34 @@ debug messages will be logged.
 
 =head2 init
 
-Load site configuration, set up logging, and connect to the database.
+Load site configuration and set up logging.
 
 =cut
 
 sub init {
     my ( $class, @ARGS ) = @_;
-    croak( "Unbalanced PARAMHASH" ) if @ARGS % 2;
+    die( "Unbalanced PARAMHASH" ) if @ARGS % 2;
     my %ARGS = @ARGS;
-    my $status;
-    $status = $class->init_no_db( %ARGS );
-    $status = $class->connect_db unless $status->not_ok;
+
+    # load configuration parameters and set up logging
+    my $status = $class->init_no_db( %ARGS );
+    return $status unless $status->ok;
+
+    # initialize the $dbix_conn singleton
+    App::Dochazka::REST::ConnBank::init_singleton(
+        $site->DOCHAZKA_DBNAME,
+        $site->DOCHAZKA_DBUSER,
+        $site->DOCHAZKA_DBPASS,
+    );
+
+    my $eids = get_eid_of( $dbix_conn, "root", "demo" );
+    $site->set( 'DOCHAZKA_EID_OF_ROOT', $eids->{'root'} );
+    $site->set( 'DOCHAZKA_EID_OF_DEMO', $eids->{'demo'} );
+
     $log->info( "Configuration parameters loaded from sitedirs: " . Dumper( $meta->CELL_META_SITEDIR_LIST ) );
     $log->info( "Starting App::Dochazka::REST server" );
-    return bless { 
-        app         => Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app,
-        dbh         => $class->SUPER::dbh,
-        init_status => $status,
-    }, __PACKAGE__;
+    $status->payload( Web::Machine->new( resource => 'App::Dochazka::REST::Resource', )->to_app ); 
+    return $status;
 }
 
 
@@ -953,235 +1034,233 @@ sub _load_config {
 
 
 
-=head2 connect_db_pristine
+=head2 run_sql
 
-Connect to a pristine database. This function should be used only for newly
-created databases. Takes a PARAMHASH with 'dbname', 'dbuser', and 'dbpass'.
-For username and password, DBINIT_CONNECT_USER and DBINIT_CONNECT_AUTH are
-used. Returns status object which, on success, will contain the database
-handle in the payload.
-
-=cut
-
-sub connect_db_pristine {
-    my ( $class, @ARGS ) = @_;
-    #$log->info( "connect_db_pristine: received " . scalar @ARGS . " arguments" );
-    return $CELL->status_err( 'DOCHAZKA_BAD_PARAMHASH', args => [ 'connect_db_pristine' ] )
-        if @ARGS % 2;
-    my %ARGS = @ARGS;
-    $log->info( Dumper( \%ARGS ) ) if $ARGS{verbose};
-
-    my $data_source = "Dbi:Pg:dbname=$ARGS{dbname}";
-    $log->debug( "dbname is $ARGS{dbname}" );
-    $log->debug( "connect user is " . $ARGS{dbuser} );
-    $log->debug( "Opening database connection to data_source " .
-        "->$data_source<- username ->" . $ARGS{dbuser} . "<-" 
-    );
-    my $dbh;
-    $dbh = DBI->connect(
-        $data_source, 
-        $ARGS{dbuser},
-        $ARGS{dbpass},
-        {
-            PrintError => 0,
-            RaiseError => 0,
-            AutoCommit => 1,
-        },
-    ) or return $CELL->status_crit( DBI->errstr );
-    $class->SUPER::init( $dbh );
-    $log->notice( "Connected to " . $dbh->{Name} . 
-                  " as username " . $dbh->{Username} );
-    return $CELL->status_ok( 'OK', payload => $dbh );
-}
-
-
-    
-=head2 connect_db
-
-Connect to a pre-initialized database and initialize site params. This is
-the function that should be used in production. Database name, username and
-password are taken from DOCHAZKA_DBNAME, DOCHAZKA_DBUSER and DOCHAZKA_DBPASS,
-respectively.
+Takes a L<DBIx::Connector> object and an array of SQL statements. Runs them 
+one by one until an exception is thrown or the last statement completes
+successfully. Returns a status object which will be either OK or ERR.
+If NOT_OK, the error text will be in C<< $status->text >>.
 
 =cut
 
-sub connect_db {
-    my ( $self ) = @_;
-    my $data_source = "Dbi:Pg:dbname=" . $site->DOCHAZKA_DBNAME;
-    $log->info( "dbname is " . $site->DOCHAZKA_DBNAME );
-    $log->info( "connect user is " . $site->DOCHAZKA_DBUSER );
-    $log->debug( "Opening database connection to data_source " .
-        "->$data_source<- username ->" .  $site->DOCHAZKA_DBPASS . "<-" 
-    );
-    my $dbh = DBI->connect(
-        $data_source, 
-        $site->DOCHAZKA_DBUSER, 
-        $site->DOCHAZKA_DBPASS, 
-        {
-            PrintError => 0,
-            RaiseError => 0,
-            AutoCommit => 1,
-        },
-    ) or return $CELL->status_crit( DBI->errstr );
-    __PACKAGE__->SUPER::init( $dbh );
-
-    # initialize site params:
-
-    # 1. get EID of root employee
-    my ( $eid_of_root ) = $dbh->selectrow_array( 
-                            $site->DBINIT_SELECT_EID_OF_ROOT, 
-                            undef 
-                                                       );
-    $site->set( 'DOCHAZKA_EID_OF_ROOT', $eid_of_root );
-
-    $log->notice( "Connected to " . $dbh->{Name} . 
-                  " as username " . $dbh->{Username} );
+sub run_sql {
+    my ( $conn, @stmts ) = @_;
+    my $status;
+    try {
+        foreach my $stmt ( @stmts ) {
+            $log->debug( "Running SQL statement $stmt" );
+            $conn->run( fixup => sub { $_->do( $stmt ); } );
+        }
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return $status if $status;
     return $CELL->status_ok;
 }
+
+
+sub _do_audit_triggers {
+    my ( $mode, $conn ) = @_;
+
+    my $sql;
+    if ( $mode eq 'create' ) {
+        $sql = $site->DBINIT_CREATE_AUDIT_TRIGGERS;
+    } elsif ( $mode eq 'delete' ) {
+        $sql = $site->DBINIT_DELETE_AUDIT_TRIGGERS;
+    } else {
+        die "AAADFDGGGGGGAAAAAAAHHH! " . __PACKAGE__ . "::_do_audit_triggers";
+    }
+
+    my @prepped_sql;
+    foreach my $table ( @{ $site->DOCHAZKA_AUDIT_TABLES } ) {
+        my $sql_copy = $sql;
+        my $question_mark = quotemeta('?');
+        $log->debug( "Replacing question mark with $table" );
+        $sql_copy =~ s{$question_mark}{$table};
+        push( @prepped_sql, $sql_copy );
+    }
+    my $status = run_sql( 
+        $conn, 
+        @prepped_sql,
+    );
+    return $status;
+}
+
+
+=head2 create_audit_triggers
+
+Create the audit triggers. Wrapper for _do_audit_triggers
+
+=cut
+
+sub create_audit_triggers {
+    my $conn = shift;
+    return _do_audit_triggers( 'create', $conn );
+}
     
 
+=head2 delete_audit_triggers
+
+Delete the audit triggers. Wrapper for _do_audit_triggers
+
+=cut
+
+sub delete_audit_triggers {
+    my $conn = shift;
+    return _do_audit_triggers( 'delete', $conn );
+}
+    
 
 =head2 reset_db
 
-Drop and re-create a Dochazka database. Takes database name. Do not call
-when connected to an existing database. Be very, _very_, _VERY_ careful
-when calling this function.
+Drop and re-create a Dochazka database. Takes superuser credentials as
+arguments. 
+
+Be very, _very_, _VERY_ careful with this function.
 
 =cut
 
 sub reset_db {
-    my ( $self, $dbname ) = @_;
-    my $status;
+    my ( $superuser, $superpass ) = @_;
 
-    # connect to 'postgres' database
-    $status = __PACKAGE__->connect_db_pristine( 
-        dbname => 'postgres',
-        dbuser => $site->DBINIT_CONNECT_USER,
-        dbpass => $site->DBINIT_CONNECT_AUTH,
+    my $status;
+    my $dbname = $site->DOCHAZKA_DBNAME;
+    my $dbuser = $site->DOCHAZKA_DBUSER;
+    my $dbpass = $site->DOCHAZKA_DBPASS;
+    $log->debug( "Entering " . __PACKAGE__ . "::reset_db to (re-)initialize database $dbname with superuser credentials $superuser / $superpass" );
+
+    my $conn = App::Dochazka::REST::ConnBank::get_arbitrary_dbix_conn(
+        'postgres', $superuser, $superpass
+    );
+    $status = run_sql( 
+        $conn,
+        "DROP DATABASE IF EXISTS \"$dbname\"",
+        "DROP ROLE IF EXISTS $dbuser",
+        "CREATE ROLE \"$dbuser\" WITH LOGIN PASSWORD '$dbpass'",
+        "CREATE DATABASE \"$dbname\"",
+        "REVOKE CONNECT ON DATABASE \"$dbname\" FROM PUBLIC",
     );
     return $status unless $status->ok;
-    my $dbh = $status->payload;
 
-    $dbh->{AutoCommit} = 1;
-    $dbh->{RaiseError} = 1;
+    # create:
+    # - audit schema (see config/sql/audit_Config.pm)
+    # - all the Dochazka tables, functions, triggers, etc.
+    # - root employee
+    # - privhistory record for root
+    $conn = App::Dochazka::REST::ConnBank::get_arbitrary_dbix_conn(
+        $dbname, $superuser, $superpass
+    );
 
-    # drop user dochazka if it exists, otherwise ignore the error
-    try {
-        $dbh->do( 'DROP DATABASE IF EXISTS "' . $dbname . '"' );    
-        $dbh->do( 'DROP USER dochazka' );
-    };
+    if ( $site->DOCHAZKA_AUDITING ) {
+        $status = run_sql(
+            $conn,
+            @{ $site->DBINIT_AUDIT },
+        );
+        return $status unless $status->ok;
+    }
 
-    try {
-        $dbh->do( 'CREATE USER dochazka' );
-        $dbh->do( 'ALTER ROLE dochazka WITH PASSWORD \'dochazka\'' );
-        $dbh->do( 'CREATE DATABASE "' . $dbname . '"' );    
-        $dbh->do( 'GRANT ALL PRIVILEGES ON DATABASE "'.  $dbname . '" TO dochazka' );
-    } catch {
-        $status = $CELL->status_err( $DBI::errstr );
-    };
-    $dbh->disconnect;
-
-    # connect to dochazka database as superuser
-    $status = $self->connect_db_pristine( 
-        dbname => $site->DOCHAZKA_DBNAME,
-        dbuser => $site->DBINIT_CONNECT_USER,
-        dbpass => $site->DBINIT_CONNECT_AUTH,
-    );  
+    $status = run_sql(
+        $conn,
+        @{ $site->DBINIT_CREATE },
+    );
     return $status unless $status->ok;
-    $dbh = $status->payload;
 
+    # get EID of root employee that was just created, since
+    # we will need it in the second round of SQL statements
+    my $eids = get_eid_of( $conn, "root", "demo" );
+    $site->set( 'DOCHAZKA_EID_OF_ROOT', $eids->{'root'} );
+    $site->set( 'DOCHAZKA_EID_OF_DEMO', $eids->{'demo'} );
+
+    # the second round of SQL statements to make root employee immutable
+    # is taken from DBINIT_MAKE_ROOT_IMMUTABLE site param
+
+    # prep DBINIT_MAKE_ROOT_IMMUTABLE
+    # (replace ? with EID of root employee in all the statements
+    # N.B.: we avoid the /r modifier here because we might be using Perl # 5.012)
+    my @root_immutable_statements = map { 
+        local $_ = $_; s/\?/$eids->{'root'}/g; $_; 
+    } @{ $site->DBINIT_MAKE_ROOT_IMMUTABLE };
+
+    # prep DBINIT_GRANTS (replace the strings '$dbuser' and '$dbpass' with
+    # the DOCHAZKA_DBUSER and DOCHAZKA_DBPASS site params, respectively
+    my $dbname_search = quotemeta( '$dbname' );
+    my $dbuser_search = quotemeta( '$dbuser' );
+    my $dbpass_search = quotemeta( '$dbpass' );
+    my @grants = map {
+        local $_ = $_; 
+        s{$dbname_search}{$dbname}g; 
+        s{$dbuser_search}{$dbuser}g; 
+        s{$dbpass_search}{$dbpass}g; 
+        $_; 
+    } @{ $site->DBINIT_GRANTS };
+
+    # run the modified statements
+    $status = run_sql(
+        $conn,
+        @root_immutable_statements,
+        @grants,
+    );
+    return $status unless $status->ok;
+
+    # a third round of SQL statements to insert initial set of activities
     try {
-        $dbh->do( 'CREATE EXTENSION IF NOT EXISTS btree_gist' );
+        $conn->txn( fixup => sub {
+            my $sth = $_->prepare( $site->SQL_ACTIVITY_INSERT );
+            foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
+                $sth->bind_param( 1, $actdef->{code} );
+                $sth->bind_param( 2, $actdef->{long_desc} );
+                $sth->bind_param( 3, 'dbinit' );
+                $sth->execute;
+            }
+        } );
     } catch {
-        $status = $CELL->status_err( $dbh->errstr );
-    };
-    $dbh->disconnect;
-
-    $log->notice( 'Database ' . $dbname . ' dropped and re-created' ) if $status->ok;
-    return $status;
-}
-
-
-=head2 create_tables
-
-Takes a database handle, on which it executes all the SQL statements contained
-in DBINIT_CREATE param.
-
-=cut
-
-sub create_tables {
-    my ( $self, $dbh ) = @_;
-    croak "Bad database handle" unless $dbh->ping;
-    my ( $status, $eid_of_root, $counter );
-
-    $dbh->{AutoCommit} = 0;
-    $dbh->{RaiseError} = 1;
-
-    try {
-        my $counter = 0;
-
-        # run first round of SQL statements to set up tables and such
-        foreach my $sql ( @{ $site->DBINIT_CREATE } ) {
-            $counter += 1;
-            $dbh->do( $sql );
-        }
-
-        # get EID of root employee that was just created, since
-        # we will need it in the second round of SQL statements
-        ( $eid_of_root ) = $dbh->selectrow_array( 
-                                $site->DBINIT_SELECT_EID_OF_ROOT, 
-                                undef 
-                                                );
-        $counter += 1;
-
-        # the second round of SQL statements to make root employee immutable
-        # is taken from DBINIT_MAKE_ROOT_IMMUTABLE site param
-
-        # (replace ? with EID of root employee in all the statements
-        # N.B.: we avoid the /r modifier here because we might be using Perl # 5.012)
-
-        my @statements = map { local $_ = $_; s/\?/$eid_of_root/g; $_; } 
-                         @{ $site->DBINIT_MAKE_ROOT_IMMUTABLE };
-
-        # run the modified statements
-        foreach my $sql ( @statements ) {
-            $counter += 1;
-            $dbh->do( $sql );
-        }
-
-        # a third round of SQL statements to insert initial set of activities
-        my $sth = $dbh->prepare( $site->SQL_ACTIVITY_INSERT );
-        foreach my $actdef ( @{ $site->DOCHAZKA_ACTIVITY_DEFINITIONS } ) {
-            $sth->bind_param( 1, $actdef->{code} );
-            $sth->bind_param( 2, $actdef->{long_desc} );
-            $sth->bind_param( 3, 'dbinit' );
-            $sth->execute;
-            $counter += 1;
-        }
-        
-        $log->notice( "create_tables issued $counter SQL statements" );
-        $dbh->commit;
-        $status = $CELL->status_ok;
-    } catch {
-        $dbh->rollback;
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-
-    $dbh->{AutoCommit} = 1;
-    $dbh->{RaiseError} = 0;
-
+    return $status unless $status->ok;
+    
+    # create:
+    # - audit triggers on all the tables
+    if ( $site->DOCHAZKA_AUDITING ) {
+        $status = create_audit_triggers( $conn );
+        return $status unless $status->ok;
+    }
+    
+    $log->notice( "Database $dbname successfully (re-)initialized" );
     return $status;
 }
 
 
-=head2 eid_of_root
+=head2 get_eid_of
 
-Instance method. Returns EID of the 'root' employee.
+Obtain the EIDs of a list of employee nicks. Returns a reference to a hash
+where the keys are the nicks and the values are the corresponding EIDs.
+
+NOTE 1: This routine expects to receive a L<DBIx::Connector> object as its
+first argument. It does not use the C<$dbix_conn> singleton.
+
+NOTE 2: The nicks are expected to exist and no provision (other than logging a
+DOCHAZKA_DBI_ERR) is made for their non-existence.
 
 =cut
 
-sub eid_of_root {
-    return $site->DOCHAZKA_EID_OF_ROOT;
+sub get_eid_of {
+    my ( $conn, @nicks ) = @_;
+    $log->debug( "Entering " . __PACKAGE__ . "::get_eid_of" );
+    my ( %eids, $status );
+    try {
+        $conn->run( fixup => sub { 
+            my $sth = $_->prepare( $site->DBINIT_SELECT_EID_OF );
+            foreach my $nick ( @nicks ) {
+                $sth->bind_param( 1, $nick );
+                $sth->execute;
+                ( $eids{$nick} ) = $sth->fetchrow_array();
+                $log->debug( "EID of $nick is $eids{$nick}" );
+            }
+        } );
+    } catch {
+        $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return \%eids;
 }
 
 

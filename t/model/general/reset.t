@@ -39,9 +39,9 @@ use warnings FATAL => 'all';
 use App::CELL qw( $meta $site );
 use Data::Dumper;
 use DBI;
-use App::Dochazka::REST;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Shared qw( noof );
+use App::Dochazka::REST::Test;
 use Test::Fatal;
 use Test::More;
 
@@ -49,8 +49,9 @@ use Test::More;
 
 #plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
@@ -65,6 +66,7 @@ my %props_dispatch = (
     },
     'Employee' => {
         eid => undef,
+        sec_id => undef,
         nick => 'missreset',
         fullname => 'Miss Reset Machine',
         email => 'parboiled@reset-pieces.com',

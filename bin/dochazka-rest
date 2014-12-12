@@ -53,11 +53,11 @@ dochazka-rest - App::Dochazka::REST server startup script
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -75,14 +75,12 @@ Run this script from the bash prompt to start the server.
 
 print "App::Dochazka::REST ver. $VERSION\n";
 print "Initializing and connecting to database\n";
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest', debug_mode => 1 );
-my $status = $REST->{init_status};
-print $status->text unless $status->ok;
+my $status = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest', debug_mode => 1 );
+die $status->text unless $status->ok;
 print "Log messages will be written to " . $site->DOCHAZKA_REST_LOG_FILE .  "\n";
 print "Starting server\n";
 
-my $app = $REST->{'app'};
-
+my $app = $status->payload;
 my $runner = Plack::Runner->new;
 
 # FIXME: parse @ARGV looking for 'host' and 'port' - if both are present, fine.

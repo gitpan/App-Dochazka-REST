@@ -39,7 +39,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $meta $site );
-use App::Dochazka::REST;
 use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
@@ -47,17 +46,18 @@ use Plack::Test;
 use Test::JSON;
 use Test::More;
 
+
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
+
+#diag( "Just created a " . ref( $test ) . " object for testing" );
 
 my $res;
 
@@ -189,6 +189,41 @@ req( $test, 405, 'demo', 'DELETE', 'bugreport' );
 req( $test, 405, 'root', 'DELETE', 'bugreport' );
 
 
+
+my $eid_of_inactive = create_inactive_employee( $test );
+my $eid_of_active = create_active_employee( $test );
+
+
+
+#=============================
+# "dbstatus" resource
+#=============================
+my $base = 'dbstatus';
+docu_check( $test, $base );
+#
+# GET
+#
+# - as demo
+req( $test, 403, 'demo', 'GET', $base );
+#
+# - as inactive, active, and root
+foreach my $user ( 'inactive', 'active', 'root' ) {
+    $status = req( $test, 200, $user, 'GET', $base );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DOCHAZKA_DBSTATUS' );
+}
+#
+# PUT, POST, DELETE
+#
+foreach my $method ( 'PUT', 'POST', 'DELETE' ) {
+    foreach my $user ( qw( demo inactive active root ) ) {
+        req( $test, 405, $user, $method, $base );
+    }
+}
+
+
+
+#=============================
 #=============================
 # "docu" resource
 #=============================
@@ -806,5 +841,8 @@ foreach my $user ( qw( demo root ) ) {
         $status = req( $test, 405, $user, $method, 'whoami' );
     }
 }
+
+delete_employee_by_nick( $test, 'active' );
+delete_employee_by_nick( $test, 'inactive' );
 
 done_testing;

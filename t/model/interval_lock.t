@@ -41,8 +41,7 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Dispatch::Schedule;
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Interval qw( iid_exists );
@@ -50,21 +49,21 @@ use App::Dochazka::REST::Model::Lock qw( lid_exists );
 use App::Dochazka::REST::Model::Schedule;
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Shared qw( noof );
+use App::Dochazka::REST::Test;
 use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow tsrange_equal );
-use Scalar::Util qw( blessed );
 use Test::More;
 
-# plan tests
-#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
+
 # spawn interval object
 my $int = App::Dochazka::REST::Model::Interval->spawn;
-ok( blessed( $int ) );
+isa_ok( $int, 'App::Dochazka::REST::Model::Interval' );
 
 # to insert an interval, we need an employee, an activity, a schedule, and a schedhistory
 # record - but just to trigger the error we will hold off the last two
@@ -73,14 +72,14 @@ ok( blessed( $int ) );
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
     nick => 'mrsched',
 );
-$status = $emp->insert;
+$status = $emp->insert( $faux_context );
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );
 ok( $emp->eid > 0 );
-is( noof( 'employees'), 3 );
+is( noof( $dbix_conn, 'employees'), 3 );
 
 # load 'WORK'
-$status = App::Dochazka::REST::Model::Activity->load_by_code( 'work' );
+$status = App::Dochazka::REST::Model::Activity->load_by_code( $dbix_conn, 'work' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
 my $work = $status->payload;
 ok( $work->aid > 0 );
@@ -95,14 +94,14 @@ $int->{remark} = 'TEST INTERVAL';
 is( $int->iid, undef );
 
 # Insert the interval
-$status = $int->insert;
+$status = $int->insert( $faux_context );
 #diag( $status->code . " " . $status->text ) unless $status->ok;
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/insufficient privileges: check employee privhistory/ );
 
 # Hmm - what is Mr. Sched's current privlevel anyway?
-is( $emp->priv, 'passerby' );
+is( $emp->priv( $dbix_conn ), 'passerby' );
 # ^^^ the reason for this is Mr.Sched has no privhistory
 
 # make him active
@@ -111,13 +110,13 @@ my $mrsched_ph = App::Dochazka::REST::Model::Privhistory->spawn(
     priv => 'active',
     effective => '2014-01-01 00:00'
 );
-$status = $mrsched_ph->insert;
+$status = $mrsched_ph->insert( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
-is( $emp->priv, 'active');
+is( $emp->priv( $dbix_conn ), 'active');
 
 # Try again to insert the interval
-$status = $int->insert;
+$status = $int->insert( $faux_context );
 #diag( $status->code . " " . $status->text ) unless $status->ok;
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
@@ -126,7 +125,11 @@ like( $status->text, qr/employee schedule for this interval cannot be determined
 # so we have to insert a schedule and a schedhistory record as well
 #
 # - prepare a mock request context
-my $context = { 'request_body' => { 'schedule' => [ '[2014-01-02 08:00, 2014-01-02 12:00)' ] } };
+my $context = { 
+    'dbix_conn' => $dbix_conn,
+    'current' => { 'eid' => 1 },
+    'request_body' => { 'schedule' => [ '[2014-01-02 08:00, 2014-01-02 12:00)' ] },
+};
 #
 # - send it to App::Dochazka::REST::Dispatch::Schedule::_intervals_post
 $status = App::Dochazka::REST::Dispatch::Schedule::_intervals_post( $context );
@@ -141,12 +144,12 @@ my $shr = App::Dochazka::REST::Model::Schedhistory->spawn(
     sid => $test_sid,
     effective => "$today 00:00"
 );
-$status = $shr->insert;
+$status = $shr->insert( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # and now we can insert the object
-$status = $int->insert;
+$status = $int->insert( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 ok( $int->iid > 0 );
@@ -156,12 +159,12 @@ my $saved_iid = $int->iid;
 ok( $int->iid > 0 );
 is( $int->eid, $emp->eid );
 is( $int->aid, $work->aid );
-ok( tsrange_equal( $int->intvl, $intvl ) );
+ok( tsrange_equal( $dbix_conn->dbh, $int->intvl, $intvl ) );
 is( $int->long_desc, 'Pencil pushing' );
 is( $int->remark, 'TEST INTERVAL' );
 
 # load_by_iid
-$status = App::Dochazka::REST::Model::Interval->load_by_iid( $saved_iid );
+$status = App::Dochazka::REST::Model::Interval->load_by_iid( $dbix_conn, $saved_iid );
 diag( $status->text ) unless $status->ok;
 ok( $status->ok );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
@@ -177,17 +180,17 @@ my $lock = App::Dochazka::REST::Model::Lock->spawn(
     intvl => "[$today 00:00, $today 24:00)",
     remark => 'TESTING',
 );
-ok( blessed( $lock ) );
+isa_ok( $lock, 'App::Dochazka::REST::Model::Lock' );
 #diag( Dumper( $lock ) );
 
 # insert the lock object
-is( noof( 'locks' ), 0 );
-$status = $lock->insert;
-is( noof( 'locks' ), 1 );
+is( noof( $dbix_conn, 'locks' ), 0 );
+$status = $lock->insert( $faux_context );
+is( noof( $dbix_conn, 'locks' ), 1 );
 my $t_lid = $status->payload->lid;
 
 # attept to delete the testing interval
-$status = $int->delete;
+$status = $int->delete( $faux_context );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/interval is locked/ );
@@ -201,7 +204,7 @@ my $vio_ph = App::Dochazka::REST::Model::Privhistory->spawn(
     priv => 'passerby',
     effective => "$today 10:00"
 );
-$status = $vio_ph->insert;
+$status = $vio_ph->insert( $faux_context );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/effective timestamp conflicts with existing attendance interval/ );
@@ -212,50 +215,50 @@ my $vio_sh = App::Dochazka::REST::Model::Schedhistory->spawn(
     sid => $test_sid,
     effective => "$today 10:00"
 );
-$status = $vio_ph->insert;
+$status = $vio_ph->insert( $faux_context );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/effective timestamp conflicts with existing attendance interval/ );
 
 # CLEANUP:
 # 1. delete the lock
-ok( lid_exists( $t_lid ) );
-is( noof( 'locks' ), 1 );
-$status = $lock->delete;
+ok( lid_exists( $dbix_conn, $t_lid ) );
+is( noof( $dbix_conn, 'locks' ), 1 );
+$status = $lock->delete( $faux_context );
 ok( $status->ok );
-ok( ! lid_exists( $t_lid ) );
-is( noof( 'locks' ), 0 );
+ok( ! lid_exists( $dbix_conn, $t_lid ) );
+is( noof( $dbix_conn, 'locks' ), 0 );
 
 # 2. delete the interval
-ok( iid_exists( $t_iid ) );
-is( noof( 'intervals' ), 1 );
-$status = $int->delete;
+ok( iid_exists( $dbix_conn, $t_iid ) );
+is( noof( $dbix_conn, 'intervals' ), 1 );
+$status = $int->delete( $faux_context );
 ok( $status->ok );
-ok( ! iid_exists( $t_iid ) );
-is( noof( 'intervals' ), 0 );
+ok( ! iid_exists( $dbix_conn, $t_iid ) );
+is( noof( $dbix_conn, 'intervals' ), 0 );
 
 # 3. delete the privhistory record
-$status = $mrsched_ph->delete;
+$status = $mrsched_ph->delete( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # 4. delete the schedhistory record
-$status = $shr->delete;
+$status = $shr->delete( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # 5. delete the schedule
-$status = App::Dochazka::REST::Model::Schedule->load_by_sid( $test_sid );
+$status = App::Dochazka::REST::Model::Schedule->load_by_sid( $dbix_conn, $test_sid );
 is( $status->level, 'OK' );
 is( $status->code, 'DISPATCH_RECORDS_FOUND' );
-$status = $status->payload->delete;
+$status = $status->payload->delete( $faux_context );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
 
 # 6. delete Mr. Sched himself
-is( noof( 'employees' ), 3 );
-$status = $emp->delete;
+is( noof( $dbix_conn, 'employees' ), 3 );
+$status = $emp->delete( $faux_context );
 ok( $status->ok );
-is( noof( 'employees' ), 2 );
+is( noof( $dbix_conn, 'employees' ), 2 );
 
 done_testing;

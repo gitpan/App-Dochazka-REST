@@ -40,7 +40,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site $meta );
-use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::ConnBank qw( conn_status );
 use App::Dochazka::REST::Dispatch::Employee;
 use App::Dochazka::REST::Dispatch::Priv;
 use App::Dochazka::REST::Dispatch::Shared qw( not_implemented );
@@ -51,6 +51,7 @@ use Data::Dumper;
 use Params::Validate qw( :all );
 #use Scalar::Util qw( blessed );
 use Test::Deep::NoTest;
+use Try::Tiny;
 
 #use parent 'App::Dochazka::REST::Resource';
 
@@ -67,11 +68,11 @@ App::Dochazka::REST::Dispatch - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -125,6 +126,43 @@ sub _echo {
             ? undef
             : $body
     );
+}
+
+
+sub _get_dbstatus {
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug( "Entering " . __PACKAGE__ . "::_get_dbstatus" );
+    $log->debug( "DBIx::Connector object: " . ref( $context->{'dbix_conn'} ) );
+    my $conn = $context->{'dbix_conn'};
+    return $CELL->status_crit( "DOCHAZKA_NO_DBIX_CONNECTOR" ) unless ref( $conn ) eq 'DBIx::Connector';
+    my $dbh = $conn->dbh;
+    my $noof_connections;
+    my $status;
+    try {
+        $conn->run( fixup => sub { 
+            ( $noof_connections ) = $_->selectrow_array( 
+                $site->SQL_NOOF_CONNECTIONS,
+                undef,
+            );
+        } );
+        $log->notice( "Current number of DBI connections is $noof_connections" ); 
+        my $dbstatus = conn_status( $conn );
+        $status = $CELL->status_ok( 
+            'DOCHAZKA_DBSTATUS', 
+            args => [ $dbstatus ],
+            payload => { 
+                'conn_status' => $dbstatus,
+                'dbmsname' => $dbh->get_info(17),
+                'dbmsver' => $dbh->get_info(18),
+                'username' => $dbh->{Username},
+                'noof_connections' => ( $noof_connections += 0 ),
+            } 
+        );
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+
+    return $status;
 }
 
 

@@ -39,15 +39,20 @@ package App::Dochazka::REST::Test;
 use strict;
 use warnings;
 
-use App::CELL qw( $CELL );
+use App::CELL qw( $CELL $meta $site );
+use App::Dochazka::REST::ConnBank qw( $dbix_conn conn_status );
+use App::Dochazka::REST::Dispatch::Employee qw( hash_the_password );
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
 use App::Dochazka::REST::Model::Schedhistory qw( get_schedhistory );
+use App::Dochazka::REST::Model::Shared qw( select_single );
+use Authen::Passphrase::SaltedDigest;
 use Data::Dumper;
 use HTTP::Request::Common qw( GET PUT POST DELETE );
 use JSON;
-use Params::Validate;
+use Params::Validate qw( :all );
 use Test::JSON;
 use Test::More;
+use Try::Tiny;
 
 
 
@@ -61,11 +66,11 @@ App::Dochazka::REST::Test - Test helper functions
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -86,19 +91,15 @@ This module provides helper code for unit tests.
 
 use Exporter qw( import );
 our @EXPORT = qw( 
+    initialize_unit $faux_context
     req dbi_err docu_check 
     create_testing_employee create_active_employee create_inactive_employee
     delete_testing_employee delete_employee_by_nick
     create_testing_activity delete_testing_activity
     create_testing_schedule delete_testing_schedule 
-    gen_activity
-    gen_employee
-    gen_interval
-    gen_lock
-    gen_privhistory
-    gen_schedhistory
-    gen_schedule
-    test_sql_success test_sql_failure
+    gen_activity gen_employee gen_interval gen_lock
+    gen_privhistory gen_schedhistory gen_schedule
+    test_sql_success test_sql_failure do_select_single
 );
 
 
@@ -107,6 +108,9 @@ our @EXPORT = qw(
 =head1 PACKAGE VARIABLES
 
 =cut
+
+# faux context
+our $faux_context;
 
 # dispatch table with references to HTTP::Request::Common functions
 my %methods = ( 
@@ -122,6 +126,35 @@ my %methods = (
 =head1 FUNCTIONS
 
 =cut
+
+
+=head2 initialize_unit
+
+Perform the boilerplate tasks that have to be done at the beginning of every unit
+that accesses the REST server and/or the database.
+
+=cut
+
+sub initialize_unit {
+
+    require App::Dochazka::REST;
+
+    my $status = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest', verbose => 1, debug_mode => 1 );
+    return $status unless $status->ok;
+
+    is( $status->level, 'OK' );
+    ok( $site->DOCHAZKA_EID_OF_ROOT );
+    ok( $site->DOCHAZKA_EID_OF_DEMO );
+
+    $faux_context = { 'dbix_conn' => $dbix_conn, 'current' => { 'eid' => 1 } };
+    $meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+
+    # get database handle and ping the database just to be sure
+    my $rc = conn_status();
+    is( $rc, "UP", "PostgreSQL database is alive" );
+
+    return $status;
+}
 
 
 =head2 status_from_json
@@ -160,6 +193,11 @@ otherwise.
 sub req {
     my ( $test, $code, $user, $method, $resource, $json ) = validate_pos( @_, 1, 1, 1, 1, 1, 0 );
 
+    if ( ref( $test ) ne 'Plack::Test::MockHTTP' ) {
+        diag( "Plack::Test::MockHTTP object not passed to 'req' from " . (caller)[1] . " line " . (caller)[2] );
+        BAIL_OUT(0);
+    }
+
     # assemble request
     my %pl = (
         Accept => 'application/json',
@@ -180,6 +218,7 @@ sub req {
     } elsif ( $user eq 'demo' ) {
         $pass = 'demo';
     } else {
+        #diag( "Unusual user $user - trying password $user" );
         $pass = $user;
     }
 
@@ -229,6 +268,14 @@ and resource name without quotes)
 
 sub docu_check {
     my ( $test, $resource ) = @_;
+
+    #diag( "Entering " . __PACKAGE__ . "::docu_check with argument $resource" );
+
+    if ( ref( $test ) ne 'Plack::Test::MockHTTP' ) {
+        diag( "Plack::Test::MockHTTP object not passed to 'req' from " . (caller)[1] . " line " . (caller)[2] );
+        BAIL_OUT(0);
+    }
+
     my $tn = "docu_check $resource ";
     my $t = 0;
     my ( $docustr, $docustr_len );
@@ -274,16 +321,23 @@ Tests will need to set up and tear down testing employees
 =cut
 
 sub create_testing_employee {
-    my %PROPS = @_;  # must be at least nick
+    my ( $PROPS ) = validate_pos( @_,
+        { type => HASHREF },
+    );
 
-    my $emp = App::Dochazka::REST::Model::Employee->spawn( \%PROPS );
+    hash_the_password( $PROPS );
+
+    my $emp = App::Dochazka::REST::Model::Employee->spawn( $PROPS );
     is( ref($emp), 'App::Dochazka::REST::Model::Employee', 'create_testing_employee 1' );
-    my $status = $emp->insert;
+
+    my $status = $emp->insert( $faux_context );
     if ( $status->not_ok ) {
         diag( Dumper $status );
         BAIL_OUT(0);
     }
+
     is( $status->level, "OK", 'create_testing_employee 2' );
+    is( ref( $status->payload ), 'App::Dochazka::REST::Model::Employee' );
     return $status->payload;
 }
 
@@ -296,7 +350,7 @@ Create testing employee with 'active' privilege
 
 sub create_active_employee {
     my ( $test ) = @_;
-    my $eid_of_active = create_testing_employee( nick => 'active', passhash => 'active' )->{'eid'};
+    my $eid_of_active = create_testing_employee( { nick => 'active', password => 'active' } )->{'eid'};
     my $status = req( $test, 200, 'root', 'POST', "priv/history/eid/$eid_of_active", 
         '{ "effective":"1000-01-01", "priv":"active" }' );
     ok( $status->ok, "Create active employee 2" );
@@ -313,7 +367,7 @@ Create testing employee with 'active' privilege
 
 sub create_inactive_employee {
     my ( $test ) = @_;
-    my $eid_of_inactive = create_testing_employee( nick => 'inactive', passhash => 'inactive' )->{'eid'};
+    my $eid_of_inactive = create_testing_employee( { nick => 'inactive', password => 'inactive' } )->{'eid'};
     my $status = req( $test, 200, 'root', 'POST', "priv/history/eid/$eid_of_inactive", 
         '{ "effective":"1000-01-01", "priv":"inactive" }' );
     ok( $status->ok, "Create inactive employee 2" );
@@ -329,15 +383,15 @@ Tests will need to set up and tear down testing employees (takes EID)
 =cut
 
 sub delete_testing_employee {
-    my $eid = shift;
-    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    my $eid = shift;  
+    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $dbix_conn, $eid );
     if ( $status->not_ok ) {
         diag( Dumper $status );
         BAIL_OUT(0);
     }
     is( $status->level, 'OK', 'delete_testing_employee 1' );
     my $emp = $status->payload;
-    $status = $emp->delete;
+    $status = $emp->delete( $faux_context );
     if ( $status->not_ok ) {
         diag( Dumper $status );
         BAIL_OUT(0);
@@ -358,7 +412,7 @@ sub delete_employee_by_nick {
     my ( $res, $status );
 
     # get and delete privhistory
-    $status = get_privhistory( nick => $nick );
+    $status = get_privhistory( $faux_context, nick => $nick );
     if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
         my $ph = $status->payload->{'history'};
         # delete the privhistory records one by one
@@ -374,7 +428,7 @@ sub delete_employee_by_nick {
     }
 
     # get and delete schedhistory
-    $status = get_schedhistory( nick => $nick );
+    $status = get_schedhistory( $faux_context, nick => $nick );
     if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
         my $sh = $status->payload->{'history'};
         # delete the schedhistory records one by one
@@ -395,7 +449,7 @@ sub delete_employee_by_nick {
     $status = req( $test, 200, 'root', 'DELETE', "employee/nick/$nick" );
     BAIL_OUT($status->text) unless $status->ok;
     is( $status->level, 'OK', "Delete employee by nick 6" );
-    is( $status->code, 'DISPATCH_EMPLOYEE_DELETE_OK', "Delete employee by nick 7" );
+    is( $status->code, 'DOCHAZKA_CUD_OK', "Delete employee by nick 7" );
 
     return;
 }
@@ -412,7 +466,7 @@ sub create_testing_activity {
 
     my $act = App::Dochazka::REST::Model::Activity->spawn( \%PROPS );
     is( ref($act), 'App::Dochazka::REST::Model::Activity', 'create_testing_activity 1' );
-    my $status = $act->insert;
+    my $status = $act->insert( $faux_context );
     if ( $status->not_ok ) {
         BAIL_OUT( $status->code . " " . $status->text );
     }
@@ -429,10 +483,11 @@ Tests will need to set up and tear down testing activities
 
 sub delete_testing_activity {
     my $aid = shift;
-    my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $aid );
+
+    my $status = App::Dochazka::REST::Model::Activity->load_by_aid( $dbix_conn, $aid );
     is( $status->level, 'OK', 'delete_testing_activity 1' );
     my $act = $status->payload;
-    $status = $act->delete;
+    $status = $act->delete( $faux_context );
     is( $status->level, 'OK', 'delete_testing_activity 2' );
     return;
 }
@@ -478,14 +533,15 @@ only argument.
 
 sub delete_testing_schedule {
     my ( $sid ) = @_;
-    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $sid );
+
+    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $dbix_conn, $sid );
     is( $status->level, 'OK', 'delete_testing_schedule 1' );
     if ( $status->not_ok ) {
         diag( Dumper $status );
         BAIL_OUT(0);
     }
     my $sched = $status->payload;
-    $status = $sched->delete;
+    $status = $sched->delete( $faux_context );
     is( $status->level, 'OK', 'delete_testing_schedule 2' );
     if ( $status->not_ok ) {
         diag( Dumper $status );
@@ -507,7 +563,11 @@ sub gen_activity {
 
         # create 'FOOBAR' activity
         my $act = App::Dochazka::REST::Model::Activity->spawn( code => $code );
-        my $status = $act->insert;
+        my $status = $act->insert( $faux_context );
+        if( $status->level ne 'OK' ) {
+            diag( Dumper $status );
+            BAIL_OUT(0);
+        }
         is( $status->level, 'OK' );
         $act = $status->payload;
         is( $act->code, $code );
@@ -516,15 +576,15 @@ sub gen_activity {
 
     } elsif ( $dis eq 'retrieve' ) {
 
-        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
+        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $dbix_conn, $code );
         return $status;
 
     } elsif ( $dis eq 'delete' ) {
 
-        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $code );
+        my $status = App::Dochazka::REST::Model::Activity->load_by_code( $dbix_conn, $code );
         is( $status->level, 'OK' );
         my $act = $status->payload;
-        $status = $act->delete;
+        $status = $act->delete( $faux_context );
         is( $status->level, 'OK' );
         return;
         
@@ -541,7 +601,7 @@ sub gen_employee {
 
         # create bubbaTheCat employee
         my $emp = App::Dochazka::REST::Model::Employee->spawn( nick => $nick );
-        my $status = $emp->insert;
+        my $status = $emp->insert( $faux_context );
         is( $status->level, 'OK' );
         $emp = $status->payload;
         is( $emp->nick, $nick );
@@ -550,15 +610,15 @@ sub gen_employee {
 
     } elsif ( $dis eq 'retrieve' ) {
 
-        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $dbix_conn, $nick );
         return $status;
 
     } elsif ( $dis eq 'delete' ) {
 
-        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $dbix_conn, $nick );
         is( $status->level, 'OK' );
         my $emp = $status->payload;
-        $status = $emp->delete;
+        $status = $emp->delete( $faux_context );
         is( $status->level, 'OK' );
         return;
         
@@ -631,16 +691,48 @@ sub gen_schedule {
 }
 
 sub test_sql_success {
-    my ( $dbh, $expected_rv, $sql ) = @_;
-    my $rv = $dbh->do($sql);
+    my ( $conn, $expected_rv, $sql ) = @_;
+    my ( $rv, $errstr );
+    try {
+        $conn->run( fixup => sub {
+            $rv = $_->do($sql);
+        });
+    } catch {
+        $errstr = $_;
+    };
+    if ( $errstr ) {
+        diag( "Unexpected error in test_sql_success: $errstr" );
+        diag( "Called from " . (caller)[1] . " line " . (caller)[2] );
+        BAIL_OUT(0);
+    }
     is( $rv, $expected_rv, "successfully executed $sql" );
 }
 
 sub test_sql_failure {
-    my ( $dbh, $expected_err, $sql ) = @_;
-    my $rv = $dbh->do($sql);
+    my ( $conn, $expected_err, $sql ) = @_;
+    my ( $rv, $errstr );
+    try {
+        $conn->run( fixup => sub {
+            $rv = $_->do($sql);
+        });
+    } catch {
+        $errstr = $_;
+    };
     is( $rv, undef, "DBI returned undef" );
-    like( $dbh->errstr, $expected_err, "DBI errstr is as expected" );
+    like( $errstr, $expected_err, "DBI errstr is as expected" );
 }
 
+sub do_select_single {
+    my ( $conn, $sql, @keys ) = @_;
+    #diag( "do_select_single: connection OK" ) if ref( $conn ) eq 'DBIx::Connector';
+    #diag( "do_select_single: SQL statement is $sql" ) if $sql;
+    #diag( "do_select_single: keys are ", join(', ', @keys) ) if @keys;
+    my $status = select_single( conn => $conn, sql => $sql, keys => \@keys );
+    is( $status->level, 'OK' );
+    is( $status->code, 'DISPATCH_RECORDS_FOUND' );
+    ok( $status->payload );
+    is( ref( $status->payload ), 'ARRAY' );
+    return @{ $status->payload };
+}
+    
 1;

@@ -41,30 +41,26 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedintvls;
 use App::Dochazka::REST::Model::Shared qw( noof );
+use App::Dochazka::REST::Test;
 #use App::Dochazka::REST::Util::Timestamp qw( $today $yesterday $tomorrow );
-use Scalar::Util qw( blessed );
 use Test::More;
 
-# plan tests
-#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-if ( $REST->{init_status}->not_ok ) {
+
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
+if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
 # spawn a schedintvls object
 my $sto = App::Dochazka::REST::Model::Schedintvls->spawn;
-ok( blessed $sto );
+isa_ok( $sto, 'App::Dochazka::REST::Model::Schedintvls' );
 ok( $sto->ssid > 0 );
-
-# initialize status variable
-my $status;
 
 # attempt to insert bogus intervals individually
 my $bogus_intvls = [
@@ -80,13 +76,13 @@ my $bogus_intvls = [
     ];
 map {
         $sto->{intvls} = $_;
-        $status = $sto->insert;
+        $status = $sto->insert( $dbix_conn );
         #diag( $status->level . ' ' . $status->text );
         is( $status->level, 'ERR' ); 
     } @$bogus_intvls;
 
 # check that no records made it into the database
-is( noof( 'schedintvls' ), 0 );
+is( noof( $dbix_conn, 'schedintvls' ), 0 );
 
 # attempt to slip in a bogus interval by hiding it among normal intervals
 $bogus_intvls = [
@@ -108,10 +104,10 @@ map {
             "[2014-07-14 11:15, 2014-07-14 11:30)",
             "[2014-07-14 11:30, 2014-07-14 11:45)",
         ];
-        $status = $sto->insert;
+        $status = $sto->insert( $dbix_conn );
         is( $status->level, 'ERR' );
         #diag( $status->code . ' ' . $status->text );
-        is( noof( 'schedintvls' ), 0 );
+        is( noof( $dbix_conn, 'schedintvls' ), 0 );
      } @$bogus_intvls;
 
 # CLEANUP: none as this unit test doesn't change the database

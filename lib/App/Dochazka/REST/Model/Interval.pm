@@ -36,11 +36,8 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-#use App::Dochazka::REST::dbh qw( $dbh );
-use Carp;
 use Data::Dumper;
 use App::Dochazka::REST::Model::Shared qw( cud load load_multiple );
-use DBI;
 use Params::Validate qw( :all );
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -57,11 +54,11 @@ App::Dochazka::REST::Model::Interval - activity intervals data model
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -158,9 +155,13 @@ Boilerplate.
 
 sub load_by_iid {
     my $self = shift;
-    my ( $iid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $iid ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_INTERVAL_SELECT_BY_IID,
         keys => [ $iid ],
@@ -176,16 +177,12 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
-
-    # FIXME: here is where we should check if the interval falls within
-    # reasonable temporal limits. The upper limit is "now() + DOCHAZKA_MAX_FUTURE_DAYS";
-    # the lower limit is  . . . (is there a lower limit?)
-
-    # FIXME: this is also where we check if the interval conflicts with
-    # a lock.
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_INTERVAL_INSERT,
         attrs => [ 'eid', 'aid', 'intvl', 'long_desc', 'remark' ],
@@ -203,10 +200,14 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub update {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'iid'};
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $self->{'iid'};
+
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_INTERVAL_UPDATE,
         attrs => [ qw( eid aid intvl long_desc remark iid ) ],
@@ -224,9 +225,12 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub delete {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_INTERVAL_DELETE,
         attrs => [ 'iid' ],
@@ -252,6 +256,7 @@ BEGIN {
     *{'iid_exists'} = App::Dochazka::REST::Model::Shared::make_test_exists( 'iid' );
 }
 
+
 =head2 fetch_by_eid_and_tsrange
 
 Boilerplate.
@@ -259,9 +264,10 @@ Boilerplate.
 =cut
 
 sub fetch_by_eid_and_tsrange {
-    my ( $eid, $tsrange ) = @_;
+    my ( $conn, $eid, $tsrange ) = @_;
 
     return load_multiple(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $site->SQL_INTERVAL_SELECT_BY_EID_AND_TSRANGE,
         keys => [ $eid, $tsrange ],

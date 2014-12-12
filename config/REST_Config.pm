@@ -98,9 +98,24 @@ set( 'DOCHAZKA_DBUSER', 'dochazka' );
 #    name of PostgreSQL username (role) to connect with
 set( 'DOCHAZKA_DBPASS', 'dochazka' );
 
+# DOCHAZKA_AUDITING
+#    determine if audit schema/triggers will be created at initialization time
+set( 'DOCHAZKA_AUDITING', 1 ); 
+
+# DOCHAZKA_AUDIT_TABLES
+#    list of tables to audit (if DOCHAZKA_AUDITING is true)
+set( 'DOCHAZKA_AUDIT_TABLES', [
+    qw( activities employees intervals locks privhistory schedhistory schedules ) 
+] );
+
 # DOCHAZKA_EID_OF_ROOT
 #    Employee ID of the root employee -- set at initialization time (in
-#    Employee.pm) -- do not set here
+#    REST.pm) -- do not set here
+#!! DO NOT SET HERE !!
+
+# DOCHAZKA_EID_OF_DEMO
+#    Employee ID of the demo employee -- set at initialization time (in
+#    REST.pm) -- do not set here
 #!! DO NOT SET HERE !!
 
 # DOCHAZKA_ACTIVITY_DEFINITIONS
@@ -177,8 +192,8 @@ set( 'DOCHAZKA_REST_DEBUG_MODE', 0 );
 #            make sense for employees to edit *any* of the fields
 #     N.B. 3 this site param affects the functioning of the "POST employee/self" and "POST employee/current" resources
 set( 'DOCHAZKA_PROFILE_EDITABLE_FIELDS', {
-    'inactive' => [ 'passhash', 'salt' ],
-    'active' => [ 'passhash', 'salt' ],
+    'inactive' => [ 'password' ],
+    'active' => [ 'password' ],
 });
 
 # -----------------------------------

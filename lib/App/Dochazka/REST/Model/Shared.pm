@@ -36,15 +36,9 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::CELL::Util qw( stringify_args );
-use App::Dochazka::REST::dbh qw( $dbh );
-use Carp;
 use Data::Dumper;
-use DBI;
 use JSON;
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
-use Storable qw( dclone );
 use Try::Tiny;
 
 
@@ -60,11 +54,11 @@ the data model
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -88,9 +82,9 @@ This module provides the following exports:
 
 =item * C<decode_schedule_json> function (given JSON string, return corresponding hashref)
 
-=item * C<load> (Load/Fetch/Retrieve -- single-record only)
+=item * C<load> (Load/Fetch/Retrieve a single datamodel object)
 
-=item * C<load_multiple> (Load/Fetch/Retrieve multiple records)
+=item * C<load_multiple> (Load/Fetch/Retrieve multiple datamodel objects)
 
 =item * C<noof> (get total number of records in a data model table)
 
@@ -98,12 +92,14 @@ This module provides the following exports:
 
 =item * C<schedule_by_eid>
 
+=item * C<select_single> (run an arbitrary SELECT that returns 0 or 1 records)
+
 =back
 
 =cut
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( cud decode_schedule_json load load_multiple noof priv_by_eid schedule_by_eid );
+our @EXPORT_OK = qw( cud decode_schedule_json load load_multiple noof priv_by_eid schedule_by_eid select_single );
 
 
 
@@ -136,14 +132,14 @@ sub make_test_exists {
     my $pkg = (caller)[0];
 
     return sub {
-        my ( $s_key ) = @_;
+        my ( $conn, $s_key ) = @_;
         require Try::Tiny;
         my $routine = "load_by_$t";
         my ( $status, $txt );
         $log->debug( "Entered $t" . "_exists with search key $s_key" );
         try {
             no strict 'refs';
-            $status = $pkg->$routine( $s_key );
+            $status = $pkg->$routine( $conn, $s_key );
         } catch {
             $txt = "Function " . $pkg . "::test_exists was generated with argument $t, " .
                 "so it tried to call $routine, resulting in exception $_";
@@ -161,18 +157,42 @@ sub make_test_exists {
 
 =head2 cud
 
-** USE FOR SINGLE-RECORD SQL STATEMENTS ONLY **
-Attempts to Create, Update, or Delete a single database record. Takes a blessed
-reference (activity object or employee object), a SQL statement, and a list of
-attributes. Overwrites attributes in the object with the RETURNING list values
-received from the database. Returns a status object. Call example:
+Attempts to Create, Update, or Delete a single database record. Takes the
+following PARAMHASH:
 
-    $status = cud( object => $self, sql => $sql, attrs => [ @attr ] );
+=over
+
+=item * conn
+
+The L<DBIx::Connector> object with which to gain access to the database.
+
+=item * eid
+
+The EID of the employee originating the request (needed for the audit triggers).
+
+=item * object
+
+The Dochazka datamodel object to be worked on.
+
+=item * sql
+
+The SQL statement to execute (should be INSERT, UPDATE, or DELETE).
+
+=item * attrs
+
+An array reference containing the bind values to be plugged into the SQL
+statement.
+
+=back
+
+Returns a status object.
 
 =cut
 
 sub cud {
     my %ARGS = validate( @_, {
+        conn => { isa => 'DBIx::Connector' },
+        eid => { type => SCALAR },
         object => { can => [ qw( insert delete ) ] }, 
         sql => { type => SCALAR }, 
         attrs => { type => ARRAYREF }, # order of attrs must match SQL statement
@@ -180,58 +200,77 @@ sub cud {
 
     my $status;
 
-    # DBI incantations
-    $dbh->{AutoCommit} = 0;
-    $dbh->{RaiseError} = 1;
-
     try {
         local $SIG{__WARN__} = sub {
                 die @_;
             };
-        my $sth = $dbh->prepare( $ARGS{'sql'} );
-        my $counter = 0;
-        map {
-               $counter += 1;
 
-               #my $value = defined( $ARGS{'object'}->{$_} )
-               #        ? $ARGS{'object'}->{$_}
-               #        : 'undef';
-               #$log->debug( "cud binding parameter $counter to attribute $_ value $value" );
+        # start transaction
+        $ARGS{'conn'}->txn( fixup => sub {
 
-               $sth->bind_param( $counter, $ARGS{'object'}->{$_} || undef );
+            # get DBI db handle
+            my $dbh = shift;
+
+            # set the dochazka.eid GUC session parameter
+            $dbh->do( $site->SQL_SET_DOCHAZKA_EID_GUC, undef, ( $ARGS{'eid'}+0 ) );
+
+            # prepare the SQL statement and bind parameters
+            my $sth = $dbh->prepare( $ARGS{'sql'} );
+            my $counter = 0;
+            map {
+                $counter += 1;
+                $sth->bind_param( $counter, $ARGS{'object'}->{$_} || undef );
             } @{ $ARGS{'attrs'} }; 
-        my $rv = $sth->execute;
-        $log->debug( "cud: DBI execute returned " . Dumper( $rv ) );
-        if ( $rv == 1 ) {
-            my $rh = $sth->fetchrow_hashref;
-            $log->info( "Statement " . $sth->{'Statement'} . " RETURNING values: " . Dumper( $rh ) );
-            # populate object with all RETURNING fields 
-            map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
-            $dbh->commit;
-        } else {
-            if ( $rv eq '0E0' ) {
-                $status = $CELL->status_notice( 'DOCHAZKA_CUD_NO_RECORDS_AFFECTED', args => [ $sth->{'Statement'} ] ); 
-            } elsif ( $rv > 1 ) {
-                $status = $CELL->status_crit( 'DOCHAZKA_CUD_MORE_THAN_ONE_RECORD_AFFECTED', args => [ $sth->{'Statement'} ] ); 
-            } elsif ( $rv == -1 ) {
-                $status = $CELL->status_err( 'DOCHAZKA_CUD_UNKNOWN_NUMBER_OF_RECORDS_AFFECTED', args => [ $sth->{'Statement'} ] ); 
+
+            # execute the SQL statement
+            my $rv = $sth->execute;
+            $log->debug( "cud: DBI execute returned " . Dumper( $rv ) );
+            if ( $rv == 1 ) {
+
+                # a record was returned; get the values
+                my $rh = $sth->fetchrow_hashref;
+                $log->info( "Statement " . $sth->{'Statement'} . " RETURNING values: " . Dumper( $rh ) );
+                # populate object with all RETURNING fields 
+                map { $ARGS{'object'}->{$_} = $rh->{$_}; } ( keys %$rh );
+
+            } elsif ( $rv eq '0E0' ) {
+
+                # no error, but no record returned either
+                $status = $CELL->status_notice( 
+                    'DOCHAZKA_CUD_NO_RECORDS_AFFECTED', 
+                    args => [ $sth->{'Statement'} ] 
+                ); 
             } else {
-                $status = $CELL->status_crit( "AAAAAAAAAaaaaahhaAAAAAAAA! I\'m at a loss. I might be having a personal crisis!" );
+
+                # non-standard return value
+                if ( $rv > 1 ) {
+                    $status = $CELL->status_crit( 
+                        'DOCHAZKA_CUD_MORE_THAN_ONE_RECORD_AFFECTED', 
+                        args => [ $sth->{'Statement'} ] 
+                    ); 
+                } elsif ( $rv == -1 ) {
+                    $status = $CELL->status_err( 
+                        'DOCHAZKA_CUD_UNKNOWN_NUMBER_OF_RECORDS_AFFECTED', 
+                        args => [ $sth->{'Statement'} ] 
+                    ); 
+                } else {
+                    $status = $CELL->status_crit( 
+                        "AAAAAAAAAaaaaahhaAAAAAAAA! I\'m at a loss. I might be having a personal crisis!" 
+                    );
+                }
+                die 'jump to catch';
             }
-            $dbh->rollback;
-        }
+        } );
     } catch {
         my $errmsg = $_;
-        $dbh->rollback;
         if ( not defined( $errmsg ) ) {
             $log->err( '$_ undefined in catch' );
             $errmsg = '<NONE>';
         }
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $errmsg ] );
+        if ( not defined( $status ) ) {
+            $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $errmsg ] );
+        }
     };
-
-    $dbh->{AutoCommit} = 1;
-    $dbh->{RaiseError} = 0;
 
     $status = $CELL->status_ok( 'DOCHAZKA_CUD_OK', payload => $ARGS{'object'} ) if not defined( $status );
     return $status;
@@ -259,29 +298,55 @@ search keys. The search key must be an exact match: this function returns only
 1 or 0 records.  Call, e.g., like this:
 
     my $status = load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->DOCHAZKA_SQL_SOME_STATEMENT,
         keys => [ 44 ]
     ); 
+
+The status object will be one of the following:
+
+=over
+
+=item * 1 record found
+
+Level C<OK>, code C<DISPATCH_RECORDS_FOUND>, payload: object of type 'class'
+
+=item * 0 records found
+
+Level C<NOTICE>, code C<DISPATCH_NO_RECORDS_FOUND>, payload: none
+
+=item * Database error
+
+Level C<ERR>, code C<DOCHAZKA_DBI_ERR>, text: error message, payload: none
+
+=back
 
 =cut
 
 sub load {
     # get and verify arguments
     my %ARGS = validate( @_, { 
+        conn => { isa => 'DBIx::Connector' },
         class => { type => SCALAR }, 
         sql => { type => SCALAR }, 
         keys => { type => ARRAYREF }, 
     } );
 
     # consult the database; N.B. - select may only return a single record
-    my $hr = $dbh->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
-    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
-        if $dbh->err;
+    my ( $hr, $status );
+    try {
+        $ARGS{'conn'}->run( fixup => sub {
+            $hr = $_->selectrow_hashref( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
+        } );
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
 
     # report the result
+    return $status if $status;
     return $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => [ '1' ],
-        payload => $ARGS{'class'}->spawn( %$hr ) ) if defined $hr;
+        payload => $ARGS{'class'}->spawn( %$hr ), count => 1 ) if defined $hr;
     return $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', count => 0 );
 }
 
@@ -292,6 +357,7 @@ Load multiple database records based on an SQL statement and a set of search
 keys. Example:
 
     my $status = load_multiple( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->DOCHAZKA_SQL_SOME_STATEMENT,
         keys => [ 'rom%' ] 
@@ -308,53 +374,49 @@ For convenience, a 'count' property will be included in the status object.
 sub load_multiple {
     # get and verify arguments
     my %ARGS = validate( @_, { 
+        conn => { isa => 'DBIx::Connector' },
         class => { type => SCALAR }, 
         sql => { type => SCALAR }, 
         keys => { type => ARRAYREF }, 
     } );
+    $log->debug( "Entering " . __PACKAGE__ . "::load_multiple" );
 
-    my ( @results, $status );
-
-    my $counter = 0;
-    $dbh->{RaiseError} = 1;
+    my $status;
+    my $results = [];
     try {
-        # prepare and execute SQL
-        my $sth = $dbh->prepare( $ARGS{'sql'} );
-        my $bc = 0;
-        map {
-             $bc += 1;
-             $sth->bind_param( $bc, $_ || undef );
-        } @{ $ARGS{'keys'} };
-        $sth->execute();
-        # assuming they are objects, spawn them and push them onto @results
-        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
-            $counter += 1;
-            push @results, $ARGS{'class'}->spawn( $tmpres );
-        }
+        $ARGS{'conn'}->run( fixup => sub {
+            my $sth = $_->prepare( $ARGS{'sql'} );
+            my $bc = 0;
+            map {
+                $bc += 1;
+                $sth->bind_param( $bc, $_ || undef );
+            } @{ $ARGS{'keys'} };
+            $sth->execute();
+            # assuming they are objects, spawn them and push them onto @results
+            while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+                push @$results, $ARGS{'class'}->spawn( $tmpres );
+            }
+        } );
     } catch {
-        my $arg = $dbh->err
-            ? $dbh->errstr
-            : $_;
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-    $dbh->{RaiseError} = 0;
     return $status if defined $status;
-    if ( $counter > 0 ) {
-        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args =>
-            [ $counter ], payload => \@results, count => $counter );
-    } else {
-        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND',
-            payload => \@results, count => $counter );
-    }
-    $dbh->{RaiseError} = 0;
+
+    my $counter = scalar @$results;
+    $status = ( $counter )
+        ? $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', 
+            args => [ $counter ], payload => $results, count => $counter )
+        : $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND',
+            payload => $results, count => $counter );
+    $log->debug( Dumper $status );
     return $status;
 }
 
 
 =head2 noof
 
-Given the name of a data model table, returns the total number of records
-in the table.
+Given a L<DBIx::Connector> object and the name of a data model table, returns
+the total number of records in the table.
 
     activities employees intervals locks privhistory schedhistory
     schedintvls schedules
@@ -364,15 +426,24 @@ On failure, returns undef.
 =cut
 
 sub noof {
-    my ( $table ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $table ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR } 
+    );
 
     return unless grep { $table eq $_; } qw( activities employees intervals locks
             privhistory schedhistory schedintvls schedules );
 
-    my ( $result ) = $dbh->selectrow_array( "SELECT count(*) FROM $table" );
-    return $result;
+    my $count;
+    try {
+        $conn->run( fixup => sub {
+            ( $count ) = $_->selectrow_array( "SELECT count(*) FROM $table" );
+        } );
+    } catch {
+        $CELL->status_crit( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return $count;
 }
-
 
 
 =head2 priv_by_eid
@@ -385,27 +456,30 @@ database.
 =cut
 
 sub priv_by_eid {
-    my ( $eid, $ts ) = validate_pos( @_, { type => SCALAR },
-        { type => SCALAR|UNDEF, optional => 1 } );
-    $log->debug( "priv_by_eid: EID is " . (defined( $eid ) ? $eid : 'undef') . " - called from " . (caller)[1] . " line " . (caller)[2] );
-    return _st_by_eid( 'priv', $eid, $ts );
+    my ( $conn, $eid, $ts ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+        { type => SCALAR|UNDEF, optional => 1 } 
+    );
+    #$log->debug( "priv_by_eid: EID is " . (defined( $eid ) ? $eid : 'undef') . " - called from " . (caller)[1] . " line " . (caller)[2] );
+    return _st_by_eid( $conn, 'priv', $eid, $ts );
 }
 
 
 =head2 schedule_by_eid
 
 Given an EID, and, optionally, a timestamp, returns the employee's schedule
-as of that timestamp, or as of "now" if no timestamp was given. The
-schedule will default to '{}' if it can't be determined from the database.
+as of that timestamp, or as of "now" if no timestamp was given.
 
 =cut
 
 sub schedule_by_eid {
-    my ( $eid, $ts ) = validate_pos( @_, 
+    my ( $conn, $eid, $ts ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
         { type => SCALAR },
         { type => SCALAR|UNDEF, optional => 1 },
     );
-    return _st_by_eid( 'schedule', $eid, $ts );
+    return _st_by_eid( $conn, 'schedule', $eid, $ts );
 }
 
 
@@ -416,8 +490,8 @@ Function that 'priv_by_eid' and 'schedule_by_eid' are wrappers of.
 =cut
 
 sub _st_by_eid {
-    my ( $st, $eid, $ts ) = @_;
-    my ( $sql, $row );
+    my ( $conn, $st, $eid, $ts ) = @_;
+    my ( @args, $sql, $row );
     $log->debug( "Entering _st_by_eid with \$st == $st, \$eid == $eid, \$ts == " . ( $ts || '<NONE>' ) );
     if ( $ts ) {
         # timestamp given
@@ -426,7 +500,7 @@ sub _st_by_eid {
         } elsif ( $st eq 'schedule' ) {
             $sql = $site->SQL_EMPLOYEE_SCHEDULE_AT_TIMESTAMP;
         } 
-        ( $row ) = $dbh->selectrow_array( $sql, undef, $eid, $ts );
+        @args = ( $sql, undef, $eid, $ts );
     } else {
         # no timestamp given
         if ( $st eq 'priv' ) {
@@ -434,25 +508,75 @@ sub _st_by_eid {
         } elsif ( $st eq 'schedule' ) {
             $sql = $site->SQL_EMPLOYEE_CURRENT_SCHEDULE;
         } 
-        $log->debug("About to run SQL statement $sql with parameter $eid - called from " . (caller)[1] . " line " . (caller)[2] );
-        ( $row ) = $dbh->selectrow_array( $sql, undef, $eid );
+        @args = ( $sql, undef, $eid );
     }
-    return $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $dbh->errstr ] )
-        if $dbh->err;
+
+    $log->debug("About to run SQL statement $sql with parameter $eid - " . 
+                " called from " . (caller)[1] . " line " . (caller)[2] );
+
+    my $status;
+    try {
+        $conn->run( fixup => sub {
+            ( $row ) = $_->selectrow_array( @args );
+        } );
+    } catch {
+        $log->debug( 'Encountered DBI error' );
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return $status if $status;
+
     $row = decode_schedule_json( $row ) if $st eq 'schedule';
-    $log->debug( "_st_by_eid: returning " . Dumper( $row ) );
+
+    $log->debug( "_st_by_eid success; returning payload " . Dumper( $row ) );
     return $row;
+}
+
+
+=head2 select_single
+
+Given a L<DBIx::Connector> object in the 'conn' property, a SELECT statement in
+the 'sql' property and, in the 'keys' property, an arrayref containing a list
+of scalar values to plug into the SELECT statement, run a C<selectrow_array>
+and return the resulting list.
+
+Returns a standard status object (see C<load> routine, above, for description).
+
+=cut
+
+sub select_single {
+    my %ARGS = validate( @_, { 
+        conn => { isa => 'DBIx::Connector' },
+        sql => { type => SCALAR },
+        keys => { type => ARRAYREF },
+    } );
+    my ( $status, @results );
+    try {
+        $ARGS{'conn'}->run( fixup => sub {
+            @results = $_->selectrow_array( $ARGS{'sql'}, undef, @{ $ARGS{'keys'} } );
+        } );
+        my $count = scalar @results;
+        $status = ( $count )
+            ? $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', 
+                args => [ $count ], count => $count, payload => \@results )
+            : $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND' );
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    die "AAAAHAHAAHAAAAAAGGGH! " . __PACKAGE__ . "::select_single" unless $status;
+    return $status;
 }
 
 
 =head2 get_history
 
-Takes a SCALAR argument, which can be either 'priv' or 'schedule', followed by
-a PARAMHASH which can have one or more of the properties 'eid', 'nick', and
-'tsrange'.
+This function takes a number of arguments. The first two are (1) a
+L<DBIx::Connector> object and (2) a SCALAR argument, which can be either 'priv'
+or 'schedule'. 
 
-At least one of { 'eid', 'nick' } must be specified. If both are specified,
-the employee is determined according to 'eid'.
+Following these there is a PARAMHASH which can have one or more of the
+properties 'eid', 'nick', and 'tsrange'. At least one of { 'eid', 'nick' } must
+be specified. If both are specified, the employee is determined according to
+'eid'.
 
 The function returns the history of privilege level or schedule changes for
 that employee over the given tsrange, or the entire history if no tsrange is
@@ -466,8 +590,9 @@ the payload will be undefined.
 
 =cut
 
-sub get_history {
+sub get_history { 
     my $t = shift;
+    my $conn = shift;
     validate_pos( @_, 1, 1, 0, 0, 0, 0 );
     my %ARGS = validate( @_, { 
         eid => { type => SCALAR, optional => 1 },
@@ -475,7 +600,7 @@ sub get_history {
         tsrange => { type => SCALAR|UNDEF, optional => 1 },
     } );
 
-    $log->debug("Entering get_history for $t");
+    $log->debug("Entering get_history for $t - arguments: " . Dumper( \%ARGS ) );
 
     my ( $sql, $sk, $status, $result, $tsr );
     if ( exists $ARGS{'nick'} ) {
@@ -503,33 +628,26 @@ sub get_history {
 
     die "AAAAAAAAAAAHHHHH! Engulfed by the abyss" unless $sk and $sql and $tsr;
 
-    my $counter = 0;
-    $dbh->{RaiseError} = 1;
+    $result->{'history'} = [];
     try {
-        my $sth = $dbh->prepare( $sql );
-        $sth->execute( $sk, $tsr );
-        while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
-            $counter += 1;
-            push @{ $result->{'history'} }, $tmpres;
-        }
+        $conn->run( fixup => sub {
+            my $sth = $_->prepare( $sql );
+            $sth->execute( $sk, $tsr );
+            while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+                push @{ $result->{'history'} }, $tmpres;
+            }
+        } );
     } catch {
-        my $arg = $dbh->err
-            ? $dbh->errstr
-            : $_;
-        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $arg ] );
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-    $dbh->{RaiseError} = 0;
     return $status if defined $status;
-    if ( $counter > 0 ) {
-        $status = $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', args => 
-            [ $counter ], payload => $result, count => $counter );
-    } else {
-        $result->{'history'} = [];
-        $status = $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
+
+    my $counter = scalar @{ $result->{'history'} };
+    return ( $counter ) 
+        ? $CELL->status_ok( 'DISPATCH_RECORDS_FOUND', 
+            args => [ $counter ], payload => $result, count => $counter ) 
+        : $CELL->status_notice( 'DISPATCH_NO_RECORDS_FOUND', 
             payload => $result, count => $counter );
-    }
-    $dbh->{RaiseError} = 0;
-    return $status;
 }
 
 

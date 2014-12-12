@@ -40,15 +40,13 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
-use App::Dochazka::REST::Dispatch::Shared qw( pre_update_comparison );
+use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
 use App::Dochazka::REST::Model::Employee qw( noof_employees_by_priv );
-use App::Dochazka::REST::Model::Shared qw( noof priv_by_eid schedule_by_eid );
-use Carp;
+use App::Dochazka::REST::Model::Shared qw( load_multiple noof priv_by_eid schedule_by_eid );
+use Authen::Passphrase::SaltedDigest;
 use Data::Dumper;
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
 use Try::Tiny;
 
 
@@ -63,11 +61,11 @@ App::Dochazka::REST::Dispatch::Employee - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -78,6 +76,14 @@ Controller/dispatcher module for the 'employee' resource. To determine
 which functions in this module correspond to which resources, see.
 
 
+
+
+=head1 EXPORTS
+
+=cut
+
+use Exporter qw( import );
+our @EXPORT_OK = qw( hash_the_password );
 
 
 
@@ -101,9 +107,9 @@ sub _get_count {
 
     my $result;
     if ( my $priv = $context->{'mapping'}->{'priv'} ) {;
-        $result = noof_employees_by_priv( lc $priv );
+        $result = noof_employees_by_priv( $context->{'dbix_conn'}, lc $priv );
     } else {
-        $result = noof_employees_by_priv( 'total' );
+        $result = noof_employees_by_priv( $context->{'dbix_conn'}, 'total' );
     }
     return $result;
 }
@@ -123,9 +129,10 @@ sub _get_current_priv {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Employee::_get_current_priv" ); 
 
+    my $conn = $context->{'dbix_conn'};
     my $current_emp = $context->{'current'};
-    my $current_priv = priv_by_eid( $current_emp->{'eid'} );
-    my $current_sched = schedule_by_eid( $current_emp->{'eid'} );
+    my $current_priv = priv_by_eid( $conn, $current_emp->{'eid'} );
+    my $current_sched = schedule_by_eid( $conn, $current_emp->{'eid'} );
     $CELL->status_ok( 
         'DISPATCH_EMPLOYEE_CURRENT_PRIV', 
         args => [ $current_emp->{'nick'}, $current_priv ], 
@@ -142,7 +149,7 @@ sub _assemble_employee_object {
     my %hr = @_;
     my %r;
     while (my ($key, $value) = each %hr) {
-        if ( grep { $key eq $_ } ( 'eid', 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ) ) {
+        if ( grep { $key eq $_ } ( 'eid', 'sec_id', 'nick', 'fullname', 'email', 'passhash', 'salt', 'remark' ) ) {
             $r{$key} = $value;
         }
     }
@@ -153,13 +160,16 @@ sub _put_post_delete_employee_by_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_eid with method " . $context->{'method'} );
 
+    my $conn = $context->{'dbix_conn'};
+    my $current_eid = $context->{'current'}->{'eid'};
+
     my $eid;
     $eid = $context->{'request_body'}->{'eid'} if $context->{'request_body'}->{'eid'};
     $eid = $context->{'mapping'}->{'eid'} if $context->{'mapping'}->{'eid'};
     $eid = $context->{'current'}->{'eid'} unless $eid;
 
-    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
-    return _common_code( $context, $status );
+    my $status = App::Dochazka::REST::Model::Employee->load_by_eid( $conn, $eid );
+    return _common_code( $conn, $current_eid, $context, $status );
 }
 
 sub _put_post_delete_employee_by_nick {
@@ -167,12 +177,15 @@ sub _put_post_delete_employee_by_nick {
     my $cp = $context->{'current_priv'};
     $log->debug( "Entering " . __PACKAGE__ . "::_put_post_delete_employee_by_nick with method " . $context->{'method'} );
 
+    my $conn = $context->{'dbix_conn'};
+    my $current_eid = $context->{'current'}->{'eid'};
+
     my $nick;
     $nick = $context->{'request_body'}->{'nick'} if $context->{'request_body'}->{'nick'};
     $nick = $context->{'mapping'}->{'nick'} if $context->{'mapping'}->{'nick'};
     $nick = $context->{'current'}->{'nick'} unless $nick;
 
-    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $conn, $nick );
     if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
         if ( $cp =~ m/^(inactive)|(active)$/i ) {
             if ( $nick ne $context->{'current'}->{'nick'} ) {
@@ -180,7 +193,7 @@ sub _put_post_delete_employee_by_nick {
             }            
             delete $context->{'request_body'}->{'nick'};
         }
-        return _common_code( $context, $status );
+        return _common_code( $conn, $current_eid, $context, $status );
     } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         if ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
             # INSERT
@@ -188,7 +201,7 @@ sub _put_post_delete_employee_by_nick {
                 return $CELL->status_err( 'DOCHAZKA_FORBIDDEN_403' );
             }
             delete $context->{'request_body'}->{'nick'} if $context->{'request_body'}->{'nick'};
-            return _insert_employee( 'nick' => $nick, %{ $context->{request_body} } );
+            return _insert_employee( $context, $nick );
         }
         return $CELL->status_err('DOCHAZKA_NOT_FOUND_404');
     }
@@ -196,7 +209,7 @@ sub _put_post_delete_employee_by_nick {
 }
 
 sub _common_code {
-    my ( $context, $status ) = @_;
+    my ( $conn, $current_eid, $context, $status ) = @_;
     my $cp = $context->{'current_priv'};
     if ( $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
         my $this_emp = $status->payload;
@@ -228,11 +241,11 @@ sub _common_code {
             delete $context->{'request_body'}->{'eid'};
             #
             # run the update
-            return _update_employee( $this_emp, $context->{'request_body'} );
+            return _update_employee( $context, $this_emp, $context->{'request_body'} );
         } elsif ( $context->{'method'} =~ m/^DELETE/i ) {
             # DELETE is only accessible to administrators (enforced by Resource.pm)
             $log->notice( "Attempting to delete employee with EID " . $this_emp->eid );
-            return $this_emp->delete;
+            return $this_emp->delete( $context );
         }
     } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         if ( $cp =~ m/^(inactive)|(active)$/i ) {
@@ -244,18 +257,26 @@ sub _common_code {
     return $status;
 }
 
-# takes two arguments:
-# - "$emp" is an employee object (blessed hashref)
-# - "$over" is a hashref with zero or more employee properties and new values
+# takes three arguments:
+# - $context is the request context
+# - $emp is an employee object (blessed hashref)
+# - $over is a hashref with zero or more employee properties and new values
 # the values from $over replace those in $emp
+#
 sub _update_employee {
-    my ($emp, $over) = @_;
+    my ( $context, $emp, $over ) = @_;
     $log->debug("Entering " . __PACKAGE__ . "::_update_employee" );
     if ( ref($over) ne 'HASH' ) {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
     delete $over->{'eid'} if exists $over->{'eid'};
-    return $emp->update if pre_update_comparison( $emp, $over );
+
+    # for password hashing, we will assume that $over might contain
+    # a 'password' property, which is converted into 'passhash' + 'salt' via 
+    # Authen::Passphrase
+    hash_the_password( $over );
+
+    return $emp->update( $context ) if pre_update_comparison( $emp, $over );
     return $CELL->status_err('DOCHAZKA_MALFORMED_400');
 }
 
@@ -263,6 +284,8 @@ sub _update_employee {
 sub _get_eid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Employee::_get_eid" ); 
+
+    my $conn = $context->{'dbix_conn'};
 
     # EID the user wants
     my $eid = $context->{'mapping'}->{'eid'};
@@ -278,7 +301,7 @@ sub _get_eid {
         }
     }
     
-    App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+    App::Dochazka::REST::Model::Employee->load_by_eid( $conn, $eid );
 }
 
 # for PUT employee/eid/:eid, see the _put_post_delete_employee_by_eid routine, above
@@ -299,32 +322,48 @@ BEGIN {
 }
 
 
-# takes PROPLIST; 'nick' property is mandatory and must be first in the list
+# takes a request body (hashref) - looks for a 'password' property.
+# if it is present, hashes the password with a random salt - in effect,
+# this replaces the password property with passhash+salt. If there is
+# no password property, the function does nothing.
+sub hash_the_password {
+    my $body = shift;
+    if ( $body->{'password'} ) {
+        my $ppr = Authen::Passphrase::SaltedDigest->new(
+            algorithm => "SHA-512", salt_random => 20,
+            passphrase => $body->{'password'}
+        );
+        delete $body->{'password'};
+        $body->{'passhash'} = $ppr->hash_hex;
+        $body->{'salt'} = $ppr->salt_hex;
+    }
+}
+
+
+# takes two arguments: the request context and the nick to be inserted
 sub _insert_employee {
-    my @ARGS = @_;
-    $log->debug("Reached _insert_employee from " . (caller)[1] . " line " .  (caller)[2] . 
-                " with argument list " . Dumper( \@ARGS ) );
+    my ( $context, $nick ) = validate_pos( @_,
+        { type => HASHREF },
+        { type => SCALAR },
+    );
+    $log->debug("Reached " . __PACKAGE__ . "::_insert_employee" );
 
-    # make sure we got an even number of arguments
-    if ( @ARGS % 2 ) {
-        return $CELL->status_crit( "Odd number of arguments passed to _insert_employee!" );
-    }
-    my %proplist_before = @ARGS;
-    $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
+    my %body = %{ $context->{'request_body'} };
+    $log->debug( "Request body before transformations: " . join( ' ', keys %body ) );
+
+    # If there is a "password" property, transform it into "passhash" + "salt"
+    hash_the_password( \%body );
+
+    $body{'nick'} = $nick; # overwrite whatever might have been there
         
-    # make sure we got something resembling a nick
-    if ( not exists $proplist_before{'nick'} ) {
-        return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'nick' ] );
-    }
-
     # spawn an object, filtering the properties first
-    my @filtered_args = App::Dochazka::Model::Employee::filter( @ARGS );
+    my @filtered_args = App::Dochazka::Model::Employee::filter( %body );
     my %proplist_after = @filtered_args;
     $log->debug( "Properties after filter: " . join( ' ', keys %proplist_after ) );
     my $emp = App::Dochazka::REST::Model::Employee->spawn( @filtered_args );
 
     # execute the INSERT db operation
-    return $emp->insert;
+    return $emp->insert( $context );
 }
 
 
@@ -332,14 +371,24 @@ sub _get_nick {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::Employee::_get_nick with mapping " . Dumper $context->{'mapping'} ); 
 
+    my $conn = $context->{'dbix_conn'};
+
     my $nick = $context->{'mapping'}->{'nick'};
 
-    return App::Dochazka::REST::Model::Employee->load_by_nick( $nick ) 
+    return App::Dochazka::REST::Model::Employee->load_by_nick( $conn, $nick ) 
         unless $nick =~ m/%/;
-    
-    my $status = App::Dochazka::REST::Model::Employee->
-        select_multiple_by_nick( $nick );
-    foreach my $emp ( @{ $status->payload->{'result_set'} } ) {
+
+    $log->debug( "Search string contains wildcard - calling load_multiple" );
+    my $status = $CELL->status_ok;
+    $status = load_multiple(
+        conn => $conn,
+        class => 'App::Dochazka::REST::Model::Employee',
+        sql => $site->SQL_EMPLOYEE_SELECT_MULTIPLE_BY_NICK,
+        keys => [ $nick ],
+    );
+    return $status unless $status->ok;
+
+    foreach my $emp ( @{ $status->payload } ) {
         $emp = $emp->TO_JSON;
     }
     return $status;

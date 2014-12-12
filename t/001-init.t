@@ -29,6 +29,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ************************************************************************* 
+#
+# - test initialization, among other things, by completely wiping the database
 
 #!perl
 use 5.012;
@@ -37,66 +39,55 @@ use warnings FATAL => 'all';
 use Test::More;
 
 #use App::CELL::Test::LogToFile;
-use App::CELL qw( $log $meta $site );
+use App::CELL qw( $site );
 use App::Dochazka::REST;
-use Carp;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn conn_status );
+use App::Dochazka::REST::Test;
 
-# initialize but do not connect to database
+
+###
+###
+### This unit is special in that it resets the database.
+### It should be called at the beginning of the test suite.
+###
+###
+
+
+# initialize the server
 my $status = App::Dochazka::REST->init_no_db( sitedir => '/etc/dochazka-rest' );
 if ( $status->not_ok ) {
     diag( $status->text );
     plan skip_all => "Not configured. Please run the test suite manually after initial site configuration";
 }
 
-# connect to postgres database
-#$status = App::Dochazka::REST->connect_db_pristine( 
-#    dbname => 'postgres',
-#    dbuser => $site->DBINIT_CONNECT_USER,
-#    dbpass => $site->DBINIT_CONNECT_AUTH,
-#);
-# die if this doesn't succeed -- no point in continuing
-#croak( $status->code . " " . $status->text ) unless $status->ok;
-
-# drop dochazka database if it exists, re-create it
-#diag( "reset_db" );
-$status = App::Dochazka::REST->reset_db( $site->DOCHAZKA_DBNAME );
-diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
-ok( $status->ok, "Database dropped and re-created" );
-
-# connect to pristine dochazka database
-#diag( "connect_db_pristine" );
-$status = App::Dochazka::REST->connect_db_pristine( 
-    dbname => $site->DOCHAZKA_DBNAME,
-    dbuser => $site->DOCHAZKA_DBUSER,
-    dbpass => $site->DOCHAZKA_DBPASS,
+# reset the database to "factory state" - WARNING: THIS WIPES THE DATABASE --
+# ALL DATA IN IT WILL BE LOST
+$status = App::Dochazka::REST::reset_db(
+    $site->DBINIT_CONNECT_SUPERUSER,
+    $site->DBINIT_CONNECT_SUPERAUTH,
 );
 if ( $status->not_ok ) {
-    diag( $status->code . ' ' . $status->text );
-    BAIL_OUT("Aborting test: could not connect to database");
+    diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
+    BAIL_OUT(0);
 }
-ok( $status->ok, "Now connected to dochazka testing database for initialization" );
-my $dbh = $status->payload;
-ok( $dbh->ping );
+ok( $status->ok, "Database dropped and re-created" );
 
-# create tables, triggers, stored procedures, etc.
-#diag( "create_tables" );
-$status = App::Dochazka::REST->create_tables( $dbh );
-diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
-ok( $status->ok, "Tables created OK" );
+# initialize the $dbix_conn singleton
+App::Dochazka::REST::ConnBank::init_singleton(
+    $site->DOCHAZKA_DBNAME,
+    $site->DOCHAZKA_DBUSER,
+    $site->DOCHAZKA_DBPASS,
+);
 
-# disconnect from db
-$dbh->disconnect or die $dbh->errstr;
+# get EID of root user
+#diag( "get EID of initial roles" );
+ok( $site->DOCHAZKA_EID_OF_ROOT );
+ok( $site->DOCHAZKA_EID_OF_DEMO );
+my $eids = App::Dochazka::REST::get_eid_of( $dbix_conn, "root", "demo" );
+is( $eids->{'root'}, 1 );
+is( $eids->{'demo'}, 2 );
 
-# reconnect to initialized db (as in production)
-#diag( "init" );
-my $REST = App::Dochazka::REST->init;
-diag( "Status: " . $status->code . ' ' . $status->text ) if $status->not_ok;
-ok( $status->ok, "Now connected to dochazka testing database for 'production'" );
-ok( $REST->dbh->ping );
-
-# check that 'connect_db' initialized DOCHAZKA_EID_OF_ROOT parameter
-my $eid_of_root = $site->DOCHAZKA_EID_OF_ROOT;
-#diag( "eid_of_root == $eid_of_root" );
-ok( $eid_of_root > 0, "EID of root is $eid_of_root" );
+# check the conn_status value
+is( conn_status(), "UP" );
 
 done_testing;

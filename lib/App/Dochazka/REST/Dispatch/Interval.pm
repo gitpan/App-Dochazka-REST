@@ -40,12 +40,8 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
-use App::Dochazka::REST::Dispatch::Shared qw( 
-    not_implemented 
-    pre_update_comparison 
-);
+#use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
 use App::Dochazka::REST::Model::Interval;
 use App::Dochazka::REST::Model::Shared;
 use Data::Dumper;
@@ -63,11 +59,11 @@ App::Dochazka::REST::Dispatch::Interval - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -118,7 +114,7 @@ sub _new {
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless $context->{'request_body'};
     foreach my $missing_prop ( qw( aid intvl ) ) {
         if ( not exists $context->{'request_body'}->{$missing_prop} ) {
-            return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ $missing_prop ] );
+            return $CELL->status_err( 'DOCHAZKA_MALFORMED_400', args => [ $missing_prop ] );
         }
     }
 
@@ -128,33 +124,25 @@ sub _new {
     return $status unless $status->ok;
 
     # attempt to insert
-    return _insert_interval( $context->{'request_body'} );
+    return _insert_interval( $context );
 }
 
 # takes PROPLIST
 sub _insert_interval {
-    my ( $pl ) = validate_pos( @_, { type => HASHREF } );
-    $log->debug("Reached _insert_interval from " . (caller)[1] . " line " .  (caller)[2] . 
-                " with argument list " . Dumper( $pl ) );
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    $log->debug("Reached " . __PACKAGE__ . "::_insert_interval" );
 
-    my %proplist_before = %$pl;
+    my %proplist_before = %{ $context->{'request_body'} };
     $log->debug( "Properties before filter: " . join( ' ', keys %proplist_before ) );
         
-    # make sure we got something resembling a code
-    foreach my $missing_prop ( qw( eid aid intvl ) ) {
-        if ( not exists $proplist_before{$missing_prop} ) {
-            return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ $missing_prop ] );
-        }
-    }
-
     # spawn an object, filtering the properties first
-    my @filtered_args = App::Dochazka::Model::Interval::filter( %$pl );
+    my @filtered_args = App::Dochazka::Model::Interval::filter( %proplist_before );
     my %proplist_after = @filtered_args;
     $log->debug( "Properties after filter: " . join( ' ', keys %proplist_after ) );
     my $int = App::Dochazka::REST::Model::Interval->spawn( @filtered_args );
 
     # execute the INSERT db operation
-    return $int->insert;
+    return $int->insert( $context );
 }
 
 1;

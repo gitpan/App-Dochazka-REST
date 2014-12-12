@@ -37,7 +37,7 @@ use strict;
 use warnings FATAL => 'all';
 
 
-our $VERSION = 0.322;
+our $VERSION = 0.348;
 
 1;
 __END__
@@ -111,6 +111,27 @@ Display the address for reporting bugs in App::Dochazka::REST
 
 Returns a "report_bugs_to" key in the payload, containing the address to
 report bugs to.
+
+
+=back
+
+=head3 dbstatus
+
+Display status of database connection
+
+=over
+
+*** HTTP: C<GET> *** CLI: C<$METHOD dbstatus> *** ACL: inactive ***
+
+This resource checks the employee's database connection and reports on its status.
+The result - either "UP" or "DOWN" - will be encapsulated in a payload like this:
+
+    { "dbstatus" : "UP" }
+
+Each employee gets her own database connection when she logs in to Dochazka.
+Calling this resource causes the server to execute a 'ping' on the connection.
+If the ping test fails, the server will attempt to open a new connection. Only
+if this, too, fails will "DOWN" be returned.
 
 
 =back

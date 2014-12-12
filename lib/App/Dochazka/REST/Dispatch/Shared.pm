@@ -40,6 +40,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
+use App::Dochazka::REST::ConnBank qw( conn_status );
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::Model::Shared qw( priv_by_eid schedule_by_eid );
 use Data::Dumper;
@@ -58,11 +59,11 @@ App::Dochazka::REST::Dispatch::Shared - Shared dispatch functions
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -127,7 +128,7 @@ sub make_default {
         my $resource_defs = $site->get_param( $ARGS{resource_list} );
         my @rlist = keys %$resource_defs;
         $log->debug( 'make_default: processing ' . scalar @rlist . ' resources for ' . $ARGS{http_method} . ' request' );
-        my $server_status = App::Dochazka::REST::dbh::status();
+        my $server_status = conn_status( $context->{'dbix_conn'} );
         my $uri = $context->{'uri'};
         $uri =~ s/\/*$//;
         my $method = $context->{'method'};
@@ -152,7 +153,6 @@ sub make_default {
                     $resources->{ $entry } = {
                         link => "$uri/$entry",
                         description => $rspec->{'description'},
-                        acl_profile => $rspec->{'acl_profile'},
                     };
                 }
             }
@@ -241,11 +241,12 @@ should contain the request context from Resource.pm
 sub current {
     my ( $t, $context ) = validate_pos( @_, 
         { type => SCALAR },
-        { type => HASHREF } 
+        { type => HASHREF }, 
     );
 
     $log->debug( "Entering " . __PACKAGE__ . "::current with $t" );
 
+    my $conn = $context->{'dbix_conn'};
     my $ts = $context->{'mapping'}->{'ts'};
     my $eid = $context->{'mapping'}->{'eid'};
     my $nick = $context->{'mapping'}->{'nick'};
@@ -271,7 +272,7 @@ sub current {
     # we have one of {EID,nick} but we need both
     if ( $nick ) {
         # "$t/nick/:nick/?:ts" resource
-        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $conn, $nick );
         $eid = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'eid'}
             : undef;
@@ -279,7 +280,7 @@ sub current {
     } else {
         # "$t/self/?:ts" resource
         # "$t/eid/:eid/?:ts" resource
-        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $eid );
+        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $conn, $eid );
         $nick = ( ref( $status->payload) eq 'App::Dochazka::REST::Model::Employee' )
             ? $status->payload->{'nick'}
             : undef;
@@ -287,36 +288,37 @@ sub current {
     }
 
     # employee exists and we have her EID and nick: get privlevel/schedule
-    $status = $dispatch{$t}->( $eid, $ts );
-    # on success, $status will be a SCALAR like 'inactive' (priv) or a long JSON string (schedule)
-    if ( ref($status) ne 'App::CELL::Status' ) {
-        my @privsched = ( $t, $status );
+    my $return_value = $dispatch{$t}->( $conn, $eid, $ts );
+
+    # on success, $return_value will be a SCALAR like 'inactive' (priv) or a long JSON string (schedule)
+    if ( ref( $return_value ) ne 'App::CELL::Status' ) {
+        my @privsched = ( $t, $return_value );
         if ( $ts ) {
             return $CELL->status_ok(
                 'DISPATCH_EMPLOYEE_' . uc( $t ) . '_AS_AT',
-                args => [ $ts, $nick, $status ],
-                payload => { 
+                args => [ $ts, $nick, $return_value ],
+                payload => {
                     eid => $eid += 0,  # "numify"
                     nick => $nick,
                     timestamp => $ts,
                     @privsched,
-                }, 
+                },
             );
         } else {
             return $CELL->status_ok(
                 'DISPATCH_EMPLOYEE_' . uc( $t ),
-                args => [ $nick, $status ],
-                payload => { 
+                args => [ $nick, $return_value ],
+                payload => {
                     eid => $eid += 0,  # "numify"
                     nick => $nick,
                     @privsched,
-                }, 
+                },
             );
         }
     }
-    # something very strange and unexpected happened
-    $status->level( 'CRIT' );
-    return $status;
+
+    # There was a DBI error
+    return $return_value;
 }
 
 
@@ -343,40 +345,51 @@ sub _prop_from_class {
 #     'schedule/history/nick/:nick/:tsrange' 
 sub history {
     my %PH = validate( @_, {
+        'context' => { type => HASHREF },    # from Resource.pm
         'class' => { type => SCALAR },       # e.g. 'App::Dochazka::REST::Dispatch::Priv'
-        'method' => { type => SCALAR },      # e.g. 'GET'
         'key' => { type => ARRAYREF },       # e.g. [ 'EID', 35 ], [ 'nick', 'mrfoo' ]
         'tsrange' => { type => SCALAR|UNDEF, optional => 1 }, # e.g. '[ 1969-04-27 08:00, 1971-04-26 08:00 )'
-        'body' => { type => HASHREF|UNDEF, optional => 1 },
     } );
-    my $prop = _prop_from_class( $PH{class} );
+
+#    my $prop = _prop_from_class( $PH{class} );
     my ( $status );
     if ( lc( $PH{key}->[0] ) eq 'eid' ) {
-        $status = App::Dochazka::REST::Model::Employee->load_by_eid( $PH{key}->[1] );
+        $status = App::Dochazka::REST::Model::Employee->load_by_eid( 
+            $PH{'context'}->{'dbix_conn'}, 
+            $PH{key}->[1],
+        );
     } elsif ( lc( $PH{key}->[0] ) eq 'nick' ) {
-        $status = App::Dochazka::REST::Model::Employee->load_by_nick( $PH{key}->[1] );
+        $status = App::Dochazka::REST::Model::Employee->load_by_nick( 
+            $PH{'context'}->{'dbix_conn'}, 
+            $PH{key}->[1], 
+        );
     } else {
-        die "AHAAHHAAAAAAAAHAAAHHHH!";
+        die "AHAAHHAAAAAAAAHAAAHHHH at " . __PACKAGE__ . " mark 2";
     }
+
     if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
         my $emp = $status->payload;
-        if ( $PH{method} eq 'GET' ) {
-            return _get_history( class => $PH{'class'}, eid => $emp->eid, 
-                nick => $emp->nick, tsrange => $PH{'tsrange'} );
-        } elsif ( $PH{method} eq 'POST' ) {
-            return _put_history( class => $PH{'class'}, eid => $emp->eid, body => $PH{'body'} );
+        my $method = $PH{'context'}->{'method'};
+        if ( $method eq 'GET' ) {
+            return _get_history( context => $PH{'context'}, class => $PH{'class'}, 
+                eid => $emp->eid, nick => $emp->nick, tsrange => $PH{'tsrange'} );
+        } elsif ( $method eq 'POST' ) {
+            return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $PH{'context'}->{'request_body'};
+            return _put_history( context => $PH{'context'}, class => $PH{'class'}, eid => $emp->eid );
         } else {
-            die "AAAAAAAAAAHHHHAAHHHH";
+            die "AAAAAAAAAAHHHHAAHHHH at " . __PACKAGE__ . " mark 1";
         }
     } elsif ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         return $CELL->status_err('DOCHAZKA_NOT_FOUND_404');
     }
+
     return $status;
 }
 
 # takes class (priv/sched)
 sub _get_history {
     my %PH = validate( @_, {
+        'context' => { type => HASHREF },
         'class' => { type => SCALAR },         # e.g. 'App::Dochazka::REST::Dispatch::Priv'
         'eid' => { type => SCALAR },     
         'nick' => { type => SCALAR }, 
@@ -386,8 +399,9 @@ sub _get_history {
     my $prop = _prop_from_class( $PH{class} );
 
     return App::Dochazka::REST::Model::Shared::get_history( 
-        $prop, 
-        eid => $PH{eid}, 
+        $prop,
+        $PH{'context'}->{'dbix_conn'},
+        eid => $PH{eid},
         nick => $PH{nick}, 
         tsrange => $PH{tsrange} 
     );
@@ -396,25 +410,26 @@ sub _get_history {
 # takes class (priv/sched), eid (integer) and body (hashref)
 sub _put_history {
     my %PH = validate( @_, {
+        'context' => { type => HASHREF },
         'class' => { type => SCALAR },         # e.g. 'App::Dochazka::REST::Model::Privhistory'
         'eid' => { type => SCALAR },     
-        'body' => { type => HASHREF },
     } );
     $log->debug( "Entering " . __PACKAGE__ . " _put_history with PARAMHASH " . Dumper( \%PH ) );
     my $prop = _prop_from_class( $PH{class} );
-    return $CELL->status_err('DOCHAZKA_MALFORMED_400') if not $PH{body}->{'effective'} or not $PH{body}->{$prop};
+    my $body = $PH{'context'}->{'request_body'};
+    return $CELL->status_err('DOCHAZKA_MALFORMED_400') if not $body->{'effective'} or not $body->{$prop};
     my $ho;
     try {
         $ho = $PH{class}->spawn( 
             eid => $PH{eid}, 
-            effective => $PH{body}->{'effective'},
-            $prop => $PH{body}->{$prop},
+            effective => $body->{'effective'},
+            $prop => $body->{$prop},
         );
     } catch {
         $log->crit($_);
         return $CELL->status_crit("DISPATCH_HISTORY_COULD_NOT_SPAWN", args => [ $_ ] );
     };
-    return $ho->insert;
+    return $ho->insert( $PH{'context'} );
 }
 
 # generalized dispatch target for:
@@ -422,13 +437,13 @@ sub _put_history {
 #    '/schedule/history/shid/:shid'
 sub history_by_id {
     my %PH = validate( @_, {
+        context => { type => HASHREF },
         class => { type => SCALAR },
-        method => { type => SCALAR },
         id => { type => SCALAR },
     } );
-    my $status = $PH{class}->load_by_id( $PH{id} );
+    my $status = $PH{class}->load_by_id( $PH{'context'}->{'dbix_conn'}, $PH{id} );
     if ( $status->level eq 'OK' and $status->code eq 'DISPATCH_RECORDS_FOUND' ) {
-        return $status->payload->delete if $PH{method} eq 'DELETE';
+        return $status->payload->delete( $PH{'context'} ) if $PH{'context'}->{'method'} eq 'DELETE';
     }
     return $status;
 }
@@ -449,14 +464,17 @@ sub _determine_interval_or_lock {
 #    'interval/eid/:eid/:tsrange'
 #    'lock/eid/:eid/:tsrange'
 sub fetch_by_eid {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my ( $context ) = validate_pos( @_, 
+        { type => HASHREF },
+    );
     $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_eid" ); 
+    my $conn = $context->{'dbix_conn'},
     my ( $eid, $tsrange ) = ( $context->{'mapping'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
 
     my $type = _determine_interval_or_lock( $context->{'path'} );
     $log->debug("About to fetch $type intervals for EID $eid in tsrange $tsrange" );
 
-    my $status = $f_dispatch{$type}->( $eid, $tsrange );
+    my $status = $f_dispatch{$type}->( $conn, $eid, $tsrange );
     if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
     }
@@ -467,8 +485,11 @@ sub fetch_by_eid {
 #    'interval/nick/:nick/:tsrange'
 #    'lock/nick/:nick/:tsrange'
 sub fetch_by_nick {
-    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    my ( $context ) = validate_pos( @_, 
+        { type => HASHREF } 
+    );
     $log->debug( "Entering " . __PACKAGE__ . "::_fetch_by_nick" ); 
+    my $conn = $context->{'dbix_conn'},
     my ( $nick, $tsrange ) = ( $context->{'mapping'}->{'nick'}, $context->{'mapping'}->{'tsrange'} );
     $log->debug("About to fetch intervals for nick $nick in tsrange $tsrange" );
 
@@ -476,7 +497,7 @@ sub fetch_by_nick {
     $log->debug("About to fetch $type intervals for nick $nick in tsrange $tsrange" );
 
     # get EID
-    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $nick );
+    my $status = App::Dochazka::REST::Model::Employee->load_by_nick( $conn, $nick );
     if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
     } elsif ( $status->not_ok ) {
@@ -484,7 +505,7 @@ sub fetch_by_nick {
     }
     my $eid = $status->payload->{'eid'};
     
-    $status = $f_dispatch{$type}->( $eid, $tsrange );
+    $status = $f_dispatch{$type}->( $conn, $eid, $tsrange );
     if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
     }
@@ -497,12 +518,13 @@ sub fetch_by_nick {
 sub fetch_own {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . "::_fetch_own" ); 
+    my $conn = $context->{'dbix_conn'};
     my ( $eid, $tsrange ) = ( $context->{'current'}->{'eid'}, $context->{'mapping'}->{'tsrange'} );
 
     my $type = _determine_interval_or_lock( $context->{'path'} );
     $log->debug("About to fetch $type intervals for EID $eid (current employee) in tsrange $tsrange" );
 
-    my $status = $f_dispatch{$type}->( $eid, $tsrange );
+    my $status = $f_dispatch{$type}->( $conn, $eid, $tsrange );
     if ( $status->level eq 'NOTICE' and $status->code eq 'DISPATCH_NO_RECORDS_FOUND' ) {
         return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' );
     }
@@ -517,7 +539,10 @@ sub iid_lid {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . "::iid_lid" ); 
 
+    my $conn = $context->{'dbix_conn'};
+
     my $type = _determine_interval_or_lock( $context->{'path'} );
+    $log->debug( "Type is $type" );
     my %idmap = (
         "attendance" => 'iid',
         "lock" => 'lid',
@@ -528,7 +553,7 @@ sub iid_lid {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400') 
             unless exists $context->{'request_body'}->{ $idmap{$type} };
         $id = $context->{'request_body'}->{ $idmap{$type} };
-        return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', 
+        return $CELL->status_err( 'DISPATCH_PARAMETER_BAD_OR_MISSING', 
             args => [ $idmap{$type} ] ) unless $id;
         delete $context->{'request_body'}->{ $idmap{$type} };
     } else {
@@ -537,7 +562,7 @@ sub iid_lid {
 
     # does the ID exist? (load the whole record into $status->payload)
     my $fn = "load_by_" . $idmap{$type};
-    my $status = $id_dispatch{$type}->$fn( $id );
+    my $status = $id_dispatch{$type}->$fn( $conn, $id );
     return $status unless $status->level eq 'OK' or $status->level eq 'NOTICE';
     return $CELL->status_err( 'DOCHAZKA_NOT_FOUND_404' ) if $status->code eq 'DISPATCH_NO_RECORDS_FOUND';
     my $belongs_eid = $status->payload->{'eid'};
@@ -555,23 +580,25 @@ sub iid_lid {
     # it exists and we passed the ACL check, so go ahead and do what we need to do
     die "Bad interval!" unless exists( $status->payload->{'intvl'} ) and 
         defined( $status->payload->{'intvl'} );
-    if ( $context->{'method'} eq 'GET' ) {
+    my $method = $context->{'method'}; 
+    if ( $method eq 'GET' ) {
         return $status if $status->code eq 'DISPATCH_RECORDS_FOUND';
-    } elsif ( $context->{'method'} =~ m/^(PUT)|(POST)$/ ) {
-        return _update_interval( $status->payload, $context->{'request_body'} );
-    } elsif ( $context->{'method'} eq 'DELETE' ) {
+    } elsif ( $method =~ m/^(PUT)|(POST)$/ ) {
+        return _update_interval( $context, $status->payload, $context->{'request_body'} );
+    } elsif ( $method eq 'DELETE' ) {
         $log->notice( "Attempting to delete $type interval " . $status->payload->{ $idmap{$type} } );
-        return $status->payload->delete;
+        return $status->payload->delete( $context );
     }
     return $CELL->status_crit("Aaaaaaaaaaahhh! Swallowed by the abyss" );
 }
 
-# takes two arguments:
-# - "$int" is an interval object (blessed hashref)
-# - "$over" is a hashref with zero or more interval properties and new values
+# takes three arguments:
+# - $context is the request context from Resource.pm
+# - $int is an interval object (blessed hashref)
+# - $over is a hashref with zero or more interval properties and new values
 # the values from $over replace those in $int
 sub _update_interval {
-    my ( $int, $over) = @_;
+    my ( $context, $int, $over) = @_;
     $log->debug("Entering " . __PACKAGE__ . "::_update_interval" );
 
     # determine whether we have been passed an interval or lock and set $idv accordingly
@@ -594,7 +621,7 @@ sub _update_interval {
     # $over into $int
     return $CELL->status_err('DOCHAZKA_MALFORMED_400') unless pre_update_comparison( $int, $over );
 
-    return $int->update 
+    return $int->update( $context ); 
 }
 
 1;

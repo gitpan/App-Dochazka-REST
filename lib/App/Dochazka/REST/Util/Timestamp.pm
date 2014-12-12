@@ -35,7 +35,6 @@ package App::Dochazka::REST::Util::Timestamp;
 use 5.012;
 use strict;
 use warnings FATAL => 'all';
-use App::Dochazka::REST::dbh qw( $dbh );
 use DBI;
 use Time::Piece;
 use Time::Seconds;
@@ -52,11 +51,11 @@ App::Dochazka::REST::Util::Timestamp - date/time-related utilities
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -127,7 +126,7 @@ bounds (i.e. into two timestamps) by running it through the SQL statement:
 =cut
 
 sub split_tsrange {
-    my ( $tsr ) = @_;
+    my ( $dbh, $tsr ) = @_;
 
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT lower(CAST( ? AS tsrange )), upper(CAST( ? AS tsrange ))',
@@ -150,7 +149,7 @@ through the database in the SQL statement:
 =cut
 
 sub canonicalize_ts {
-    my ( $ts ) = @_;
+    my ( $dbh, $ts ) = @_;
 
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS timestamp)',
@@ -169,7 +168,7 @@ Given a timestamp and an integer n, subtract n days.
 =cut
 
 sub subtract_days {
-    my ( $ts, $n ) = @_;
+    my ( $dbh, $ts, $n ) = @_;
     my $n_days = "$n days";
     my $sql = "SELECT TIMESTAMP ? - INTERVAL ?";
     my $sth = prepare( $sql );
@@ -187,7 +186,7 @@ the result (true or false).
 =cut
 
 sub tsrange_equal {
-    my ( $tr1, $tr2 ) = @_;
+    my ( $dbh, $tr1, $tr2 ) = @_;
 
     my ( $result ) = $dbh->selectrow_array( 
         'SELECT CAST( ? AS tsrange) = CAST( ? AS tsrange )',

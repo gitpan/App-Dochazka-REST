@@ -40,44 +40,26 @@ use warnings FATAL => 'all';
 
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
-use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
-use App::Dochazka::REST::Test; # for test_sql_success and test_sql_failure
+use App::Dochazka::REST::Test;
+use Data::Dumper;
 use Test::More;
 
 
-# initialize and connect to database
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
-
-# plan tests
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and ping the database just to be sure
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
-# mustr 
-#
-#test_sql_success( $dbh, 1, <<"SQL" );
-#INSERT INTO schedules (schedule, disabled) VALUES ( 'test schedule', 'f' )
-##SQL
-#
-#test_sql_failure( $dbh, qr/schedules\.sid field is immutable/, <<"SQL" );
-#UPDATE schedules SET sid = $dast_sid WHERE sid = $sid
-#SQL
 
 #---- get the next SSID
-my ( $ssid ) = $dbh->selectrow_array( "SELECT nextval('scratch_sid_seq')" );
+my ( $ssid ) = do_select_single( $dbix_conn, "SELECT nextval('scratch_sid_seq')" );
 ok( $ssid ); # this doesn't tell us much, of course
 
 #---- test NULL tsrange separately because it requires different SQL syntax
-test_sql_failure( $dbh, qr/illegal interval/, <<"SQL" );
+test_sql_failure( $dbix_conn, qr/illegal interval/, <<"SQL" );
 INSERT into schedintvls (ssid, intvl) VALUES ( $ssid, NULL::tstzrange )
 SQL
 
@@ -98,7 +80,7 @@ my %int_map = (
 );
 foreach my $intvl ( keys( %int_map ) ) {
     $intvl = "'" . $intvl . "'" . "::tstzrange";
-    test_sql_failure( $dbh, qr/illegal interval/, <<"SQL" );
+    test_sql_failure( $dbix_conn, qr/illegal interval/, <<"SQL" );
 INSERT into schedintvls (ssid, intvl) VALUES ( $ssid, $intvl )
 SQL
 

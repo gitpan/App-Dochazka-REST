@@ -39,7 +39,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $log $meta $site );
-use App::Dochazka::REST;
 use App::Dochazka::REST::Test;
 use Data::Dumper;
 use JSON;
@@ -47,14 +46,13 @@ use Plack::Test;
 use Test::JSON;
 use Test::More;
 
+
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
@@ -88,10 +86,10 @@ EOH
 }
 
 # create testing employee 'inactive' with 'inactive' privlevel
-create_inactive_employee( $test );
+my $eid_of_inactive = create_inactive_employee( $test );
 
 # create testing employee 'bubba' with 'active' privlevel
-my $eid_bubba = create_testing_employee( nick => 'bubba', passhash => 'bubba' )->eid;
+my $eid_bubba = create_testing_employee( { nick => 'bubba', password => 'bubba' } )->eid;
 $status = req( $test, 200, 'root', 'POST', 'priv/history/nick/bubba', <<"EOH" );
 { "eid" : $eid_bubba, "priv" : "active", "effective" : "1967-06-17 00:00" }
 EOH
@@ -124,6 +122,10 @@ sub create_testing_interval {
     $status = req( $test, 200, 'root', 'POST', 'interval/new', <<"EOH" );
 { "eid" : $eid_active, "aid" : $aid_of_work, "intvl" : "[2014-10-01 08:00, 2014-10-01 12:00)" }
 EOH
+    if( $status->level ne 'OK' ) {
+        diag( Dumper $status );
+        BAIL_OUT(0);
+    }
     is( $status->level, 'OK' );
     is( $status->code, 'DOCHAZKA_CUD_OK' );
     ok( $status->{'payload'} );
@@ -576,11 +578,9 @@ foreach my $rb (
 }
 #
 # - required property missing
-$status = req( $test, 200, 'root', 'POST', $base, <<"EOH" );
+req( $test, 400, 'root', 'POST', $base, <<"EOH" );
 { "intvl" : "[1957-01-02 08:00, 1957-01-02 08:00)", "whinger" : "me" }
 EOH
-is( $status->level, 'ERR' );
-is( $status->code, 'DISPATCH_PARAMETER_BAD_OR_MISSING' );
 #
 # - nonsensical JSON
 req( $test, 400, 'root', 'POST', $base, 0 );
@@ -692,7 +692,10 @@ $status = req( $test, 400, 'root', 'POST', $base, 0 );
 #
 $status = req( $test, 400, 'root', 'POST', $base, '[ 1, 2, [1, 2], { "wombat":"five" } ]' );
 
+#
+#
 # create an interval, lock it, and then try to update it and delete it
+# 
 # - create interval
 $status = req( $test, 200, 'root', 'POST', 'interval/new', <<"EOH" );
 { "aid" : $aid_of_work, "intvl" : "[1957-01-02 08:00, 1957-01-03 08:00)" }
@@ -727,6 +730,87 @@ is( $status->code, 'DOCHAZKA_CUD_OK' );
 $status = req( $test, 200, 'root', 'DELETE', "interval/iid/$ti" );
 is( $status->level, 'OK' );
 is( $status->code, 'DOCHAZKA_CUD_OK' );
+#
+#
+# create a lock over the entire month of August 2014 and try to create
+# intervals that might be considered "edge cases"
+#
+$status = req( $test, 200, 'root', 'POST', 'lock/new', <<"EOH" );
+{ "eid" : $eid_active, "intvl" : "[2014-08-01 00:00, 2014-09-01 00:00)" }
+EOH
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+my $tlid = $status->payload->{'lid'};
+$status = req( $test, 200, 'root', 'GET', "lock/lid/$tlid" );
+ok( $status->ok );
+#
+# - this one will be OK
+$status = req( $test, 200, 'active', 'POST', 'interval/new', <<"EOH" );
+{ "aid" : $aid_of_work, "eid" : $eid_active, "intvl" : "[2014-07-31 20:00, 2014-08-01 00:00)" }
+EOH
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+my $tiid = $status->payload->{'iid'};
+$status = req( $test, 200, 'active', 'DELETE', "interval/iid/$tiid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+req( $test, 404, 'active', 'GET', "interval/iid/$tiid" );
+#
+# - illegal interval
+$status = req( $test, 200, 'active', 'POST', 'interval/new', <<"EOH" );
+{ "aid" : $aid_of_work, "eid" : $eid_active, "intvl" : "[2014-07-31 20:00, 2014-08-01 00:00]" }
+EOH
+is( $status->level, "ERR" );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/illegal interval/ );
+#
+# - upper bound not evenly divisible by 5 minutes 
+$status = req( $test, 200, 'active', 'POST', 'interval/new', <<"EOH" );
+{ "aid" : $aid_of_work, "eid" : $eid_active, "intvl" : "[2014-07-31 20:00, 2014-08-01 00:01)" }
+EOH
+is( $status->level, "ERR" );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/upper and lower bounds of interval must be evenly divisible by 5 minutes/ );
+#
+# - interval is locked
+$status = req( $test, 200, 'active', 'POST', 'interval/new', <<"EOH" );
+{ "aid" : $aid_of_work, "eid" : $eid_active, "intvl" : "[2014-07-31 20:00, 2014-08-01 00:05)" }
+EOH
+is( $status->level, "ERR" );
+is( $status->code, 'DOCHAZKA_DBI_ERR' );
+like( $status->text, qr/interval is locked/ );
+#
+# now let's try to attack upper bound of lock
+#
+# - this one looks like it might conflict with the lock's upper bound
+# (2014-09-01), but since the upper bound is non-inclusive, the interval will
+# be OK
+#
+$status = req( $test, 200, 'active', 'POST', 'interval/new', <<"EOH" );
+{ "aid" : $aid_of_work, "eid" : $eid_active, "intvl" : "[2014-09-01 00:00, 2014-09-01 04:00)" }
+EOH
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+$tiid = $status->payload->{'iid'};
+$status = req( $test, 200, 'active', 'DELETE', "interval/iid/$tiid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+req( $test, 404, 'active', 'GET', "interval/iid/$tiid" );
+#
+# - conclusion: I don't see any way to create an unexpected conflict
+#
+# CLEANUP: delete the lock
+$status = req( $test, 200, 'root', 'DELETE', "lock/lid/$tlid" );
+is( $status->level, 'OK' );
+is( $status->code, 'DOCHAZKA_CUD_OK' );
+req( $test, 404, 'root', 'GET', "lock/lid/$tlid" );
+
+
+# have an active user try to create a lock on someone else's attendance
+#
+req( $test, 403, 'active', 'POST', $base, <<"EOH" );
+{ "eid" : $eid_of_inactive, "intvl" : "[1957-02-01 00:00, 1957-03-01 00:00)" }
+EOH
 
 
 #

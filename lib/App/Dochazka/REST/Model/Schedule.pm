@@ -36,10 +36,8 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh qw( $dbh );
-use App::Dochazka::REST::Model::Shared qw( cud decode_schedule_json load load_multiple );
+use App::Dochazka::REST::Model::Shared qw( cud decode_schedule_json load load_multiple select_single );
 use Data::Dumper;
-use DBI;
 use JSON;
 use Params::Validate qw( :all );
 use Try::Tiny;
@@ -59,11 +57,11 @@ App::Dochazka::REST::Model::Schedule - schedule functions
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -242,8 +240,8 @@ For basic workflow, see C<t/model/schedule.t>.
 
 =item * L<load> method (not implemented yet) 
 
-=item * L<get_schedule_json> function (get JSON string associated with a given SID)
-
+#=item * L<get_schedule_json> function (get JSON string associated with a given SID)
+#
 =back
 
 For basic workflow, see C<t/model/schedule.t>.
@@ -257,8 +255,8 @@ This module provides the following exports:
 
 =over 
 
-=item * C<get_schedule_json>
-
+#=item * C<get_schedule_json>
+#
 =item * C<get_all_schedules>
 
 =item * C<sid_exists> (boolean)
@@ -270,7 +268,6 @@ This module provides the following exports:
 use Exporter qw( import );
 our @EXPORT_OK = qw( 
     get_all_schedules
-    get_schedule_json
     sid_exists
 );
 
@@ -287,18 +284,29 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     # if the exact same schedule is already in the database, we
     # don't insert it again
-    $self->{sid} = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SID, 
-                   undef, $self->{schedule} );    
-    return $CELL->status_ok( 'DOCHAZKA_SCHEDULE_EXISTS', args => [ $self->{sid} ] ) 
-        if defined $self->{sid};
-    return $CELL->status_err( $dbh->errstr ) if $dbh->err;
+    my $status = select_single( 
+        conn => $context->{'dbix_conn'}, 
+        sql => $site->SQL_SCHEDULES_SELECT_SID, 
+        keys => [ $self->{schedule} ],
+    );
+    $log->debug( Dumper $status );
+    if ( $status->level eq 'OK' ) {
+        ( $self->{'sid'} ) = @{ $status->payload };
+        return $CELL->status_ok( 'DOCHAZKA_SCHEDULE_EXISTS', args => [ $self->{sid} ] );
+    } elsif( $status->level ne 'NOTICE' ) {
+        return $status;
+    }
 
     # no exact match found, insert a new record
-    my $status = cud(
+    $log->debug( __PACKAGE__ . "::insert calling cud to insert new schedule" );
+    $status = cud(
+        conn => $context->{'dbix_conn'}, 
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_SCHEDULE_INSERT,
         attrs => [ 'schedule', 'remark' ],
@@ -319,9 +327,14 @@ method.
 =cut
 
 sub update {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $self->{'sid'};
 
     my $status = cud(
+        conn => $context->{'dbix_conn'}, 
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_SCHEDULE_UPDATE,
         attrs => [ 'remark', 'disabled', 'sid' ],
@@ -339,10 +352,12 @@ if no other records in the database refer to this schedule.
 =cut
 
 sub delete {
-    my ( $self ) = @_;
-    $log->debug( "Entering " . __PACKAGE__ . "::delete" );
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'}, 
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_SCHEDULE_DELETE,
         attrs => [ 'sid' ],
@@ -362,9 +377,13 @@ Analogous function to L<App::Dochazka::REST::Model::Activity/"load_by_aid">.
 
 sub load_by_sid {
     my $self = shift;
-    my ( $sid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $sid ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     return load( 
+        conn => $conn,
         class => __PACKAGE__, 
         sql => $site->SQL_SCHEDULE_SELECT_BY_SID,
         keys => [ $sid ],
@@ -398,6 +417,7 @@ which can be either true or false (defaults to true).
 
 sub get_all_schedules {
     my %PH = validate( @_, { 
+        conn => { isa => 'DBIx::Connector' },
         disabled => { type => SCALAR, default => 0 }
     } );
     
@@ -408,6 +428,7 @@ sub get_all_schedules {
     # run the query and gather the results
 
     return load_multiple(
+        conn => $PH{'conn'},
         class => __PACKAGE__,
         sql => $sql,
         keys => [],
@@ -415,27 +436,32 @@ sub get_all_schedules {
 }
 
 
-=head2 get_schedule_json
-
-Given a SID, queries the database for the JSON string associated with the SID.
-Returns undef if not found.
-
-=cut
-
-sub get_schedule_json {
-    my ( $sid ) = @_;
-    die "Problem with arguments in get_schedule_json" if not defined $sid;
-
-    my ( $json ) = $dbh->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
-                                         undef,
-                                         $sid );
-    
-    if ( $json ) {
-        $log->debug( __PACKAGE__ . "::get_schedule_json got schedule from database: $json" );
-        return decode_schedule_json( $json );
-    }
-    return;
-}
+#=head2 get_schedule_json
+#
+#Given a SID, queries the database for the JSON string associated with the SID.
+#Returns undef if not found.
+#
+#=cut
+#
+#sub get_schedule_json {
+#    my ( $sid ) = @_;
+#    die "Problem with arguments in get_schedule_json" if not defined $sid;
+#
+#    my $json;
+#    try {
+#        $conn->do( fixup => sub {
+#            ( $json ) = $_->selectrow_array( $site->SQL_SCHEDULES_SELECT_SCHEDULE,
+#                                         undef,
+#                                         $sid );
+#        } );
+#    }
+#    
+#    if ( $json ) {
+#        $log->debug( __PACKAGE__ . "::get_schedule_json got schedule from database: $json" );
+#        return decode_schedule_json( $json );
+#    }
+#    return;
+#}
 
 
 

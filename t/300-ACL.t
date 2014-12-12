@@ -41,13 +41,12 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use App::Dochazka::REST;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
+use App::Dochazka::REST::Test;
 use Test::Fatal;
 use Test::More;
 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }

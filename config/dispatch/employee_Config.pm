@@ -50,6 +50,7 @@ set( 'DISPATCH_RESOURCES_EMPLOYEE', {
     { 
         target => {
             GET => '_get_count', 
+            #GET => 'not_implemented',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
@@ -68,6 +69,7 @@ EOH
     { 
         target => {
             GET => '_get_count', 
+            #GET => 'not_implemented',
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => 'admin', 
@@ -275,13 +277,13 @@ EOH
         },
         target_module => 'App::Dochazka::REST::Dispatch::Employee',
         acl_profile => {
-            GET => 'admin',
+            GET => 'inactive',
             PUT => 'inactive',
             DELETE => 'admin', 
         },
         cli => 'employee nick $NICK [$JSON]',
         validations => {
-            'nick' => qr/^[[:alnum:]_][[:alnum:]_-]+$/,
+            'nick' => qr/^[%[:alnum:]_][%[:alnum:]_-]+$/,
         },
         description => "Retrieves (GET), updates/inserts (PUT), and/or deletes (DELETE) the employee specified by the ':nick' parameter",
         documentation => <<'EOH',

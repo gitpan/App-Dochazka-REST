@@ -41,7 +41,6 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $log $meta $site );
 use App::CELL::Status;
-use App::Dochazka::REST;
 use App::Dochazka::REST::Resource;
 use App::Dochazka::REST::Test;
 use Data::Dumper;
@@ -55,13 +54,9 @@ use Test::More;
 $log->info( "Entering t/301-resource.t" );
 
 # initialize 
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest', verbose => 1, debug_mode => 1 );
-my $status = $REST->{init_status};
-if ( $status->not_ok ) { 
-    plan skip_all => "not configured or server not running";
-}
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $status = initialize_unit();
+plan skip_all => "not configured or server not running" unless $status->ok;
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );

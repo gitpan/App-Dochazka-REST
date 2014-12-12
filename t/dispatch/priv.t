@@ -48,20 +48,18 @@ use Plack::Test;
 use Test::JSON;
 use Test::More;
 
+
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
 
-my $res;
-
+# this has to be defined after initialization because it uses $test
 sub delete_ph_recs {
     my ( $set ) = @_;
     foreach my $rec ( @$set ) {
@@ -70,6 +68,10 @@ sub delete_ph_recs {
         is( $status->code, 'DOCHAZKA_CUD_OK' );
     }
 }
+
+
+my $res;
+
 
 #=============================
 # "priv" resource (again)

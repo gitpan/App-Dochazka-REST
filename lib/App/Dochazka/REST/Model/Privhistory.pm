@@ -36,11 +36,8 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared qw( load cud );
-use Carp;
 use Data::Dumper;
-use DBI;
 use Params::Validate qw( :all );
 use Try::Tiny;
 
@@ -59,11 +56,11 @@ App::Dochazka::REST::Model::Privhistory - privilege history functions
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -196,13 +193,15 @@ argument is.
 
 sub load_by_eid {
     shift; # discard the first argument
-    my ( $eid, $ts ) = validate_pos( @_,
+    my ( $conn, $eid, $ts ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
         { type => SCALAR },                # EID
         { type => SCALAR, optional => 1 }, # timestamp
     );
   
     if ( $ts ) {
         return load(
+            conn => $conn,
             class => __PACKAGE__,
             sql => $site->SQL_PRIVHISTORY_SELECT_ARBITRARY,
             keys => [ $eid, $ts ],
@@ -210,6 +209,7 @@ sub load_by_eid {
     }
 
     return load(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $site->SQL_PRIVHISTORY_SELECT_CURRENT,
         keys => [ $eid ],
@@ -225,9 +225,13 @@ Class method.
 
 sub load_by_id {
     my $self = shift;
-    my ( $phid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $phid ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR }, 
+    );
 
     return load(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $site->SQL_PRIVHISTORY_SELECT_BY_PHID,
         keys => [ $phid ],
@@ -243,7 +247,11 @@ Wrapper for load_by_id
 
 sub load_by_phid {
     my $self = shift;
-    return $self->load_by_id( @_ );
+    my ( $conn, $phid ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR }, 
+    );
+    return $self->load_by_id( $conn, $phid );
 }
 
 
@@ -255,9 +263,12 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_PRIVHISTORY_INSERT,
         attrs => [ 'eid', 'priv', 'effective', 'remark' ],
@@ -280,9 +291,12 @@ Instance method. Deletes the record. Returns status object.
 =cut
 
 sub delete {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud(
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self,
         sql => $site->SQL_PRIVHISTORY_DELETE,
         attrs => [ 'phid' ],
@@ -329,7 +343,8 @@ array will be empty. If there is a DBI error, the payload will be undefined.
 =cut
 
 sub get_privhistory {
-    return App::Dochazka::REST::Model::Shared::get_history( 'priv', @_ );
+    my $context = shift;
+    return App::Dochazka::REST::Model::Shared::get_history( 'priv', $context->{'dbix_conn'}, @_ );
 }
 
 

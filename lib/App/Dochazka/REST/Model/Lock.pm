@@ -36,11 +36,8 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-#use App::Dochazka::REST::dbh qw( $dbh );
 use App::Dochazka::REST::Model::Shared qw( cud load load_multiple );
-use Carp;
 use Data::Dumper;
-use DBI;
 use Params::Validate qw( :all );
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -58,11 +55,11 @@ App::Dochazka::REST::Model::Lock - lock data model
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -129,9 +126,13 @@ whatever was there before.  Returns a status object.
 
 sub load_by_lid {
     my $self = shift;
-    my ( $lid ) = validate_pos( @_, { type => SCALAR } );
+    my ( $conn, $lid ) = validate_pos( @_, 
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+    );
 
     return load(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $site->SQL_LOCK_SELECT_BY_LID,
         keys => [ $lid ],
@@ -148,9 +149,12 @@ object. Returns a status object.
 =cut
 
 sub insert { 
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self, 
         sql => $site->SQL_LOCK_INSERT, 
         attrs => [ 'eid', 'intvl', 'remark' ],
@@ -168,10 +172,14 @@ object. Returns a status object.
 =cut
 
 sub update { 
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
-    return $CELL->status_crit( 'DOCHAZKA_ID_MISSING_IN_UPDATE' ) unless $self->{'lid'};
+    return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' ) unless $self->{'lid'};
+
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self, 
         sql => $site->SQL_LOCK_UPDATE, 
         attrs => [ 'eid', 'intvl', 'remark', 'lid' ],
@@ -189,17 +197,19 @@ object. Returns a status object.
 =cut
 
 sub delete { 
-    my ( $self ) = @_;
-    $log->debug( "Entering " . __PACKAGE__ . "::delete" );
+    my $self = shift;
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
 
     my $status = cud( 
+        conn => $context->{'dbix_conn'},
+        eid => $context->{'current'}->{'eid'},
         object => $self, 
         sql => $site->SQL_LOCK_DELETE, 
         attrs => [ 'lid' ],
     );
     $self->reset( lid => $self->{lid} ) if $status->ok;
 
-    $log->debug( "Returning from " . __PACKAGE__ . "::delete with status code " . $status->code ); 
+    #$log->debug( "Returning from " . __PACKAGE__ . "::delete with status code " . $status->code ); 
     return $status; 
 }
 
@@ -221,9 +231,14 @@ BEGIN {
 
 
 sub fetch_by_eid_and_tsrange {
-    my ( $eid, $tsrange ) = @_;
+    my ( $conn, $eid, $tsrange ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' },
+        { type => SCALAR },
+        { type => SCALAR, optional => 1 },
+    );
 
     return load_multiple(
+        conn => $conn,
         class => __PACKAGE__,
         sql => $site->SQL_LOCK_SELECT_BY_EID_AND_TSRANGE,
         keys => [ $eid, $tsrange ],

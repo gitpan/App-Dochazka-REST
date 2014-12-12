@@ -39,7 +39,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use App::CELL qw( $meta $site );
-use App::Dochazka::REST;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Model::Schedhistory;
 use App::Dochazka::REST::Model::Schedule qw( sid_exists );
 use App::Dochazka::REST::Test;
@@ -50,14 +50,13 @@ use Plack::Test;
 use Test::JSON;
 use Test::More;
 
+
 # initialize, connect to database, and set up a testing plan
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
-my $app = $REST->{'app'};
-$meta->set( 'META_DOCHAZKA_UNIT_TESTING' => 1 );
+my $app = $status->payload;
 
 # instantiate Plack::Test object
 my $test = Plack::Test->create( $app );
@@ -196,12 +195,12 @@ foreach my $day ( 3..10 ) {
     ok( exists $status->{'payload'} );
     ok( exists $status->payload->{'sid'} );
     my $sid = $status->payload->{'sid'};
-    ok( sid_exists( $sid ) );
+    ok( sid_exists( $dbix_conn, $sid ) );
     push @sid_range, $sid;
 }
 #
 # test a non-existent SID
-ok( ! sid_exists( 53434 ), "non-existent SID" );
+ok( ! sid_exists( $dbix_conn, 53434 ), "non-existent SID" );
 #
 # now we get seven
 $status = req( $test, 200, 'root', 'GET', $base );
@@ -279,11 +278,11 @@ is( $status->{'count'}, 5 );
 my $obj = App::Dochazka::REST::Model::Schedule->spawn;
 foreach my $schedule ( @{ $status->payload } ) {
     $obj->reset( $schedule );
-    ok( sid_exists( $obj->sid ) );
+    ok( sid_exists( $dbix_conn, $obj->sid ) );
     $status = req( $test, 200, 'root', 'DELETE', "schedule/sid/" . $obj->sid );
     is( $status->level, 'OK' );
     is( $status->code, 'DOCHAZKA_CUD_OK' );
-    ok( ! sid_exists( $obj->sid ) );
+    ok( ! sid_exists( $dbix_conn, $obj->sid ) );
 }
 
 # 
@@ -407,7 +406,7 @@ req( $test, 404, 'root', 'GET', "$base/34343.33322.22.21" );
 # - stupid EID
 req( $test, 404, 'root', 'GET', "$base/a thousand clarinets" );
 #
-# - stupid EID
+# - stupid EID *and* stupid timestamp
 req( $test, 404, 'root', 'GET', "$base/sad;f3.** * @#/ 12341 12 jjj" );
 #
 # - valid EID, stupid timestamp

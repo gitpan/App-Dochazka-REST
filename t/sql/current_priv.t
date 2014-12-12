@@ -42,88 +42,82 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
-use App::Dochazka::REST::Test; # for test_sql_success and test_sql_failure
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
+use App::Dochazka::REST::Model::Shared qw( select_single );
+use App::Dochazka::REST::Test;
 use Test::More;
 
 
-# initialize and connect to database
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
-
-# plan tests
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
 
-# get database handle and ping the database just to be sure
-my $dbh = $REST->{dbh};
-my $rc = $dbh->ping;
-is( $rc, 1, "PostgreSQL database is alive" );
-
 # get EID of root employee, the hard way, and sanity-test it
-my ( $eid_of_root ) = $dbh->selectrow_array( $site->DBINIT_SELECT_EID_OF_ROOT, undef );
-is( $eid_of_root, $REST->eid_of_root );
+my ( $eid_of_root ) = do_select_single( $dbix_conn, $site->DBINIT_SELECT_EID_OF, 'root' );
+is( $eid_of_root, $site->DOCHAZKA_EID_OF_ROOT );
 
 # get root's current privilege level, the hard way
-my $priv = $dbh->selectrow_array( "SELECT current_priv($eid_of_root)", undef );
+my ( $priv ) = do_select_single( $dbix_conn, "SELECT current_priv(?)", $eid_of_root );
 is( $priv, "admin", "root is admin" );
 
 # insert a new employee
-test_sql_success($dbh, 1, <<SQL);
+test_sql_success($dbix_conn, 1, <<SQL);
 INSERT INTO employees (nick) VALUES ('bubba')
 SQL
 
-# get bubba's current privilege level (will be 'passerby' because none
-# defined yet)
-my $eid_of_bubba = $dbh->selectrow_array( "SELECT eid FROM employees WHERE nick='bubba'", undef );
-$priv = $dbh->selectrow_array( "SELECT current_priv($eid_of_bubba)", undef );
+# get bubba EID 
+my ( $eid_of_bubba ) = do_select_single( $dbix_conn, "SELECT eid FROM employees WHERE nick=?", 'bubba' );
+ok( $eid_of_bubba > 2 );
+
+# get bubba's current privilege level (will be 'passerby' because none defined yet)
+( $priv ) = do_select_single( $dbix_conn, "SELECT current_priv(?)", $eid_of_bubba );
 is( $priv, "passerby", "bubba is a passerby" );
 
 # get priv level of non-existent employee (will be 'passerby')
-$priv = $dbh->selectrow_array( "SELECT current_priv(0)", undef );
+( $priv ) = do_select_single( $dbix_conn, "SELECT current_priv(?)", 0 );
 is( $priv, "passerby", "non-existent EID 0 is a passerby" );
 
 # get priv level of another non-existent employee (will be 'passerby')
-$priv = $dbh->selectrow_array( "SELECT current_priv(44)", undef );
+( $priv ) = do_select_single( $dbix_conn, "SELECT current_priv(?)", 44 );
 is( $priv, "passerby", "non-existent EID 44 is a passerby" );
 
 # make bubba an admin, but not until the year 3000
-test_sql_success($dbh, 1, <<SQL);
+test_sql_success($dbix_conn, 1, <<SQL);
 INSERT INTO privhistory (eid, priv, effective) 
 VALUES ($eid_of_bubba, 'admin', '3000-01-01')
 SQL
 
 # test his current priv level - still passerby
-$priv = $dbh->selectrow_array( "SELECT current_priv($eid_of_bubba)", undef );
+( $priv ) = do_select_single( $dbix_conn, "SELECT current_priv(?)", $eid_of_bubba );
 is( $priv, "passerby", "bubba is still a passerby" );
 
 # test his priv level at 2999-12-31 23:59:59
-$priv = $dbh->selectrow_array( "SELECT priv_at_timestamp($eid_of_bubba, '2999-12-31 23:59:59')", undef );
+( $priv ) = do_select_single( $dbix_conn, "SELECT priv_at_timestamp(?, ?)", $eid_of_bubba, '2999-12-31 23:59:59' );
 is( $priv, "passerby", "bubba still a passerby" );
 
 # test his priv level at 3001-06-30 14:34
-$priv = $dbh->selectrow_array( "SELECT priv_at_timestamp($eid_of_bubba, '3001-06-30 14:34')", undef );
+( $priv ) = do_select_single( $dbix_conn, "SELECT priv_at_timestamp(?, ?)", $eid_of_bubba, '3001-06-30 14:34' );
 is( $priv, "admin", "bubba finally made admin" );
 
 # attempt to delete his employee record -- FAIL
-test_sql_failure($dbh, qr/violates foreign key constraint/, <<SQL);
+test_sql_failure($dbix_conn, qr/violates foreign key constraint/, <<SQL);
 DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 
 # attempt to change his EID -- FAIL
-test_sql_failure($dbh, qr/employees\.eid field is immutable/, <<SQL);
+test_sql_failure($dbix_conn, qr/employees\.eid field is immutable/, <<SQL);
 UPDATE employees SET eid=55 WHERE eid=$eid_of_bubba
 SQL
 
 # delete bubba privhistory
-test_sql_success($dbh, 1, <<SQL);
+test_sql_success($dbix_conn, 1, <<SQL);
 DELETE FROM privhistory WHERE eid=$eid_of_bubba
 SQL
 
 # delete bubba employee
-test_sql_success($dbh, 1, <<SQL);
+test_sql_success($dbix_conn, 1, <<SQL);
 DELETE FROM employees WHERE eid=$eid_of_bubba
 SQL
 

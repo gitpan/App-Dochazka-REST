@@ -39,8 +39,7 @@ use Test::More;
 BEGIN {
     use_ok( 'App::CELL' );
     use_ok( 'App::Dochazka' );
-    use_ok( 'DBD::Pg' );
-    use_ok( 'DBI' );
+    use_ok( 'DBIx::Connector' );
     use_ok( 'JSON' );
     use_ok( 'Params::Validate' );
     use_ok( 'Path::Router' );

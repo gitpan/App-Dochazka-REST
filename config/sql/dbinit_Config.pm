@@ -38,11 +38,13 @@
 # SQL vitals
 # -----------------------------------
 
-# For connecting to the database
-set( 'DBINIT_CONNECT_USER', 'postgres' );
-# This next one should be overrided in Dochazka_SiteConfig.pm with the real
-# postgres password
-set( 'DBINIT_CONNECT_AUTH', 'bogus_password_to_be_overrided' );
+# These should be overrided in Dochazka_SiteConfig.pm with real
+# superuser credentials (but only for testing - do not put production
+# credentials in any configuration file!!!!)
+
+set( 'DBINIT_CONNECT_SUPERUSER', 'postgres' );
+set( 'DBINIT_CONNECT_SUPERAUTH', 'bogus_password_to_be_overrided' );
+
 
 # DBINIT_CREATE
 # 
@@ -52,69 +54,25 @@ set( 'DBINIT_CONNECT_AUTH', 'bogus_password_to_be_overrided' );
 #
 set( 'DBINIT_CREATE', [
 
+    # miscellaneous settings
+
+    q/CREATE EXTENSION IF NOT EXISTS btree_gist/,
+
     q/SET client_min_messages=WARNING/,
 
-    q#-- rounds a timestamp value to the nearest 5 minutes
-      CREATE OR REPLACE FUNCTION round_time (TIMESTAMPTZ)
+
+    # generalized (utility) functions used in multiple datamodel classes
+
+    q#CREATE OR REPLACE FUNCTION round_time(timestamptz)
       RETURNS TIMESTAMPTZ AS $$
           SELECT date_trunc('hour', $1) + INTERVAL '5 min' * ROUND(date_part('minute', $1) / 5.0)
-      $$ LANGUAGE sql IMMUTABLE#,
+      $$ LANGUAGE sql IMMUTABLE
+    #,
 
-    q/-- employee identification data
-      -- the only required field is eid (Employee ID)
-      -- fullname, nick, and email must be UNIQUE, but may be NULL
-      CREATE TABLE IF NOT EXISTS employees (
-        eid       serial PRIMARY KEY,
-        fullname  varchar(96) UNIQUE,
-        nick      varchar(32) UNIQUE NOT NULL,
-        email     text UNIQUE,
-        passhash  text,
-        salt      text,
-        remark    text,
-        stamp     json,
-        CONSTRAINT kosher_nick CHECK (nick ~* '^[[:alnum:]_][[:alnum:]_-]+$')
-      )/,
+    q#COMMENT ON FUNCTION round_time(timestamptz) IS 'Round a single timestamp value to the nearest 5 minutes'#,
 
-    q/-- trigger function to make 'eid' field immutable
-    CREATE OR REPLACE FUNCTION eid_immutable() RETURNS trigger AS $IMM$
-      BEGIN
-          IF OLD.eid <> NEW.eid THEN
-              RAISE EXCEPTION 'employees.eid field is immutable'; 
-          END IF;
-          RETURN NEW;
-      END;
-    $IMM$ LANGUAGE plpgsql/,
-    
-    q/-- trigger the trigger
-    CREATE TRIGGER no_eid_update BEFORE UPDATE ON employees
-      FOR EACH ROW EXECUTE PROCEDURE eid_immutable()/,
-    
-    q/-- sequence for use with the schedintvls table -- this is a 
-      -- "scratch" version of the SID, if you will
-      CREATE SEQUENCE scratch_sid_seq
-    /,
 
-    q/-- "scratch" table, used to test schedules for overlapping intervals
-      -- before converting them with translate_schedintvl for insertion
-      -- them in the 'schedules' table: records inserted into schedintvls
-      -- should be deleted after use
-      CREATE TABLE IF NOT EXISTS schedintvls (
-        int_id  serial PRIMARY KEY,
-        ssid    integer NOT NULL,
-        intvl   tstzrange NOT NULL,
-        EXCLUDE USING gist (ssid WITH =, intvl WITH &&)
-      )/,
-
-    q/CREATE OR REPLACE FUNCTION valid_schedintvl() RETURNS trigger AS $$
-        BEGIN
-            IF MAX(upper(NEW.intvl)) - MIN(lower(NEW.intvl)) > '168:0:0' THEN
-                RAISE EXCEPTION 'schedule intervals must fall within a 7-day range';
-            END IF;
-            RETURN NEW;
-        END;
-    $$ LANGUAGE plpgsql IMMUTABLE/,
-
-    q/CREATE OR REPLACE FUNCTION valid_intvl() RETURNS trigger AS $$
+    q#CREATE OR REPLACE FUNCTION valid_intvl() RETURNS trigger AS $$
         BEGIN
             IF ( NEW.intvl IS NULL ) OR
                ( isempty(NEW.intvl) ) OR
@@ -134,20 +92,108 @@ set( 'DBINIT_CREATE', [
             END IF;
             RETURN NEW;
         END;
-    $$ LANGUAGE plpgsql IMMUTABLE/,
+    $$ LANGUAGE plpgsql IMMUTABLE
+    #,
 
-    q/CREATE TRIGGER valid_schedintvl BEFORE INSERT OR UPDATE ON schedintvls
-        FOR EACH ROW EXECUTE PROCEDURE valid_schedintvl()/,
+    q#COMMENT ON FUNCTION valid_intvl() IS $body$
+This function runs a battery of validation tests on intervals.
+The purpose of these tests is to ensure that the only intervals to make
+it into the database are those that make sense in the context of employee
+attendance.
+$body$
+#,
+
+
+    # the 'employees' table
+
+    q/CREATE TABLE IF NOT EXISTS employees (
+        eid       serial PRIMARY KEY,
+        nick      varchar(32) UNIQUE NOT NULL,
+        sec_id    varchar(64) UNIQUE,
+        fullname  varchar(96) UNIQUE,
+        email     text UNIQUE,
+        passhash  text,
+        salt      text,
+        remark    text,
+        stamp     json,
+        CONSTRAINT kosher_nick CHECK (nick ~* '^[[:alnum:]_][[:alnum:]_-]+$')
+      )/,
+
+    q#COMMENT ON TABLE employees IS 'Employee profile associating a real (or imagined) employee with an Employee ID (EID)'#,
+
+    # 'employees' triggers
+
+    q/CREATE OR REPLACE FUNCTION eid_immutable() RETURNS trigger AS $IMM$
+      BEGIN
+          IF OLD.eid <> NEW.eid THEN
+              RAISE EXCEPTION 'employees.eid field is immutable'; 
+          END IF;
+          RETURN NEW;
+      END;
+    $IMM$ LANGUAGE plpgsql/,
+
+    q/COMMENT ON FUNCTION eid_immutable() IS 'trigger function to prevent users from modifying the EID field'/,
+    
+    q/CREATE TRIGGER no_eid_update BEFORE UPDATE ON employees
+      FOR EACH ROW EXECUTE PROCEDURE eid_immutable()/,
+
+    q/COMMENT ON TRIGGER no_eid_update ON employees IS 'trigger for eid_immutable()'/,
+
+
+    # the 'schedintvls' table
+
+    q/CREATE SEQUENCE scratch_sid_seq/,
+
+    q/COMMENT ON SEQUENCE scratch_sid_seq IS 'sequence guaranteeing that each scratch SID will have a unique identifier'/,
+
+    q/CREATE TABLE IF NOT EXISTS schedintvls (
+        int_id  serial PRIMARY KEY,
+        ssid    integer NOT NULL,
+        intvl   tstzrange NOT NULL,
+        EXCLUDE USING gist (ssid WITH =, intvl WITH &&)
+      )/,
+
+    q/COMMENT ON TABLE schedintvls IS $body$
+Staging table, used to assemble and test schedules before they
+are converted (using translate_schedintvl) and inserted 
+into the schedules table. Records inserted into schedintvls
+should be deleted after use.
+$body$/,
 
     q/CREATE TRIGGER schedintvls_valid_intvl BEFORE INSERT OR UPDATE ON schedintvls
         FOR EACH ROW EXECUTE PROCEDURE valid_intvl()/,
 
-    q#-- Given a SSID in schedintvls, returns all the intervals for that
-      -- SSID. Each interval is expressed as a list ('row', 'composite
-      -- value') consisting of 4 strings (two pairs). The first pair of
-      -- strings (e.g., "WED" "08:00") denotes the lower bound of the
-      -- range, while the second pair denotes the upper bound
-      CREATE OR REPLACE FUNCTION translate_schedintvl ( 
+    q/COMMENT ON TRIGGER schedintvls_valid_intvl ON schedintvls 
+      IS 'Run basic validity checks on intervals before they are added to schedintvls table'/,
+
+    # FIXME: this only checks the interval being inserted. Additionally, it
+    # should check the interval against all existing intervals with the same
+    # SSID
+    q/CREATE OR REPLACE FUNCTION valid_schedintvl() RETURNS trigger AS $$
+        BEGIN
+            IF MAX(upper(NEW.intvl)) - MIN(lower(NEW.intvl)) > '168:0:0' THEN
+                RAISE EXCEPTION 'schedule intervals must fall within a 7-day range';
+            END IF;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql IMMUTABLE/,
+
+    q/COMMENT ON FUNCTION valid_schedintvl() IS $body$
+trigger function to ensure that all scratch schedule intervals fall within a
+7-day range
+$body$
+/,
+
+    q/CREATE TRIGGER valid_schedintvl BEFORE INSERT OR UPDATE ON schedintvls
+        FOR EACH ROW EXECUTE PROCEDURE valid_schedintvl()/,
+
+    q/COMMENT ON TRIGGER valid_schedintvl ON schedintvls IS $body$
+After intervals pass basic validity checks in the schedintvls_valid_intvl
+trigger, apply schedule-specific checks on the intervals
+$body$
+/,
+
+    q#CREATE OR REPLACE FUNCTION translate_schedintvl ( 
           ssid int,
           OUT low_dow text,
           OUT low_time text,
@@ -163,14 +209,25 @@ set( 'DBINIT_CREATE', [
           WHERE int_id = $1
       $$ LANGUAGE sql IMMUTABLE#,
 
-    q/-- !!!change 'text' to 'jsonb' when PostgreSQL 9.4 becomes
-      -- !!!available
-      CREATE TABLE IF NOT EXISTS schedules (
+    q#COMMENT ON FUNCTION translate_schedintvl(ssid int, OUT low_dow text, OUT low_time text, OUT high_dow text, OUT high_time text) IS $body$
+Given a SSID in schedintvls, returns all the intervals for that
+SSID. Each interval is expressed as a list ('row', 'composite
+value') consisting of 4 strings (two pairs). The first pair of
+strings (e.g., "WED" "08:00") denotes the lower bound of the
+range, while the second pair denotes the upper bound
+$body$#,
+
+
+    # the 'schedules' table
+
+    q#CREATE TABLE IF NOT EXISTS schedules (
         sid        serial PRIMARY KEY,
         schedule   text UNIQUE NOT NULL,
         disabled   boolean,
-        remark     text
-      )/,
+        remark     text,
+        stamp      json
+    )
+    #,
 
     q/-- trigger function to detect attempts to change 'schedule' field
     CREATE OR REPLACE FUNCTION schedule_immutable() RETURNS trigger AS $IMM$
@@ -306,6 +363,7 @@ set( 'DBINIT_CREATE', [
           long_desc  text,
           remark     text,
           disabled   boolean,
+          stamp      json,
           CONSTRAINT kosher_code CHECK (code ~* '^[[:alnum:]_][[:alnum:]_-]+$')
       )/,
   
@@ -341,6 +399,7 @@ set( 'DBINIT_CREATE', [
           intvl      tstzrange NOT NULL,
           long_desc  text,
           remark     text,
+          stamp      json,
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
 
@@ -464,6 +523,7 @@ set( 'DBINIT_CREATE', [
           eid     integer REFERENCES Employees (EID),
           intvl   tstzrange NOT NULL,
           remark  text,
+          stamp   json,
           EXCLUDE USING gist (eid WITH =, intvl WITH &&)
       )/,
 
@@ -525,8 +585,8 @@ set( 'DBINIT_CREATE', [
     q/-- insert root employee into employees table and grant admin
       -- privilege to the resulting EID
       WITH cte AS (
-        INSERT INTO employees (nick, fullname, email, passhash, remark) 
-        VALUES ('root', 'Root Immutable', 'root@site.org', 'immutable', 'dbinit') 
+        INSERT INTO employees (nick, fullname, email, passhash, salt, remark) 
+        VALUES ('root', 'Root Immutable', 'root@site.org', '82100e9bd4757883b4627b3bafc9389663e7be7f76a1273508a7a617c9dcd917428a7c44c6089477c8e1d13e924343051563d2d426617b695f3a3bff74e7c003', '341755e03e1f163f829785d1d19eab9dee5135c0', 'dbinit') 
         RETURNING eid
       ) 
       INSERT INTO privhistory (eid, priv, effective, remark)
@@ -534,19 +594,19 @@ set( 'DBINIT_CREATE', [
     /,
 
     q/-- insert demo employee into employees table
-      INSERT INTO employees (nick, fullname, email, passhash, remark) 
-      VALUES ('demo', 'Demo Employee', 'demo@dochazka.site', 'demo', 'dbinit') 
+      INSERT INTO employees (nick, fullname, email, passhash, salt, remark) 
+      VALUES ('demo', 'Demo Employee', 'demo@dochazka.site', '4962cc89c646261a887219795083a02b899ea960cd84a234444b7342e2222eb22dc06f5db9c71681074859469fdc0abd53e3f1f47a381617b59f4b31608e24b1', '82702be8d9810d8fba774dcb7c9f68f39d0933e8', 'dbinit') 
       RETURNING eid
     /,
 
 ]);
 
-# DBINIT_SELECT_EID_OF_ROOT
+# DBINIT_SELECT_EID_OF
 #   after create_tables (REST.pm) executes the above list of SQL
-#   statements, it needs to find the EID of the root employee
+#   statements, it needs to find the EID of the root and demo employees
 #
-set('DBINIT_SELECT_EID_OF_ROOT', q/
-    SELECT eid FROM employees WHERE nick = 'root'/);
+set('DBINIT_SELECT_EID_OF', q/
+    SELECT eid FROM employees WHERE nick = ?/);
 
 # DBINIT_MAKE_ROOT_IMMUTABLE
 #   after finding the EID of the root employee, create_tables executes
@@ -613,6 +673,28 @@ set('DBINIT_MAKE_ROOT_IMMUTABLE', [
     
 ]);
 
+# DBINIT_GRANTS
+#
+#       whatever GRANT statements we need to do, put them here and they will
+#       get executed after DBINIT_CREATE; ? will be replaced with DOCHAZKA_DBUSER
+#       site param
+set( 'DBINIT_GRANTS', [
+
+    q/GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$dbuser"/,
+
+    q/GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO "$dbuser"/,
+
+    q/GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$dbuser"/,
+
+    q/GRANT CONNECT ON DATABASE "$dbname" TO "$dbuser"/,
+
+] );
+
+# SQL_NOOF_CONNECTIONS
+#    used by 'GET dbstatus'
+#
+set('SQL_NOOF_CONNECTIONS', q/SELECT sum(numbackends) FROM pg_stat_database/);
+#set('SQL_NOOF_CONNECTIONS', q/SELECT count(*) FROM pg_stat_activity/);
 
 # -----------------------------------
 # DO NOT EDIT ANYTHING BELOW THIS LINE

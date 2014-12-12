@@ -36,12 +36,11 @@ use 5.012;
 use strict;
 use warnings FATAL => 'all';
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh qw( $dbh );
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Model::Shared;
-use Carp;
 use Data::Dumper;
-use DBI;
 use JSON;
+use Params::Validate qw( :all );
 use Try::Tiny;
 
 # we get 'spawn', 'reset', and accessors from parent
@@ -59,11 +58,11 @@ App::Dochazka::REST::Model::Schedintvls - object class for "scratch schedules"
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -77,18 +76,18 @@ our $VERSION = '0.322';
 
 
 
-=head1 EXPORTS
-
-This module provides the following exports:
-
-=over 
-
-=back
-
-=cut
-
-use Exporter qw( import );
-our @EXPORT_OK = qw( );
+#=head1 EXPORTS
+#
+#This module provides the following exports:
+#
+#=over 
+#
+#=back
+#
+#=cut
+#
+#use Exporter qw( import );
+#our @EXPORT_OK = qw( );
 
 
 
@@ -103,10 +102,11 @@ which is, in turn, called automatically by 'spawn')
 =cut
 
 sub populate {
-    my ( $self ) = @_;
+    my $self = shift;
+
     my $ss = _next_scratch_sid();
     $log->debug( "Got next scratch SID: $ss" );
-    $self->{ssid} = $ss;
+    $self->{'ssid'} = $ss;
     return;
 }
 
@@ -121,27 +121,33 @@ C<< $self->{schedule} >>, containing the translated intervals.
 =cut
 
 sub load {
+    my $self = shift;
+    my ( $conn ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' }
+    );
 
-    # process arguments
-    my ( $self ) = @_;
+    my $status;
+    my @results;
+    try {
+        $conn->run( fixup => sub {
+            # prepare and execute statement
+            my $sth = $_->prepare( $site->SQL_SCHEDINTVLS_SELECT );
+            $sth->execute( $self->{'ssid'} );
 
-    # prepare and execute statement
-    my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_SELECT );
-    $sth->execute( $self->{ssid} );
-
-    # since the statement returns n rows, we use a loop to fetch them
-    my $counter = 0;
-    my $result = [];
-    while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
-        $result->[$counter] = $tmpres;
-        $counter += 1;
-    }
-    return $CELL->status_err( $sth->errstr) if $sth->err;
+            # since the statement returns n rows, we use a loop to fetch them
+            while( defined( my $tmpres = $sth->fetchrow_hashref() ) ) {
+                push( @results, $tmpres );
+            }
+        } );
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return $status if $status;
 
     # success: add a new attribute with the translated intervals
-    $self->{schedule} = $result;
+    $self->{schedule} = \@results;
 
-    return $CELL->status_ok( "Schedule has $counter rows" );
+    return $CELL->status_ok( "Schedule has " . scalar( @results ) . " rows" );
 }
     
 
@@ -155,47 +161,39 @@ Field values are taken from the object. Returns a status object.
 =cut
 
 sub insert {
-    my ( $self ) = @_;
-    my $status;
+    my $self = shift;
+    my ( $conn ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' }
+    );
 
     # the insert operation needs to take place within a transaction,
     # because all the intervals are inserted in one go
-
-    $dbh->{AutoCommit} = 0;
-    $dbh->{RaiseError} = 1;
-
-    # the transaction
+    my $status;
     try {
-        my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_INSERT );
-        my $intvls;
+        $conn->txn( fixup => sub {
+            my $sth = $_->prepare( $site->SQL_SCHEDINTVLS_INSERT );
+            my $intvls;
 
-        # the next sequence value is already in $self->{ssid}
-        $sth->bind_param( 1, $self->{ssid} );
+            # the next sequence value is already in $self->{ssid}
+            $sth->bind_param( 1, $self->{ssid} );
 
-	# execute SQL_SCHEDINTVLS_INSERT for each element of $self->{intvls}
-        map {
+            # execute SQL_SCHEDINTVLS_INSERT for each element of $self->{intvls}
+            map {
                 $sth->bind_param( 2, $_ );
                 $sth->execute;
                 push @$intvls, $_;
             } @{ $self->{intvls} };
-        $dbh->commit;
-        $status = $CELL->status_ok( 
-            'DOCHAZKA_SCHEDINTVLS_INSERT_OK', 
-            payload => {
-                intervals => $intvls,
-                ssid => $self->{ssid},
-            }
-        );
+            $status = $CELL->status_ok( 
+                'DOCHAZKA_SCHEDINTVLS_INSERT_OK', 
+                payload => {
+                    intervals => $intvls,
+                    ssid => $self->{ssid},
+                }
+            );
+        } );
     } catch {
-        $dbh->rollback;
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-
-    # restore AutoCommit and RaiseError
-    $dbh->{AutoCommit} = 1;
-    $dbh->{RaiseError} = 0;
-
-    # done: all green
     return $status;
 }
 
@@ -213,35 +211,29 @@ Returns a status object.
 =cut
 
 sub delete {
-    my ( $self ) = @_;
+    my $self = shift;
+    my ( $conn ) = validate_pos( @_,
+        { isa => 'DBIx::Connector' }
+    );
+
     my $status;
-
-    $dbh->{AutoCommit} = 0;
-    $dbh->{RaiseError} = 1;
-
     try {
-        $dbh->{AutoCommit} = 0; 
-        my $sth = $dbh->prepare( $site->SQL_SCHEDINTVLS_DELETE );
-        $sth->bind_param( 1, $self->ssid );
-        $sth->execute;
-        $dbh->commit;
-        my $rows = $sth->rows;
-        if ( $rows > 0 ) {
-            $status = $CELL->status_ok( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
-        } elsif ( $rows == 0 ) {
-            $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
-        } else {
-            die( "\$sth->rows returned a weird value $rows" );
-        }
+        $conn->run( fixup => sub {
+            my $sth = $_->prepare( $site->SQL_SCHEDINTVLS_DELETE );
+            $sth->bind_param( 1, $self->ssid );
+            $sth->execute;
+            my $rows = $sth->rows;
+            if ( $rows > 0 ) {
+                $status = $CELL->status_ok( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
+            } elsif ( $rows == 0 ) {
+                $status = $CELL->status_warn( 'DOCHAZKA_RECORDS_DELETED', args => [ $rows ] );
+            } else {
+                die( "\$sth->rows returned a weird value $rows" );
+            }
+        } );
     } catch {
-        $dbh->rollback;
-        #$log->err( 'DBI ERR' . $dbh->errstr );
         $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
     };
-
-    $dbh->{AutoCommit} = 1;
-    $dbh->{RaiseError} = 0;
-
     return $status;
 }
 
@@ -276,9 +268,18 @@ Get next value from the scratch_sid_seq sequence
 =cut
 
 sub _next_scratch_sid {
-    return $dbh->selectrow_array( $site->SQL_SCRATCH_SID, undef );
+    my $val;
+    my $status;
+    try {
+        $dbix_conn->run( fixup => sub {
+            ( $val ) = $_->selectrow_array( $site->SQL_SCRATCH_SID );
+        } );    
+    } catch {
+        $status = $CELL->status_err( 'DOCHAZKA_DBI_ERR', args => [ $_ ] );
+    };
+    return if $status;
+    return $val;
 }
-
 
 
 

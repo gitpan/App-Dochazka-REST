@@ -40,14 +40,11 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
 use App::Dochazka::REST::Dispatch::Shared;
-use App::Dochazka::REST::Model::Employee;
+#use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory qw( get_privhistory );
-use Carp;
 use Data::Dumper;
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
 use Try::Tiny;
 
 
@@ -63,11 +60,11 @@ App::Dochazka::REST::Dispatch::Priv - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -93,13 +90,16 @@ sub _history_self {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering App::Dochazka::REST::Dispatch::_history_self" ); 
 
-    my $tsrange = $context->{'mapping'}->{'tsrange'};
-    my $eid = $context->{'current'}->{'eid'};
-    my $nick = $context->{'current'}->{'nick'};
+    my %ARGS = (
+        'eid' => $context->{'current'}->{'eid'},
+        'nick' => $context->{'current'}->{'nick'},
+    );
+
+    if ( defined $context->{'mapping'}->{'tsrange'} ) {
+        $ARGS{'tsrange'} = $context->{'mapping'}->{'tsrange'};
+    }
     
-    defined $tsrange
-        ? get_privhistory( eid => $eid, nick => $nick, tsrange => $tsrange )
-        : get_privhistory( eid => $eid, nick => $nick );
+    return get_privhistory( $context, %ARGS );
 }
 
 BEGIN {    
@@ -131,11 +131,10 @@ sub _history_eid {
     my $eid = $context->{'mapping'}->{'eid'};
 
     return App::Dochazka::REST::Dispatch::Shared::history(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Privhistory',
-        method => $context->{'method'},
         key => [ 'EID', $eid ],
         tsrange => $tsrange,
-        body => $context->{'request_body'},
     );
 }
 
@@ -147,11 +146,10 @@ sub _history_nick {
     my $nick = $context->{'mapping'}->{'nick'};
 
     return App::Dochazka::REST::Dispatch::Shared::history(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Privhistory',
-        method => $context->{'method'},
         key => [ 'nick', $nick ],
         tsrange => $tsrange,
-        body => $context->{'request_body'},
     );
 }
 
@@ -160,8 +158,8 @@ sub _priv_by_phid {
     $log->debug( "Entering " . __PACKAGE__ . "::_priv_by_phid" ); 
     my $method = $context->{'method'};
     return App::Dochazka::REST::Dispatch::Shared::history_by_id(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Privhistory',
-        method => $context->{'method'},
         id => $context->{'mapping'}->{'phid'},
     );
 }

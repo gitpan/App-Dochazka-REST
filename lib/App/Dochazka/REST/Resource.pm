@@ -41,7 +41,7 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $meta $site );
-use App::Dochazka::REST::dbh;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn conn_status );
 use App::Dochazka::REST::Dispatch;
 use App::Dochazka::REST::Dispatch::Activity;
 use App::Dochazka::REST::Dispatch::Employee;
@@ -52,6 +52,7 @@ use App::Dochazka::REST::Dispatch::Schedule;
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl );
 use App::Dochazka::REST::LDAP qw( ldap_exists ldap_auth );
 use App::Dochazka::REST::Model::Employee qw( nick_exists );
+use Authen::Passphrase::SaltedDigest;
 use Carp;
 use Data::Dumper;
 use Encode qw( decode_utf8 encode_utf8 );
@@ -75,11 +76,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -177,7 +178,7 @@ sub _render_response_html {
         'DOCHAZKA_REST_HTML', 
         $VERSION, 
         $json,
-        App::Dochazka::REST::dbh->status,
+        conn_status(),
     );
     $msgobj
         ? $msgobj->text
@@ -368,7 +369,8 @@ Authentication method.
 Authenticate the originator of the request, using HTTP Basic Authentication.
 Upon successful authentication, check that the user (employee) exists in 
 the database (create if necessary) and retrieve her EID. Push the EID and
-current privilege level onto the context.
+current privilege level onto the context. Get the user's L<DBIx::Connector>
+object and push that onto the context, too.
 
 =cut
 
@@ -387,7 +389,8 @@ sub is_authorized {
             my $emp = $auth_status->payload;
             $self->_push_onto_context( { 
                 current => $emp->TO_JSON,
-                current_priv => $emp->priv
+                current_priv => $emp->priv( $dbix_conn ),
+                dbix_conn => $dbix_conn,
             } );
             $self->_init_session( $emp ) unless $meta->META_DOCHAZKA_UNIT_TESTING;
             return 1;
@@ -452,12 +455,13 @@ sub _validate_session {
          _is_fresh( $session->get('last_seen') ) ) 
     {
         $log->debug( "Existing session!" );
-        my $emp = App::Dochazka::REST::Model::Employee->load_by_eid( $session->get('eid') )->payload;
+        my $emp = App::Dochazka::REST::Model::Employee->load_by_eid( $dbix_conn, $session->get('eid') )->payload;
         die "missing employee object in session management" 
             unless $emp->isa( "App::Dochazka::REST::Model::Employee" ); 
         $self->_push_onto_context( { 
             current => $emp->TO_JSON, 
-            current_priv => $emp->priv
+            current_priv => $emp->priv( $dbix_conn ),
+            dbix_conn => $dbix_conn,
         } );
         $session->set('last_seen', time); 
         return 1;
@@ -512,7 +516,8 @@ sub _authenticate {
     # check if LDAP is enabled and if the employee exists in LDAP
     if ( ! $meta->META_DOCHAZKA_UNIT_TESTING and 
          $site->DOCHAZKA_LDAP and
-         ldap_exists( $nick ) ) {
+         ldap_exists( $nick ) 
+    ) {
 
         $log->info( "Detected authentication attempt from $nick, a known LDAP user" );
 
@@ -539,7 +544,7 @@ sub _authenticate {
                 }
             }
         } else {
-            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH');
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
         }
 
         # load the employee object
@@ -554,7 +559,7 @@ sub _authenticate {
         $log->notice( "Employee $nick not found in LDAP; reverting to internal auth" );
 
         # - check if this employee exists in database
-        my $emp = nick_exists( $nick );
+        my $emp = nick_exists( $dbix_conn, $nick );
 
         if ( ! defined( $emp ) or ! $emp->isa( 'App::Dochazka::REST::Model::Employee' ) ) {
             $log->notice( "Rejecting login attempt from unknown user $nick" );
@@ -566,8 +571,23 @@ sub _authenticate {
         my $passhash = $emp->passhash;
         $passhash = '' unless defined( $passhash );
 
-        # - check password against passhash
-        if ( $password eq $passhash ) {
+        # - check password against passhash 
+        my ( $ppr, $status );
+        try {
+            $ppr = Authen::Passphrase::SaltedDigest->new(
+                algorithm => "SHA-512",
+                salt_hex => $emp->salt,
+                hash_hex => $emp->passhash,
+            );
+        } catch {
+            $status = $CELL->status_err( 'DOCHAZKA_PASSPHRASE_EXCEPTION', args => [ $_ ] );
+        };
+
+        if ( ref( $ppr ) ne 'Authen::Passphrase::SaltedDigest' ) {
+            $log->crit( "employee $nick has invalid passhash and/or salt" );
+            return $CELL->status_not_ok( 'DOCHAZKA_EMPLOYEE_AUTH' );
+        }
+        if ( $ppr->match( $password ) ) {
             $log->notice( "Internal auth successful for employee $nick" );
             return $CELL->status_ok( 'DOCHAZKA_EMPLOYEE_AUTH', payload => $emp );
         } else {
@@ -739,8 +759,11 @@ stored in the 'request_body' attribute of the context.
 
 sub malformed_request {
     my ( $self ) = @_;
-    
+    $log->debug( "Entering " . __PACKAGE__ . "::malformed_request" );
+
     my $body = $self->request->content;
+    $log->debug( "Request body: " . Dumper( $body ) );
+
     if ( not defined $body or $body eq '' ) {
         $log->debug( "malformed_request: No request body" );
         return 0;
@@ -856,19 +879,9 @@ sub _make_json {
     if ( grep { $code eq $_; } keys %status_http_map ) {
         return $status_http_map{ $code };
     }
-    ## We can't send the context to JSON->encode directly because the
-    ## context contains a code reference and JSON->encode finds that
-    ## offensive: our deep_copy routine replaces the code reference with
-    ## an innocent placeholder string.
-    #$d = Data::Dumper->new( [ $self->context->{'entity'} ], [ qw(*h) ] );
-    #$d->Purity(1)->Terse(1)->Deepcopy(1);
-    ##$log->debug( $d->Dump );
-    #%h = eval $d->Dump;
-    #$log->debug( Dumper \%h );
-    #$before = \%h;
 
     $after = JSON->new->pretty->convert_blessed->allow_nonref->encode( $self->context->{'entity'} );
-    $after_utf8 = encode_utf8($after);
+    $after_utf8 = encode_utf8( $after );
     #$log->debug( "_make_json (before): " . Dumper $before );
     $log->debug( "_make_json: " . Dumper( $after ) );
     $log->debug( "_make_json (UTF-8): " . Dumper( $after_utf8 ) );

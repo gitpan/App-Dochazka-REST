@@ -2141,3 +2141,225 @@ Revision history for Dochazka-REST
   feature we just added
 - t/dispatch/schedule.t: adapt to current state
 
+0.323  2014-12-01 10:45 CET
+- t/dispatch/interval_lock.t: have an active user try to create a lock on
+  someone else's attendance
+
+0.324  2014-12-03 09:03 CET
+- Build.PL: require App::Dochazka 0.185 so employees have a sec_id property
+- config/dispatch/employee_Config.pm: fix validations clause so it allows %
+  sign, which we use as a wildcard in the GET method
+- config/sql/{dbinit,employee}_Config.pm: add sec_id property to employees table
+- REST.pm: write some POD to explain our approach to ACLs; do not mention a
+  'policies' table since we never implemented it; explain how employees are
+  identified (with mention of 'sec_id')
+- Model/Employee.pm, Dispatch/Employee.pm: enable sec_id 
+- t/dispatch/interval_lock.t: add tests for some lock edge cases
+- t/{dispatch,model}/employee: adapt to the new 'sec_id' property
+
+0.325  2014-12-03 09:40 CET
+- t/dispatch/employee.t: add a basic test for GET employee/nick/:nick with a
+  wildcard in the search key
+
+0.326  2014-12-03 16:46 CET
+- Dispatch/Shared.pm: make it so introspection resources do not return
+  'acl_profile' property because some resources now have "mixed" acl_profiles
+
+0.327  2014-12-03 22:26 CET
+- start a substantial refactor to make each employee have her own database
+  connection (thanks to DBIx::Connector)
+- (test suite failing)
+
+0.328  2014-12-05 08:57 CET
+- REST.pm: refactor database (re-)initialization routines
+- t/001-init.t: adapt to new routines
+- dbh.pm: attempt to make get_conn handle all DBI connection scenarios
+  correctly
+- start migrating modules to new dbh.pm, which will be renamed to ConnBank.pm
+
+0.329  2014-12-05 16:40 CET
+- config/sql/session_Config.pm: delete (deprecated)
+- rename dbh.pm to ConnBank.pm
+- move Timestamp.pm (App::Dochazka::REST::Util::Timestamp) to ../staging/ as it
+  is not used and the DBI calls need to be rewritten
+- removed all mentions of App::Dochazka::REST::dbh from modules outside of Model/
+- config/sql/dbinit_Config.pm: add SQL_NOOF_CONNECTIONS; set DEFAULT PRIVILEGES
+  so user connections will work (in order to be able to revoke a user's
+  privileges, it will be better to set the privileges via a trigger)
+- introduce roles, fix privilege problems so now our "production" roles
+  ('dochazka' and numeric "EID" roles) can see tables, etc.
+
+0.330  2014-12-05 17:11 CET
+- rename DBINIT_CONNECT_USER/DBINIT_CONNECT_AUTH to
+  DBINIT_CONNECT_SUPERUSER/DBINI_CONNECT_SUPERAUTH, respectively
+- ConnBank.pm: remove the $site->DOCHAZKA_DBNAME connection option,
+  which was confusing - either use 'superuser' or the root EID
+- REST.pm: remove deprecated 'connect_db' and 'connect_db_pristine' routines
+- t/001-init.t: adapt to current state
+
+0.331  2014-12-05 18:03 CET
+- embark on a quest to eliminate all instances of the string 'dbh' from the
+  entire codebase
+
+0.332  2014-12-06 07:47 CET
+- Model/Shared.pm: start converting DBI calls to DBIx::Connector; clean up some
+  cruft along the way; add select_single routine for SELECT statements expected
+  to return 0 or 1 record
+- Test.pm: add a 'do_select_single' wrapper for 'select_single'
+- t/sql/current_priv.t: refactor tests to use 'do_select_single'
+
+0.333  2014-12-06 11:59 CET
+- massive refactor ongoing to migrate the codebase to DBIx::Connector
+- restore Timestamp.pm as we need it for unit tests
+- t/004-shared-paramvalid.t, t/011-tsrange_equal.t, t/203-util-timestamp.t - 
+  move three old and probably unnecessary units to staging because I don't have
+  the patience to adapt them to the current state
+- REST.pm: initialize DOCHAZKA_EID_OF_... site params in 'init' 
+- Dispatch.pm: fix _get_dbstatus so the module compiles
+- Dispatch/Schedule.pm, Model/Activity.pm, Model/Schedintvls.pm,
+  Model/Schedule.pm, Model/Shared.pm: adapt to DBIx::Connector; cleanup
+- Test.pm: add 'initialize_unit' routine to mitigate code duplication in the
+  units, adapt 'test_sql_success' and 'test_sql_failure' to DBIx::Connector,
+- t/sql/: adapt all units to DBIx::Connector
+- t/dispatch/: start adapting to DBIx::Connector (WIP)
+
+0.334  2014-12-06 14:39 CET
+- fix Changes munge from last commit
+- config/dispatch/employee_Config.pm, Dispatch/Employee.pm: re-enable 'count'
+  resources
+- Dispatch/: start migration to DBIx::Connector
+- Model/: finish migration to DBIx::Connector
+- Model/Schedule.pm: use 'select_single' in 'insert' method
+- Model/Shared.pm: fix 'DISPATCH_RECORDS_FOUND' statuses; fix { isa =>
+  'DBIx::Connector' } clauses
+- Test.pm: finish migration to DBIx::Connector
+- t/sql/, t/model/: migrate to DBIx::Connector; all tests running cleanly now
+- NEXT: migrate Dispatch methods and t/dispatch/ units to DBIx::Connector
+
+0.335  2014-12-06 21:11 CET
+- REST.pm: deprecate the DOCHAZKA_DBUSER user (we are no longer using it)
+- Dispatch/: migrate all modules to DBIx::Connector
+- Model/Employee.pm: add $SIG{__WARN__} handler; when employee is created,
+  set up the corresponding role
+- Model/Shared.pm: fix bugs in make_test_exists and get_history
+- Resource.pm: fix bugs introduced during migration to DBIx::Connector
+- t/dispatch/activity.t now running cleanly
+
+0.336  2014-12-07 18:37 CET
+- hunt down and fix remaining bugs/errors/typos introduced during migration
+- test suite running cleanly again
+
+0.337  2014-12-08 11:26 CET
+- config/sql/audit_Config.pm: bring in Audit Trigger from 
+  https://wiki.postgresql.org/wiki/Audit_trigger_91plus
+- Build.PL: add 'meta_merge' clause as recommended by Randy Stauner at
+  https://github.com/CPAN-API/metacpan-web/issues/1418#issuecomment-62546169
+- config/sql/dbinit_Config.pm: the DBINIT_CREATE parameter, where we create all
+  tables, functions, triggers, etc., is a bit disorganized -- start adding
+  'COMMENT' statements and taking other cleanup measures 
+- REST.pm: work on documentation; add code to load and create the audit triggers
+- Resource.pm: fixed bug (uncovered by the audit triggers) "all incoming HTTP
+  connections are using PostgreSQL user '1', which should be reserved for the
+  root employee"
+
+0.338  2014-12-08 15:17 CET
+- work on transaction auditing feature:
+  - no more "shadow" db roles
+  - all traffic goes through a single connection (which can be pooled)
+  - pass EID to audit trigger via "SET LOCAL dochazka.eid"
+
+0.339  2014-12-08 22:30 CET
+- after discussions, reconsider my idea of creating a "shadow db role" for each
+  employee; instead, I will try to get the EID into the audit trigger via a
+  custom GUC (session variable)
+- REST.pm: eliminate 'create_tables' routine; all database initialization now
+  takes place in 'reset_db'
+- ConnBank.pm: refactor 'get_conn'
+- adapt all instances of 'get_conn' throughout the code base
+- {Dispatch,Model}/Employee.pm: eliminate 'select_multiple_by_nick' routine;
+  call load_multiple directly from the dispatch target
+- t/: adapt to current state
+
+0.340  2014-12-09 11:09 CET
+- for auditing purposes we need to send not only the DBIx::Connector object,
+  but also the current EID in all 'cud' calls
+- Model/Shared.pm: in cud routine, add 'eid' to PARAMHASH and run
+  SQL_SET_DOCHAZKA_EID_GUC to set 'dochazka.eid' GUC session variable
+- {Dispatch,Model}/Activity.pm: carry out necessary modifications
+
+0.341  2014-12-09 17:17 CET
+- work on getting the current EID into Model/Shared.pm->cud
+- send request context in all 'insert', 'update' and 'delete' method calls on
+  datamodel objects; these methods then split out the DBIx::Connector object
+  and the current EID
+- Model/: make all necessary modifications
+- Test.pm, Dispatch/: deal with cascade effects (WIP)
+- t/sql/, t/model/: adapt tests to current state
+- t/dispatch/: WIP
+
+0.342  2014-12-10 10:52 CET
+- audit_Config.pm: DROP SCHEMA is not necessary here, since the immediately
+  preceding command is DROP DATABASE
+- Dispatch/: completed the migration described above
+- Model/: fix some lingering migration-related issues
+- Test.pm, t/: migration broke lots of tests; we are now expected to send the
+  request context, but with Plack::Test there is none(!); fortunately, it is
+  trivial to simulate such a context ($faux_context)
+- dispatch_Message_en.conf: get rid of
+  DISPATCH_EMPLOYEE_{INSERT,UPDATE,DELETE}_OK message (DOCHAZKA_CUD_OK is
+  sufficient)
+
+0.343  2014-12-10 16:43 CET
+- dbinit_Config.pm: fix names of parameters used to store PostgreSQL superuser
+  credentials for testing purposes
+- ConnBank.pm: refactor the entire module
+- REST.pm: adapt to the new ConnBank.pm code; make 'init' routine return a
+  status object with the Plack application in the payload
+- Dispatch/, Model/, Test.pm, t/: adapt to the new ConnBank.pm code
+
+0.344  2014-12-10 18:01 CET
+- bin/dochazka-rest: adapt to recent modifications to REST.pm->init
+- REST_Message_en.conf: add DOCHAZKA_NO_DBIX_CONNECTOR
+- dbinit_Config.pm: sum(numbackends) is not working for some reason; work
+  around the problem
+- REST/Dispatch.pm: add missing 'use Try::Tiny'; add some debugging messages to
+  '_get_dbstatus'; numify number of connections
+- Test.pm: add some error checking; 
+- t/dispatch/top.t: add subtest for 'dbstatus' resource
+
+0.345  2014-12-11 11:35 CET
+- REST.pm: add verbiage to POD
+- Resource.pm, Dispatch/Employee.pm: prepare for Blowfish
+
+0.346  2014-12-11 18:36 CET
+- hash passwords using Authen::Passphrase::SaltedDigest
+  - App::Dochazka::CLI authentication works fine
+  - tests in t/dispatch/ are broken
+- Dispatch/Employee.pm: implement 'hash_the_password' routine, call it from
+  _insert_employee and _update_employee; export it for use in Test.pm
+- Resource.pm: in _authenticate, compare password with stored salted hash 
+- Test.pm: import hash_the_password and use it in create_testing_employee;
+  adapt calls
+- dbinit_Config.pm, t/sql/root.t: use the real hash+salt instead of the
+  plaintext password
+
+0.347  2014-12-11 20:13 CET
+- REST_Config.pm: modify DOCHAZKA_PROFILE_EDITABLE_FIELDS so inactives and
+  actives can still change their password now that we are hashing
+- config/dispatch/employee_Config.pm: 'GET employee/nick/:nick' acl_profile was
+  set too restrictive - fix
+- dbinit_Config.pm: use real hash/salt when INSERTing 'root' and 'demo'
+  employees
+- Dispatch/Employee.pm: fix hash_the_password function calls
+- Resource.pm: put call to Authen::Passphrase::SaltedDigest into a try/catch
+  block; add some basic error-checking
+- t/: adapt to current state
+
+0.348  2014-12-12 09:39 CET
+- REST_Config.pm: add DOCHAZKA_AUDITING and DOCHAZKA_AUDIT_TABLES to (1) make
+  auditing optional, and (2) give site admin control over which tables are
+audited
+- REST.pm: make auditing optional; implement 'create_audit_triggers' and
+  'delete_audit_triggers' routines to enable auditing to be disabled and
+  re-enabled as and when desired
+

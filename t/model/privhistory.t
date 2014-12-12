@@ -38,21 +38,17 @@ use warnings FATAL => 'all';
 #use App::CELL::Test::LogToFile;
 use App::CELL qw( $meta $site );
 use Data::Dumper;
-use DBI;
-use App::Dochazka::REST;
+use App::Dochazka::REST::ConnBank qw( $dbix_conn );
 use App::Dochazka::REST::Model::Employee;
 use App::Dochazka::REST::Model::Privhistory qw( phid_exists get_privhistory );
 use App::Dochazka::REST::Model::Shared qw( noof );
+use App::Dochazka::REST::Test;
 use App::Dochazka::REST::Util::Timestamp qw( $today $today_ts $yesterday_ts $tomorrow_ts );
-use Scalar::Util qw( blessed );
 use Test::More;
 
-# plan tests
 
-#plan skip_all => "Set DOCHAZKA_TEST_MODEL to activate data model tests" if ! defined $ENV{'DOCHAZKA_TEST_MODEL'};
-
-my $REST = App::Dochazka::REST->init( sitedir => '/etc/dochazka-rest' );
-my $status = $REST->{init_status};
+# initialize, connect to database, and set up a testing plan
+my $status = initialize_unit();
 if ( $status->not_ok ) {
     plan skip_all => "not configured or server not running";
 }
@@ -61,7 +57,7 @@ if ( $status->not_ok ) {
 my $emp = App::Dochazka::REST::Model::Employee->spawn(
         nick => 'mrprivhistory',
    );
-$status = $emp->insert;
+$status = $emp->insert( $faux_context );
 ok( $status->ok, "Inserted Mr. Privhistory" );
 
 # assign an initial privilege level to the employee
@@ -76,7 +72,7 @@ my $priv = App::Dochazka::REST::Model::Privhistory->spawn(
               remark => $ins_remark,
           );
 is( $priv->phid, undef, "phid undefined before INSERT" );
-$priv->insert;
+$priv->insert( $faux_context );
 diag( $status->text ) if $status->not_ok;
 ok( $status->ok, "Post-insert status ok" );
 ok( $priv->phid > 0, "INSERT assigned an phid" );
@@ -90,13 +86,13 @@ my $dastardly_sh = App::Dochazka::REST::Model::Privhistory->spawn(
 );
 is( ref( $dastardly_sh ), 'App::Dochazka::REST::Model::Privhistory', "privhistory object is an object" );
 $status = undef;
-$status = $dastardly_sh->insert;
+$status = $dastardly_sh->insert( $faux_context );
 is( $status->level, 'ERR', "ERR privhistory insert ERR" );
 is( $status->code, 'DOCHAZKA_DBI_ERR' );
 like( $status->text, qr/duplicate key value violates unique constraint \"privhistory_eid_effective_key\"/ );
 
 # get the entire privhistory record just inserted
-$status = $priv->load_by_eid( $emp->eid );
+$status = $priv->load_by_eid( $dbix_conn, $emp->eid );
 ok( $status->ok, "No DBI error" );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
 $priv->reset( $status->payload );
@@ -106,7 +102,7 @@ is( $priv->effective, "$ins_effective+01" );
 is( $priv->remark, $ins_remark );
 
 # spawn a fresh object and try it again
-$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $dbix_conn, $emp->eid );
 ok( $status->ok, "No DBI error" );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
 my $priv2 = $status->payload;
@@ -116,30 +112,30 @@ is( $priv2->effective, "$ins_effective+01" );
 is( $priv2->remark, $ins_remark );
 
 # get Mr. Priv History's priv level as of yesterday
-$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid, $yesterday_ts );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $dbix_conn, $emp->eid, $yesterday_ts );
 is( $status->level, 'NOTICE' );
 is( $status->code, 'DISPATCH_NO_RECORDS_FOUND', "Shouldn't return any rows" );
-is( $emp->priv( $yesterday_ts ), 'passerby' );
-is( $emp->priv( $today_ts ), 'active' );
+is( $emp->priv( $dbix_conn, $yesterday_ts ), 'passerby' );
+is( $emp->priv( $dbix_conn, $today_ts ), 'active' );
 
 # Get Mr. Privhistory's record again
-$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $emp->eid );
+$status = App::Dochazka::REST::Model::Privhistory->load_by_eid( $dbix_conn, $emp->eid );
 ok( $status->ok, "No DBI error" );
 is( $status->code, 'DISPATCH_RECORDS_FOUND', "Record loaded" );
 $priv->reset( $status->payload );
 #diag( Dumper( $priv ) );
 
 # Count of privhistory records should be 2
-is( noof(  "privhistory" ), 2 );
+is( noof( $dbix_conn, "privhistory" ), 2 );
 
 # test get_privhistory
-$status = get_privhistory( eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $faux_context, eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 my $ph = $status->payload->{'history'};
 is( scalar @$ph, 1, "One record" );
 
 # backwards tsrange triggers DBI error
-$status = get_privhistory( eid => $emp->eid, tsrange => "[$tomorrow_ts, $today_ts)" );
+$status = get_privhistory( $faux_context, eid => $emp->eid, tsrange => "[$tomorrow_ts, $today_ts)" );
 is( $status->level, 'ERR' );
 is( $status->code, 'DOCHAZKA_DBI_ERR', "backwards tsrange triggers DBI error" );
 
@@ -151,13 +147,13 @@ my $priv3 = App::Dochazka::REST::Model::Privhistory->spawn(
               remark => $ins_remark,
           );
 is( $priv3->phid, undef, "phid undefined before INSERT" );
-$status = $priv3->insert;
+$status = $priv3->insert( $faux_context );
 diag( $status->text ) if $status->not_ok;
 ok( $status->ok, "Post-insert status ok" );
 ok( $priv3->phid > 0, "INSERT assigned an phid" );
 
 # test get_privhistory again -- do we get two records?
-$status = get_privhistory( eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
+$status = get_privhistory( $faux_context, eid => $emp->eid, tsrange => "[$today_ts, $tomorrow_ts)" );
 ok( $status->ok, "Privhistory record found" );
 $ph = $status->payload->{'history'};
 is( scalar @$ph, 2, "Two records" );
@@ -167,26 +163,26 @@ is( scalar @$ph, 2, "Two records" );
 foreach my $priv_fields ( @$ph ) {
     my $priv = App::Dochazka::REST::Model::Privhistory->spawn( %$priv_fields );
     my $phid = $priv->phid;
-    ok( phid_exists( $phid ) );
-    $status = $priv->delete;
-    ok( ! phid_exists( $phid ) );
+    ok( phid_exists( $dbix_conn, $phid ) );
+    $status = $priv->delete( $faux_context );
+    ok( ! phid_exists( $dbix_conn, $phid ) );
     ok( $status->ok, "DELETE OK" );
     $priv->reset;
-    $status = $priv->load_by_id( $phid );
+    $status = $priv->load_by_id( $dbix_conn, $phid );
     is( $status->level, "NOTICE" );
     is( $status->code, 'DISPATCH_NO_RECORDS_FOUND' );
 }
 
 # After deleting all the records we inserted, there should still be
 # one left (root's)
-is( noof( "privhistory" ), 1 );
+is( noof( $dbix_conn, "privhistory" ), 1 );
 
 # Total number of employees should now be 2 (root, demo and Mr. Privhistory)
-is( noof( 'employees' ), 3 );
+is( noof( $dbix_conn, 'employees' ), 3 );
 
 # Delete Mr. Privhistory himself, too, to clean up
-$status = $emp->delete;
+$status = $emp->delete( $faux_context );
 ok( $status->ok );
-is( noof( 'employees' ), 2 );
+is( noof( $dbix_conn, 'employees' ), 2 );
 
 done_testing;

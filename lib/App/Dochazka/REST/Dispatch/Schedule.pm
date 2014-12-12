@@ -40,17 +40,12 @@ use strict;
 use warnings;
 
 use App::CELL qw( $CELL $log $site );
-use App::Dochazka::REST::dbh;
-use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
-use App::Dochazka::REST::Model::Employee;
+use App::Dochazka::REST::Dispatch::Shared qw( pre_update_comparison );
 use App::Dochazka::REST::Model::Schedhistory qw( get_schedhistory );
 use App::Dochazka::REST::Model::Schedintvls;
-# import dispatch targets for 'schedule/all' and 'schedule/all/disabled'
 use App::Dochazka::REST::Model::Schedule qw( get_all_schedules );
-use Carp;
 use Data::Dumper;
 use Params::Validate qw( :all );
-use Scalar::Util qw( blessed );
 use Try::Tiny;
 
 
@@ -66,11 +61,11 @@ App::Dochazka::REST::Dispatch::Schedule - path dispatch
 
 =head1 VERSION
 
-Version 0.322
+Version 0.348
 
 =cut
 
-our $VERSION = '0.322';
+our $VERSION = '0.348';
 
 
 
@@ -96,13 +91,14 @@ sub _history_self {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . "_history_self" ); 
 
+    my $conn = $context->{'dbix_conn'};
     my $tsrange = $context->{'mapping'}->{'tsrange'};
     my $eid = $context->{'current'}->{'eid'};
     my $nick = $context->{'current'}->{'nick'};
     
     defined $tsrange
-        ? get_schedhistory( eid => $eid, nick => $nick, tsrange => $tsrange )
-        : get_schedhistory( eid => $eid, nick => $nick );
+        ? get_schedhistory( $context, eid => $eid, nick => $nick, tsrange => $tsrange )
+        : get_schedhistory( $context, eid => $eid, nick => $nick );
 }
 
 
@@ -114,11 +110,10 @@ sub _history_eid {
     my $eid = $context->{'mapping'}->{'eid'};
 
     return App::Dochazka::REST::Dispatch::Shared::history(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Schedhistory',
-        method => $context->{'method'},
         key => [ 'EID', $eid ],
         tsrange => $tsrange,
-        body => $context->{'request_body'},
     );
 }
 
@@ -130,11 +125,10 @@ sub _history_nick {
     my $nick = $context->{'mapping'}->{'nick'};
 
     return App::Dochazka::REST::Dispatch::Shared::history(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Schedhistory',
-        method => $context->{'method'},
         key => [ 'nick', $nick ],
         tsrange => $tsrange,
-        body => $context->{'request_body'},
     );
 }
 
@@ -156,12 +150,14 @@ BEGIN {
 
 # '/schedule/all'
 sub schedule_all {
-    return get_all_schedules();
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    return get_all_schedules( conn => $context->{'dbix_conn'} );
 }
 
 # '/schedule/all/disabled'
 sub schedule_all_disabled {
-    return get_all_schedules( disabled => 1 );
+    my ( $context ) = validate_pos( @_, { type => HASHREF } );
+    return get_all_schedules( conn => $context->{'dbix_conn'}, disabled => 1 );
 }
 
 
@@ -191,9 +187,9 @@ sub _intervals_post {
 
     # the request body should contain an array of time intervals:
     # put these into the object
-    if (   ref( $context->{'request_body'} ) ne 'HASH' or
-           ! exists( $context->{'request_body'}->{'schedule'} ) or
-           ref( $context->{'request_body'}->{'schedule'} ) ne "ARRAY"
+    if ( ref( $context->{'request_body'} ) ne 'HASH' or
+         ! exists( $context->{'request_body'}->{'schedule'} ) or
+         ref( $context->{'request_body'}->{'schedule'} ) ne "ARRAY"
     ) {
         return $CELL->status_err( 'DOCHAZKA_MALFORMED_400' );
     }
@@ -202,14 +198,14 @@ sub _intervals_post {
     $intvls->{'intvls'} = $context->{'request_body'}->{'schedule'};
     #
     # insert the intervals
-    $status = $intvls->insert;
+    $status = $intvls->insert( $context->{'dbix_conn'} ); # schedintvls is not audited
     return $status unless $status->ok;
     $log->info( "schedule/intervals: Scratch intervals inserted" );
     #
     # convert the intervals to get the 'schedule' property
-    $status = $intvls->load;
+    $status = $intvls->load( $context->{'dbix_conn'} );
     if ( $status->not_ok ) {
-        $intvls->delete;
+        $intvls->delete( $context->{'dbix_conn'} );
         return $status;
     }
     $log->info( "schedule/intervals: Scratch intervals converted" );
@@ -220,7 +216,7 @@ sub _intervals_post {
     );
     #
     # insert schedule object to get SID
-    $status = $sched->insert;
+    $status = $sched->insert( $context );
     if ( $status->ok ) {
         if ( $status->code eq 'DOCHAZKA_SCHEDULE_EXISTS' ) {
             $code = 'DISPATCH_SCHEDULE_OK';
@@ -234,18 +230,17 @@ sub _intervals_post {
         }
     } else {
         $log->crit( "schedule/intervals: Model/Schedule.pm->insert failed - bailing out" );
-        $intvls->delete;
+        $intvls->delete( $context->{'dbix_conn'} );
         return $status;
     }
     #
     # delete the schedintvls object
-    $status = $intvls->delete;
+    $status = $intvls->delete( $context->{'dbix_conn'} ); # schedintvls is not audited
     return $status unless $status->ok;
     $log->info( "schedule/intervals: scratch intervals deleted" );
     #
     # report success
     return $CELL->status_ok( $code, payload => $sched->TO_JSON );
-
 }
 
 
@@ -255,8 +250,8 @@ sub _sched_by_shid {
     $log->debug( "Entering " . __PACKAGE__ . "::_sched_by_shid" ); 
     my $method = $context->{'method'};
     return App::Dochazka::REST::Dispatch::Shared::history_by_id(
+        context => $context,
         class => 'App::Dochazka::REST::Model::Schedhistory',
-        method => $context->{'method'},
         id => $context->{'mapping'}->{'shid'},
     );
 }
@@ -267,6 +262,8 @@ sub _schedule_get {
     my ( $context ) = validate_pos( @_, { type => HASHREF } );
     $log->debug( "Entering " . __PACKAGE__ . ":_schedule_get" ); 
 
+    my $conn = $context->{'dbix_conn'};
+
     my $sid;
     if ( exists $context->{'mapping'}->{'sid'} ) {
         return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'sid' ] ) 
@@ -275,7 +272,7 @@ sub _schedule_get {
     }
     return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'sid' ] ) unless $sid;
 
-    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $sid );
+    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $conn, $sid );
     return $status;
 }
 
@@ -294,11 +291,11 @@ sub _schedule_post {
     return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'sid' ] ) unless $sid;
 
     # load the SID
-    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $sid );
+    my $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $context->{'dbix_conn'}, $sid );
     return $status unless $status->ok and $status->code eq 'DISPATCH_RECORDS_FOUND';
 
     # run the update operation
-    return _update_schedule( $status->payload, $context->{'request_body'} );
+    return _update_schedule( $context, $status->payload, $context->{'request_body'} );
 }
 
 # '/schedule/sid/:sid'
@@ -320,25 +317,25 @@ sub _schedule_delete {
     return $CELL->status_err('DISPATCH_PARAMETER_BAD_OR_MISSING', args => [ 'sid' ] ) unless $sid;
 
     # spawn and load the schedule object
-    $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $sid );
+    $status = App::Dochazka::REST::Model::Schedule->load_by_sid( $context->{'dbix_conn'}, $sid );
     return $status unless $status->ok;
     return $status if $status->code ne 'DISPATCH_RECORDS_FOUND';
     my $sched = $status->payload;
 
     # delete the object
-    $status = $sched->delete;
+    $status = $sched->delete( $context );
     return $status;
-
 }
 
 
-# takes two arguments:
-# - "$sched" is a schedule object (blessed hashref)
-# - "$over" is a hashref with zero or more schedule properties and new values
+# takes three arguments:
+# - $context is the request context from Resource.pm
+# - $sched is a schedule object (blessed hashref)
+# - $over is a hashref with zero or more schedule properties and new values
 # the values from $over replace those in $emp
 sub _update_schedule {
-    my ($sched, $over) = @_;
-    $log->debug("Entering App::Dochazka::REST::Dispatch::Schedule::_update_schedule" );
+    my ( $context, $sched, $over ) = @_;
+    $log->debug("Entering " . __PACKAGE__ . "::_update_schedule" );
     if ( ref($over) ne 'HASH' ) {
         return $CELL->status_err('DOCHAZKA_MALFORMED_400')
     }
@@ -346,7 +343,7 @@ sub _update_schedule {
     delete $over->{'schedule'} if exists $over->{'schedule'};
     if ( pre_update_comparison( $sched, $over ) ) {
         $log->debug( "After pre_update_comparison: " . Dumper $sched );
-        return $sched->update;
+        return $sched->update( $context );
     }
     return $CELL->status_err('DOCHAZKA_MALFORMED_40O');
 }
