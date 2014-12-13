@@ -57,11 +57,11 @@ App::Dochazka::REST - Dochazka REST server
 
 =head1 VERSION
 
-Version 0.348
+Version 0.352
 
 =cut
 
-our $VERSION = '0.348';
+our $VERSION = '0.352';
 
 
 =head2 Development status
@@ -116,6 +116,9 @@ The PostgreSQL database is configured to listen for incoming SQL statements
 from the REST server. Based on these statements, it creates, retrieves,
 updates, and deletes (CRUD) employee attendance records and related data in the
 Dochazka database.
+
+The PostgreSQL database can be located on the same machine as the REST server,
+or on a remote machine.
 
 =item * one or more Dochazka clients
 
@@ -1144,23 +1147,15 @@ sub reset_db {
 
     # create:
     # - audit schema (see config/sql/audit_Config.pm)
-    # - all the Dochazka tables, functions, triggers, etc.
-    # - root employee
+    # - public schema (all application-specific tables, functions, triggers, etc.)
+    # - the 'root' and 'demo' employees
     # - privhistory record for root
     $conn = App::Dochazka::REST::ConnBank::get_arbitrary_dbix_conn(
         $dbname, $superuser, $superpass
     );
-
-    if ( $site->DOCHAZKA_AUDITING ) {
-        $status = run_sql(
-            $conn,
-            @{ $site->DBINIT_AUDIT },
-        );
-        return $status unless $status->ok;
-    }
-
     $status = run_sql(
         $conn,
+        @{ $site->DBINIT_AUDIT },
         @{ $site->DBINIT_CREATE },
     );
     return $status unless $status->ok;

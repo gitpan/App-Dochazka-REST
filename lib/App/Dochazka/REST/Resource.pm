@@ -76,11 +76,11 @@ App::Dochazka::REST::Resource - HTTP request/response cycle
 
 =head1 VERSION
 
-Version 0.348
+Version 0.352
 
 =cut
 
-our $VERSION = '0.348';
+our $VERSION = '0.352';
 
 
 
@@ -243,17 +243,17 @@ This method causes L<Web::Machine> to encode the response body in UTF-8.
 
 =cut
 
-sub charsets_provided { [ 'utf-8' ]; }
+sub charsets_provided { [ 'utf8' ]; }
 
 
 
-=head2 default_charset
-
-Really use UTF-8 all the time.
-
-=cut
-
-sub default_charset { 'utf-8'; }
+#=head2 default_charset
+#
+#Really use UTF-8 all the time.
+#
+#=cut
+#
+#sub default_charset { 'utf8'; }
 
 
 

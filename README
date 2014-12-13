@@ -2,7 +2,7 @@ NAME
     App::Dochazka::REST - Dochazka REST server
 
 VERSION
-    Version 0.348
+    Version 0.352
 
   Development status
     Dochazka is currently a Work In Progress (WIP). Do not expect it to do
@@ -43,6 +43,9 @@ DESCRIPTION
         statements from the REST server. Based on these statements, it
         creates, retrieves, updates, and deletes (CRUD) employee attendance
         records and related data in the Dochazka database.
+
+        The PostgreSQL database can be located on the same machine as the
+        REST server, or on a remote machine.
 
     * one or more Dochazka clients
         Dochazka clients, such as App::Dochazka::WWW, App::Dochazka::CLI,

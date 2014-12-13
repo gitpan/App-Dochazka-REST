@@ -41,7 +41,7 @@ use warnings;
 
 use App::CELL qw( $CELL $log $site );
 use App::Dochazka::REST::Dispatch::ACL qw( check_acl_context );
-#use App::Dochazka::REST::Dispatch::Shared qw( not_implemented pre_update_comparison );
+use App::Dochazka::REST::Dispatch::Shared qw( not_implemented );
 use App::Dochazka::REST::Model::Interval;
 use App::Dochazka::REST::Model::Shared;
 use Data::Dumper;
@@ -59,11 +59,11 @@ App::Dochazka::REST::Dispatch::Interval - path dispatch
 
 =head1 VERSION
 
-Version 0.348
+Version 0.352
 
 =cut
 
-our $VERSION = '0.348';
+our $VERSION = '0.352';
 
 
 

@@ -95,6 +95,7 @@ $bogus_intvls = [
         "[2014-07-14 09:00, 2014-07-14 17:07)",
         "[2014-07-14 08:57, 2014-07-14 17:05)",
         "[2014-07-14 06:43, 2014-07-14 25:00)",
+        "[2015-07-14 06:45, 2015-07-14 24:00)",
     ];
 map {
         $sto->{intvls} = [
@@ -106,6 +107,50 @@ map {
         ];
         $status = $sto->insert( $dbix_conn );
         is( $status->level, 'ERR' );
+        is( $status->code, 'DOCHAZKA_DBI_ERR' );
+        #diag( $status->code . ' ' . $status->text );
+        is( noof( $dbix_conn, 'schedintvls' ), 0 );
+     } @$bogus_intvls;
+
+#
+# this set of intervals is fine
+#
+$sto->{intvls} = [
+    "[2014-07-14 10:00, 2014-07-14 10:15)",
+    "[2014-07-14 10:15, 2014-07-14 10:30)",
+    "[2014-07-14 11:15, 2014-07-14 11:30)",
+    "[2014-07-14 11:30, 2014-07-14 11:45)",
+    "[2014-07-21 00:00, 2014-07-21 10:00)",
+];
+$status = $sto->insert( $dbix_conn );
+is( $status->level, 'OK' );
+ok( $status->code, 'DOCHAZKA_SCHEDINTVLS_INSERT_OK' );
+$status = $sto->delete( $dbix_conn );
+is( $status->level, 'OK' );
+ok( $status->code, 'DOCHAZKA_CUD_OK' );
+
+#
+# oh, but these are not so good
+#
+$bogus_intvls = [
+    "[2014-07-21 00:00, 2014-07-21 10:05)",
+    "[2014-07-21 00:00, 2014-07-21 10:10)",
+    "[2014-07-21 00:00, 2014-07-21 10:15)",
+    "[2015-07-21 00:00, 2015-07-21 10:05)",
+    "[2014-07-21 00:00, 2025-07-21 10:05)",
+];
+map {
+        $sto->{intvls} = [
+            "[2014-07-14 10:00, 2014-07-14 10:15)",
+            "[2014-07-14 10:15, 2014-07-14 10:30)",
+            "[2014-07-14 11:15, 2014-07-14 11:30)",
+            "[2014-07-14 11:30, 2014-07-14 11:45)",
+            $_,
+        ];
+        $status = $sto->insert( $dbix_conn );
+        is( $status->level, 'ERR' );
+        ok( $status->code, 'DOCHAZKA_CUD_OK' );
+        like( $status->text, qr/schedule intervals must fall within a 7-day range/ );
         #diag( $status->code . ' ' . $status->text );
         is( noof( $dbix_conn, 'schedintvls' ), 0 );
      } @$bogus_intvls;

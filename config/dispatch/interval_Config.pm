@@ -211,5 +211,35 @@ There are no syntactical limitations on the tsrange, but if too many records wou
 be fetched, the return status will be C<DISPATCH_TOO_MANY_RECORDS_FOUND>.
 EOH
     },
+    'interval/summary/?:qualifiers' => {
+        target => {
+            GET => 'not_implemented',
+        },
+        target_module => 'App::Dochazka::REST::Dispatch::Interval',
+        acl_profile => 'active', 
+        cli => 'interval summary $MODIFIERS',
+        description => 'Retrieve summary of an employee\'s intervals over a time period',
+        documentation => <<'EOH',
+=pod
+
+With this resource, employees can generate summaries of their attendance intervals
+over a given period. 
+
+If no qualifiers are provided, the summary defaults to the current employee and month.
+
+If an 'eid=..' or 'nick=...' qualifier is given, the summary will be generated
+for that employee.
+
+If a 'month=..' qualifer is given, the summary will be generated for the given
+month. If the month is given as an integer between 1 and 12, the summary will 
+be given for the corresponding month of the current year. If the month is given
+as, e.g., 188706, the summary will be given for June of the year 1887.
+
+Qualifiers can be combined, e.g.:
+
+    GET interval/summary/eid=83,month=6
+
+EOH
+    },
 
 });

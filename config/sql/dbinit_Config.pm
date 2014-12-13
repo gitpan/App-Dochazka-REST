@@ -166,12 +166,23 @@ $body$/,
     q/COMMENT ON TRIGGER schedintvls_valid_intvl ON schedintvls 
       IS 'Run basic validity checks on intervals before they are added to schedintvls table'/,
 
-    # FIXME: this only checks the interval being inserted. Additionally, it
-    # should check the interval against all existing intervals with the same
-    # SSID
     q/CREATE OR REPLACE FUNCTION valid_schedintvl() RETURNS trigger AS $$
+        DECLARE
+            max_upper   timestamptz;
+            min_lower   timestamptz;
         BEGIN
-            IF MAX(upper(NEW.intvl)) - MIN(lower(NEW.intvl)) > '168:0:0' THEN
+            SELECT MAX(upper(intvl)) FROM (
+                SELECT ssid, intvl FROM schedintvls WHERE schedintvls.ssid = NEW.ssid
+                UNION
+                SELECT NEW.ssid, NEW.intvl
+            ) AS stlasq INTO max_upper;
+            SELECT MIN(lower(intvl)) FROM (
+                SELECT ssid, intvl FROM schedintvls WHERE schedintvls.ssid = NEW.ssid
+                UNION
+                SELECT NEW.ssid, NEW.intvl
+            ) AS stlasq INTO min_lower;
+            RAISE NOTICE 'max_upper % min_lower %', max_upper, min_lower;
+            IF max_upper - min_lower > '168:0:0' THEN
                 RAISE EXCEPTION 'schedule intervals must fall within a 7-day range';
             END IF;
             RETURN NEW;
@@ -184,7 +195,7 @@ trigger function to ensure that all scratch schedule intervals fall within a
 $body$
 /,
 
-    q/CREATE TRIGGER valid_schedintvl BEFORE INSERT OR UPDATE ON schedintvls
+    q/CREATE TRIGGER valid_schedintvl BEFORE INSERT ON schedintvls
         FOR EACH ROW EXECUTE PROCEDURE valid_schedintvl()/,
 
     q/COMMENT ON TRIGGER valid_schedintvl ON schedintvls IS $body$

@@ -1001,6 +1001,22 @@ foreach my $shid ( @shid_for_deletion ) {
     req( $test, 404, 'root', 'GET', "schedule/history/shid/$shid" );
 }
 
+
+#=============================
+# "interval/summary/?:qualifiers" resource
+#=============================
+$base = "interval/summary";
+docu_check($test, "$base/?:qualifiers");
+
+#
+# PUT, POST, DELETE
+#
+foreach my $method ( qw( PUT POST DELETE ) ) {
+    foreach my $user ( qw( demo inactive active root ) ) {
+        req( $test, 405, $user, $method, $base );
+    }
+}
+
 # delete the testing employees
 delete_employee_by_nick( $test, 'active' );
 delete_employee_by_nick( $test, 'inactive' );

@@ -98,13 +98,27 @@ set( 'DOCHAZKA_DBUSER', 'dochazka' );
 #    name of PostgreSQL username (role) to connect with
 set( 'DOCHAZKA_DBPASS', 'dochazka' );
 
-# DOCHAZKA_AUDITING
-#    determine if audit schema/triggers will be created at initialization time
-set( 'DOCHAZKA_AUDITING', 1 ); 
+# DOCHAZKA_DBHOST
+#    host and domain name of remote PostgreSQL server - set to an empty
+#    string to use the default: local domain socket
+set( 'DOCHAZKA_DBHOST', '' );
+
+# DOCHAZKA_DBPORT
+#    port where the remote PostgreSQL server is listening - set to an empty
+#    string to use the default: local domain socket
+set( 'DOCHAZKA_DBPORT', '' );
+
+# DOCHAZKA_DBSSLMODE
+#    setting for the 'sslmode' property sent to DBD::Pg when the database
+#    connection is established - see 'perldoc DBD::Pg' - set to the empty
+#    string to use the default: (none)
+#set( 'DOCHAZKA_DBSSLMODE', 'require' );
+set( 'DOCHAZKA_DBSSLMODE', '' );
 
 # DOCHAZKA_AUDIT_TABLES
-#    list of tables to audit (if DOCHAZKA_AUDITING is true)
-set( 'DOCHAZKA_AUDIT_TABLES', [
+#    list of tables to audit (to disable auditing, set this parameter to [] in
+#    your SiteConfig.pm and call 'delete_audit_triggers')
+set( 'DOCHAZKA_AUDIT_TABLES', [ 
     qw( activities employees intervals locks privhistory schedhistory schedules ) 
 ] );
 

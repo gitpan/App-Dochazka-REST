@@ -2363,3 +2363,28 @@ audited
   'delete_audit_triggers' routines to enable auditing to be disabled and
   re-enabled as and when desired
 
+0.349  2014-12-12 16:43 CET
+- get rid of DOCHAZKA_AUDITING
+- Resource.pm: try to eliminate suspected double-encoding problem
+
+0.350  2014-12-12 18:06 CET
+- config/dispatch/interval_Config.pm: add resource definition for
+  'interval/summary/?:qualifiers'
+- dbinit_Config.pm: work on valid_schedintvl ticket
+- config/REST_Config.pm: add DOCHAZKA_DBHOST, DOCHAZKA_DBPORT,
+  DOCHAZKA_DBSSLMODE params
+- ConnBank.pm: use the new site params in construction of data source string,
+  provided they are set
+- t/dispatch/interval_lock.t: start adding tests for the new
+  'interval/summary/?:qualifiers' resource
+
+0.351  2014-12-12 21:59 CET
+- dbinit_Config.pm: the valid_schedintvl() function we had before was bogus -
+  write a proper one
+- t/model/schedintvls.t: add some tests that try to enter sets of intervals
+  spanning more than 168 hours (which is banned by policy, enforced by the
+  valid_schedintvl function)
+
+0.352  2014-12-13 14:51 CET
+- Build.PL: require Authen::Passphrase::SaltedDigest
+

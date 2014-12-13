@@ -53,11 +53,11 @@ App::Dochazka::REST::ConnBank - Provide DBIx::Connector objects
 
 =head1 VERSION
 
-Version 0.348
+Version 0.352
 
 =cut
 
-our $VERSION = '0.348';
+our $VERSION = '0.352';
 
 
 
@@ -119,7 +119,17 @@ password.  Returns a DBIx::Connector object.
 
 sub get_arbitrary_dbix_conn {
     my ( $dbname, $dbuser, $dbpass ) = @_;
+    my $dbhost = $site->DOCHAZKA_DBHOST;
+    my $dbport = $site->DOCHAZKA_DBPORT;
+    my $dbsslmode = $site->DOCHAZKA_DBSSLMODE;
+
     my $data_source = "Dbi:Pg:dbname=\"$dbname\"";
+    $data_source .= ";host=$dbhost" if $dbhost;
+    $data_source .= ";port=$dbport" if $dbport;
+    $data_source .= ";sslmode=$dbsslmode" if $dbsslmode;
+
+    $log->debug( "Returning DBIx::Connector object for data source $data_source and user $dbuser" );
+
     return DBIx::Connector->new(
         $data_source, 
         $dbuser,
